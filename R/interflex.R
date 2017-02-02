@@ -733,7 +733,7 @@ inter.binning<-function(
         X.v<-pcse(mod.X,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
     }
     X.v<-X.v[1:nbins,1:nbins] 
-    X.se<-sqrt(diag(as.matrix(X.v)))
+    X.se<-sqrt(diag(as.matrix(X.v,drop=FALSE)))
     X.se[which(is.na(Xcoefs))]<-NA
     df.X<-mod.X$df.residual
     crit.X<-abs(qt(.025, df=df.X))
@@ -1314,10 +1314,12 @@ inter.kernel <- function(Y, D, X,
 
     ## change fixed effect variable to factor
     if (is.null(FE)==FALSE) {
-        data[, FE] <- sapply(data[,FE],
-                             function(vec){as.numeric(as.factor(vec))})
+        if (length(FE) == 1) {
+            data[, FE] <- as.numeric(as.factor(data[, FE]))
+        } else {
+            data[, FE] <- sapply(data[,FE],function(vec){as.numeric(as.factor(vec))})
+        }
     }
-    
     
     ## labels
     if (is.null(Xlabel)==TRUE) {Xlabel = X}
@@ -1614,14 +1616,14 @@ coefs <- function(data,bw,Y,X,D,
     ## conditions
     noZ <- is.null(Z)
     noFE <- is.null(FE)
-
+    
     ## survey weights
     n <- dim(data)[1]
     if (is.null(weights)==TRUE) {
         weights <- rep(1, n)
     } else {
         weights <- data[,weights]
-    } 
+    }
     
     ## storage
     result <- matrix(NA, length(X.eval), (5 + length(Z)))
@@ -1647,7 +1649,7 @@ coefs <- function(data,bw,Y,X,D,
 
     ## main algorithm
     if (noFE) { # no fixed effects, wls
-        ## data to be used
+         ## data to be used
         dat<-data[, c(Y, D, X, Z)]
         colnames(dat)[1:3] <- c("y","d","x")
         ## estimation (a loop)
@@ -1657,16 +1659,15 @@ coefs <- function(data,bw,Y,X,D,
         result <- data.frame(result)    
     } else{ # with fixed effects
         ## data to be used
-        dat <- data[, c(Y, D, X, Z, FE)]
+        dat <- data[, c(Y, D, X, Z)]
+        dat.FE <- as.matrix(data[,FE],drop = FALSE)
         for (i in 1:length(X.eval)) {
             xx <- dat[,X]-X.eval[i]
             dat1 <- as.matrix(cbind(dat[,Y],dat[,D],
                                     xx, dat[,D] * xx, dat[,Z]))
-            dat1.FE <- as.matrix(dat[,FE]) 
             w<-dnorm(xx/bw) * weights
-            estcoef <- fastplm(data = dat1, FE = dat1.FE,
+            estcoef <- fastplm(data = dat1, FE = dat.FE,
                                weight = w, FEcoefs = 0)$coefficients
-            #fastplm(data = dat1, fe=FE)$coefficients
             estcoef[which(is.nan(estcoef))] <- 0
             result[i,] <- c(X.eval[i],0,estcoef)
         }
@@ -1756,7 +1757,7 @@ crossvalidate <- function(data, Y, D, X, Z = NULL, weights = NULL,
     if (is.null(FE)==FALSE) { # with FE, first demean test data
         for (var in c(Y,D,Z)) {
             data[,var] <- fastplm(data = as.matrix(data[, var]),
-                                  FE = as.matrix(data[, FE]),
+                                  FE = as.matrix(data[, FE],drop = FALSE),
                                   weight = rep(1, n),
                                   FEcoefs = 0)$residuals   
         } 
