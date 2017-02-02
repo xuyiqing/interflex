@@ -1,0 +1,8 @@
+useDynLib(interflex)
+importFrom(Rcpp, evalCpp)
+# exportPattern("^[[:alpha:]]+")
+export(inter.raw)
+export(inter.gam)
+export(inter.binning)
+export(inter.kernel)
+export(fastplm)
