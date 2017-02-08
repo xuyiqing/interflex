@@ -1,0 +1,11 @@
+v 3
+d interflex, a STATA program
+
+p interflex Producing Flexible Marginal Effect Estimates with Multiplicative Interaction Models
+
+* l word-to-show path-or-url [description]
+* t: Directories within site:
+* t path [description]
+* Packages:
+* p pkgname [description]
+

@@ -1,0 +1,26 @@
+v 3
+
+d interlfex. Producing Flexible Marginal Effect Estimates with Multiplicative Interaction Models
+d
+d Author: Yiqing Xu, Jens Hainmueller, Jonathan Mummolo, Licheng Liu
+d Support: yiqingxu@ucsd.edu
+d
+d KW: interaction
+d KW: conditional effect
+d KW: kernel
+d
+d Requires: Stata version 12
+d
+d Distribution-Date: 20170201
+d
+
+f interflex.ado
+f interflex.sthlp
+f sample1.dta
+f sample2.dta
+f sample3.dta
+f sample4.dta
+
+d Note: An User's Guide is available at http://yiqingxu.org/software/interaction/StataGuide.pdf
+
+e
