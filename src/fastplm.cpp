@@ -7,7 +7,7 @@ using namespace Rcpp;
 List fastplm(arma::mat data,
              arma::mat FE,
              arma::colvec weight,
-             int FEcoefs = 0
+             int FEcoefs = 0 
              ){
       
   // parse data
@@ -23,16 +23,16 @@ List fastplm(arma::mat data,
   /*if(weight.is_empty()){
     weight = arma::ones(n, 1);
   }*/
-
+  
   // declare variables
   arma::colvec y;  // n*1
   arma::mat X; // n*p
   arma::colvec resid; // n*1
   arma::colvec e; // n*1 (with fixed effects)
   arma::colvec coeff; // coefficient (full)
-  arma::colvec se; // SE (full)
+  //arma::colvec se; // SE (full)
   arma::colvec coef; // coefficient
-  arma::colvec stderror; // SE
+  //arma::colvec stderror; // SE
   int df; // degrees of freedom
   double sig2; // sigma2
   double mu; // grand mean
@@ -40,7 +40,7 @@ List fastplm(arma::mat data,
   arma::mat W; // big weighting matrix to calculate fixed effects
   arma::colvec alphas; // fixed effect coefficients
   
-  // count total number of groups (loss of degrees of freedom)
+  /* count total number of groups (loss of degrees of freedom) */
   arma::mat FEvalues;  
   for(int ii=0; ii<m; ii++){ // cluster
     arma::colvec fe = arma::unique(FE.col(ii));   
@@ -52,7 +52,8 @@ List fastplm(arma::mat data,
   }
   int gtot = FEvalues.n_rows;
 
-  // FWL-MAP iteration
+  
+  /* FWL-MAP iteration */
   int niter = 0;
   while ((diff > 1e-5) & (niter<50)) { 
 
@@ -81,7 +82,11 @@ List fastplm(arma::mat data,
       // take average
       for(int i=0; i<(p+1); i++){
         for(int j=0; j<g; j++){
-          mean_value(j,i)=mean_value(j,i)/fe_length(j); 
+           if (fe_length(j)!=0) {
+            mean_value(j,i)=mean_value(j,i)/fe_length(j);
+          } else{
+            mean_value(j,i)=0;
+          } 
         }
       }
       // demean
@@ -101,27 +106,29 @@ List fastplm(arma::mat data,
     data_old = data;
     niter++;
   }
-      
-  // Estimation
+
+ 
+ 
+  /* Estimation */
   y = data.col(0);  // n*1
   if (p>0) {
     X = data.cols(1, p); // n*p
     //store coefficents and check variation of X
     coeff =arma::zeros(p,1); //store coefficients
-    se =arma::zeros(p,1);  
+    //se =arma::zeros(p,1);
+
     // check X variation
     int cc = p;
     for(int i=0;i<cc;i++){
       arma::colvec var =arma::unique(X.col(i));
       if(var.n_rows==1){ // no variation
         coeff(i)=arma::datum::nan ;
-        se(i)=arma::datum::nan ;
+        //se(i)=arma::datum::nan ;
         X.shed_col(i);
         i=i-1;
         cc=cc-1;
       }
     }
-    
     // weighted
     y = y%sqrt(weight);
     for(int i=0;i<cc;i++){
@@ -136,21 +143,23 @@ List fastplm(arma::mat data,
   else {
     resid = y;
   }
+ 
       
   // std.err.
   df = n - gtot - p;
   sig2 = arma::as_scalar(resid.t()*resid/df);
-  if (p>0) { 
-    stderror = arma::sqrt(sig2 * arma::diagvec(arma::inv(arma::trans(X)*X))); 
-  } 
+  // if (p>0) { 
+  //   stderror = arma::sqrt(sig2 * arma::diagvec(arma::inv(arma::trans(X)*X))); 
+  // } 
       
   // fill in non-NaN coefficients
   int count=0;
   //String label = xname(0); 
   for(int i=0; i<p; i++){
-    if(coeff(i)==0||se(i)==0){
+    if(coeff(i)==0){
+    //  if(coeff(i)==0||se(i)==0){
       coeff(i)=coef(count);
-      se(i)=stderror(count); 
+      //  se(i)=stderror(count); 
       count=count+1;
     }
   }
@@ -217,7 +226,7 @@ List fastplm(arma::mat data,
   List output;
   if (p > 0) {
     output["coefficients"] = coeff;
-    output["stderr"] = se;
+    //output["stderr"] = se;
   }
   output["residuals"] = resid;
   output["niter"] = niter;

@@ -422,7 +422,8 @@ inter.binning<-function(
                         xlim = NULL,
                         ylim = NULL,
                         interval = NULL,
-                        Xdistr = "histogram" # c("density","histogram")
+                        Xdistr = "histogram", # c("density","histogram")
+                        wald = TRUE
                         ){
 
 
@@ -1061,9 +1062,11 @@ inter.binning<-function(
                 groupT=data.aug[,time],
                 pairwise=pairwise)$vcov
     }
-    library(lmtest)
-    wald <- waldtest(mod.re, mod.un, test="Chisq", vcov=v)
-    p.wald <- round(wald[[4]][2],4)
+    if (wald == TRUE) {
+        library(lmtest)
+        wald <- waldtest(mod.re, mod.un, test="Chisq", vcov=v)
+        p.wald <- round(wald[[4]][2],4)
+    }
      
     ##################################
     ## storage
@@ -1078,7 +1081,9 @@ inter.binning<-function(
     if (nbins%in%c(2,3)) {
         out<-c(out,list(p.twosided=p.twosided)) 
     }
-    out <- c(out, list(p.wald = p.wald))
+    if (wald == TRUE) {
+        out <- c(out, list(p.wald = p.wald))
+    }
     if (figure==TRUE) {out<-c(out,list(graph=p1))} 
     return(out)
 }
@@ -1629,27 +1634,27 @@ coefs <- function(data,bw,Y,X,D,
     result <- matrix(NA, length(X.eval), (5 + length(Z)))
     colnames(result)<-c("X","Intercept","ME","x","Dx",Z)
     
-    ## formula
-    if (noZ) { ## no covariates
-        formula <- as.formula("y ~ d + xx + d_xx")
-    } else { ## with covariates
-        formula<- as.formula(paste("y ~ d + xx + d_xx + ",paste(Z,collapse="+")))               
-    } 
-    ## weighted least squares without fixed effect
-    wls<-function(x, dat, weights){
-        dat1<-dat
-        dat1$xx<-dat1$x-x
-        dat1$d_xx <- dat1$d * dat1$xx
-        dat1$w <- dnorm(dat1$xx/bw) * weights 
-        reg <- lm(formula, data=dat1, weights = w)
-        result <- c(x, reg$coef)
-        result[which(is.na(result))] <- 0 
-        return(result)   
-    } ## end of WLS function       
-
     ## main algorithm
     if (noFE) { # no fixed effects, wls
-         ## data to be used
+        ## formula
+        if (noZ) { ## no covariates
+            formula <- as.formula("y ~ d + xx + d_xx")
+        } else { ## with covariates
+            formula<- as.formula(paste("y ~ d + xx + d_xx + ",paste(Z,collapse="+")))               
+        } 
+        ## weighted least squares without fixed effect
+        wls<-function(x, dat, weights){
+            dat1<-dat
+            dat1$xx<-dat1$x-x
+            dat1$d_xx <- dat1$d * dat1$xx
+            dat1$w <- dnorm(dat1$xx/bw) * weights 
+            reg <- lm(formula, data=dat1, weights = w)
+            result <- c(x, reg$coef)
+            result[which(is.na(result))] <- 0 
+            return(result)   
+        } ## end of WLS function
+        
+        ## data to be used
         dat<-data[, c(Y, D, X, Z)]
         colnames(dat)[1:3] <- c("y","d","x")
         ## estimation (a loop)
@@ -1659,7 +1664,7 @@ coefs <- function(data,bw,Y,X,D,
         result <- data.frame(result)    
     } else{ # with fixed effects
         ## data to be used
-        dat <- data[, c(Y, D, X, Z)]
+        dat <- data[, c(Y, D, X, Z)] 
         dat.FE <- as.matrix(data[,FE],drop = FALSE)
         for (i in 1:length(X.eval)) {
             xx <- dat[,X]-X.eval[i]
