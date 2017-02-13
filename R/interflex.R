@@ -580,12 +580,11 @@ inter.binning<-function(
             stop("Missing values. Try option na.rm = TRUE\n")
         }
     }
-    n<-dim(data)[1]
-
+    
     #################################
     
     library(ggplot2)
-    N<-dim(data)[1]
+    n<-dim(data)[1]
     data[,D]<-as.numeric(data[,D])
     
     ## parsing fixed effects
@@ -687,7 +686,7 @@ inter.binning<-function(
     ## G -- a matrix of group dummies
     ## DG -- a matrix of interactions 
     
-    G<-DG<-GX<-DGX<-matrix(0,N,nbins)
+    G<-DG<-GX<-DGX<-matrix(0,n,nbins)
     for (i in 1:nbins) {
         G[which(groupX==i),i]<-1
         DG[,i]<-data[,D]*G[,i]
@@ -929,13 +928,7 @@ inter.binning<-function(
                          label="M2",colour="gray50",size=10) +
                 annotate(geom="text", x=out.bin[4,1], y=pos,
                          label="H",colour="gray50",size=10)
-        } else if (nbins>4) {
-            for (i in 1:nbins) {
-                p1<-p1 + annotate(geom="text", x=out.bin[i,1], y=pos,
-                                  label=paste("G",i,sep=""),
-                                  colour="gray50",size=10)
-            }
-        }
+        } 
         
         ## linear plot 
         p1<-p1 + geom_line(data=out,aes(X.lvls,marg))+
@@ -1012,7 +1005,7 @@ inter.binning<-function(
     ## create dummies for bins and interactions
     ## G -- a matrix of group dummies
     ## DG -- a matrix of interactions
-    G<-DG<-GX<-DGX<-matrix(0,N,(nbins-1))
+    G<-DG<-GX<-DGX<-matrix(0,n,(nbins-1))
     for (i in 1:(nbins-1)) {
         G[which(groupX==(i+1)),i]<-1
         DG[,i]<-data[,D]*G[,i]
@@ -1064,8 +1057,15 @@ inter.binning<-function(
     }
     if (wald == TRUE) {
         library(lmtest)
-        wald <- waldtest(mod.re, mod.un, test="Chisq", vcov=v)
-        p.wald <- round(wald[[4]][2],4)
+        wald.out <- tryCatch(
+            p.wald <- round(waldtest(mod.re, mod.un,
+                                     test="Chisq", vcov=v)[[4]][2],4) 
+          , error = function(e){return(NULL)}
+        )
+        if (is.null(wald.out)==TRUE) {
+            p.wald <- NULL
+            warning("Var-cov matrix nearly sigular in the Wald test.")
+        } 
     }
      
     ##################################
