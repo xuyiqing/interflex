@@ -3,11 +3,12 @@
 \title{The Binning Estimator}
 \description{Implementing the binning estimator, a generalization of the
   multiplicative interaction model and conducting various diagnostic tests}
-\usage{inter.binning(Y, D, X, Z = NULL, weights = NULL, FE = NULL,
-          data, nbins = 3, cutoffs = NULL, vartype = "homoscedastic",
-          cl = NULL, time = NULL, pairwise = TRUE,
-          Ylabel = NULL, Dlabel = NUL, Xlabel = NULL,
-          main = NULL, xlim = NULL, ylim = NULL, Xdistr = "histogram")
+\usage{inter.binning(Y, D, X, Z = NULL, FE = NULL, weights = NULL,
+          data, na.rm = FALSE, nbins = 3, cutoffs = NULL,
+          vartype = "homoscedastic", 
+          cl = NULL, time = NULL, pairwise = TRUE, figure = TRUE, main = NULL,
+          Ylabel = NULL, Dlabel = NULL, Xlabel = NULL,
+          xlim = NULL, ylim = NULL, interval = NULL, Xdistr = "histogram", wald = TRUE)
 }
 \arguments{
   \item{Y}{a string, name of the outcome variable.}
@@ -58,6 +59,10 @@
   \item{Xdistr}{a string indicating the way the distribution of the
     moderator will be plotted, either "histogram" (or "hist") or
     "density". The default is "histogram".}
+  \item{figure}{a logical flag indicating whether to draw the graph. 
+    The default is TRUE.}
+  \item{interval}{manually set the interval for the graph.}
+  \item{wald}{wald test.}
 }
 \details{
   \bold{inter.binning} implements the binning estimator. There are
@@ -154,7 +159,7 @@ inter.binning(Y = "Y", D = "D", X = "X", Z = "Z1",
                   data = s2, cutoffs = c(1,2,4,5))
 
 ## with fixed effects
-s4$wgt <- 1
+s4[,"wgt"] <- 1
 inter.binning(Y = "Y", D = "D", X = "X", Z = "Z1",
                   weights = "wgt", FE = c("group","year"),
                   data = s4, cl = "group", vartype = "cluster")

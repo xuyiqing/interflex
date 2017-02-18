@@ -3,7 +3,8 @@
 \title{Visualization of a Generalized Additive Model (GAM)}
 \description{Estimating and plotting a GAM before estimating a multiplicative interaction model}
 \usage{inter.gam(Y, D, X, Z = NULL, weights = NULL, FE = NULL,
-          data, SE = FALSE, k = 10, angle = c(30,100,-30,-120))
+          data, SE = FALSE, k = 10, angle = c(30,100,-30,-120),
+          Ylabel = NULL, Dlabel = NULL, Xlabel = NULL)
 }
 \arguments{
   \item{Y}{a string, name of the outcome variable.}

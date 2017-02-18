@@ -15,6 +15,13 @@
 
 
 #################################################
+coefs <- NULL
+crossvalidate <- NULL
+inter.binning <- NULL
+inter.kernel <- NULL
+inter.raw <- NULL
+vcovCluster <- NULL
+#################################################
 
 inter.raw<-function(Y,D,X,weights=NULL,data,
                         nbins=3,cutoffs=NULL, span=NULL,
@@ -108,7 +115,7 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
     }
      
     ## load packages
-    library(ggplot2)
+    requireNamespace("ggplot2")
 
     ## drop missing values
     data <- na.omit(data[,c(Y, D, X)])
@@ -360,7 +367,7 @@ inter.gam<-function(Y,D,X,Z=NULL,weights=NULL,FE=NULL,data,
     ## drop missing values
     data <- na.omit(data[,c(Y, D, X, Z)])
     
-    require(mgcv) 
+    requireNamespace("mgcv") 
     if (is.null(FE)==FALSE) {
         if (is.null(Z)==TRUE) {Z<-c()}
         for (i in 1:length(FE)) {
@@ -425,9 +432,13 @@ inter.binning<-function(
                         Xdistr = "histogram", # c("density","histogram")
                         wald = TRUE
                         ){
-
-
     
+    x <- NULL
+    y <- NULL
+    xmin <- NULL
+    xmax <- NULL
+    ymin <- NULL
+    ymax <- NULL
     ## check input
     if (is.character(Y) == FALSE) {
         stop("Y is not a string.")
@@ -583,7 +594,7 @@ inter.binning<-function(
     
     #################################
     
-    library(ggplot2)
+    requireNamespace("ggplot2")
     n<-dim(data)[1]
     data[,D]<-as.numeric(data[,D])
     
@@ -619,12 +630,12 @@ inter.binning<-function(
     if (vartype=="homoscedastic") {
         v<-vcov(mod.naive)
     } else if (vartype=="robust") {
-        require(sandwich)
+        requireNamespace("sandwich")
         v<-vcov(mod.naive,type="HC1") # White with small sample correction
     } else if (vartype=="cluster") {
         v<-vcovCluster(mod.naive,cluster = data[,cl])
     } else if (vartype=="pcse") {
-        library(pcse)
+        requireNamespace("pcse")
         v<-pcse(mod.naive,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
     }
     
@@ -791,7 +802,6 @@ inter.binning<-function(
                     de.co <- density(data[data[,D]==0,X])
                     de.tr <- density(data[data[,D]==1,X])
                 } else {
-                    suppressWarnings(library(plotrix))
                     suppressWarnings(de.co<-density(data[data[,D]==0,X],
                                                     weights=data[data[,D]==0,weights]))
                     suppressWarnings(de.tr<-density(data[data[,D]==1,X],
@@ -830,7 +840,6 @@ inter.binning<-function(
                 if (is.null(weights)==TRUE) {
                     de <- density(data[,X])
                 } else {
-                    suppressWarnings(library(plotrix))
                     suppressWarnings(de <- density(data[,X],weights=data[,weights]))
                 }
 
@@ -859,7 +868,6 @@ inter.binning<-function(
                 if (is.null(weights)==TRUE) {
                     hist.out<-hist(data[,X],breaks=80,plot=FALSE)
                 } else {
-                    suppressWarnings(library(plotrix))
                     suppressWarnings(hist.out<-hist(data[,X],data[,weights],
                                                     breaks=80,plot=FALSE))
                 } 
@@ -972,7 +980,7 @@ inter.binning<-function(
     }
 
     ## L kurtosis
-    library(Lmoments)
+    requireNamespace("Lmoments")
     Lkurtosis <- Lmoments(data[,X],returnobject=TRUE)$ratios[4]
     
     ## if the signs are correct
@@ -985,11 +993,11 @@ inter.binning<-function(
         return(p)
     }
     if (nbins==3) {
-        p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digit=4)
+        p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digits=4)
         names(p.twosided)<-c("p.1v2","p.2v3","p.1v3")
         names(Xcoefs)<-c("X_low","X_med","X_high")
     } else if (nbins==2) {
-        p.twosided<-round(pvalue(1,2),digit=4)
+        p.twosided<-round(pvalue(1,2),digits=4)
         names(p.twosided)<-c("p.LvH")
         names(Xcoefs)<-c("X_low","X_high")
     } else if (nbins==4) {
@@ -1056,7 +1064,7 @@ inter.binning<-function(
                 pairwise=pairwise)$vcov
     }
     if (wald == TRUE) {
-        library(lmtest)
+        requireNamespace("lmtest")
         wald.out <- tryCatch(
             p.wald <- round(waldtest(mod.re, mod.un,
                                      test="Chisq", vcov=v)[[4]][2],4) 
@@ -1117,6 +1125,15 @@ inter.kernel <- function(Y, D, X,
                          file = NULL
                          ){
 
+    x <- NULL
+    y <- NULL
+    xmin <- NULL
+    xmax <- NULL
+    ymin <- NULL
+    ymax <- NULL
+    ME <- NULL
+    CI_lower <- NULL
+    CI_upper <- NULL
     ## check input
     if (is.character(Y) == FALSE) {
         stop("Y is not a string.")
@@ -1339,12 +1356,12 @@ inter.kernel <- function(Y, D, X,
      
     ## preparation for parallel computing
     if (parallel == TRUE & (CI == TRUE|is.null(bw))) {
-        require(foreach)
-        require(doParallel)
+        requireNamespace("doParallel")
+        ## require(iterators)
         maxcores <- detectCores()
         cores <- min(maxcores, cores)
         pcl<-makeCluster(cores)  
-        registerDoParallel(pcl)
+        doParallel::registerDoParallel(pcl)
         cat("Parallel computing with", cores,"cores...\n") 
     }
     
@@ -1426,7 +1443,7 @@ inter.kernel <- function(Y, D, X,
 
     ##########################################
     ## plotting
-    require(ggplot2)
+    requireNamespace("ggplot2")
     if(is.null(Xlabel)==FALSE){
         x.label<-c(paste("Moderator: ", Xlabel, sep=""))
         y.label<-c(paste("Marginal Effect of ",Dlabel," on ",Ylabel,sep=""))
@@ -1688,10 +1705,13 @@ coefs <- function(data,bw,Y,X,D,
 
 crossvalidate <- function(data, Y, D, X, Z = NULL, weights = NULL,
                           FE = NULL, cl = NULL, 
-                          X.eval, grid, nfold = 5, parallel = FALSE,
+                          X.eval, grid, nfold = 5, parallel = FALSE, bw,
                           metric = "MSPE"){
 
    
+    ## %dopar% <- NULL
+    
+    
     ## calculate error for testing set
     getError <- function(train, test, bw, Y, X, D, Z, FE, weights, X.eval){
  
@@ -1812,7 +1832,7 @@ vcovCluster <- function(
     cluster
 )
 {
-    require(sandwich)
+    requireNamespace("sandwich")
     ## require(lmtest)
     
     if(nrow(model.matrix(model))!=length(cluster)){
@@ -1826,7 +1846,7 @@ vcovCluster <- function(
     ## }
     dfc <- (M/(M - 1)) * ((N - 1)/(N - K))
     uj  <- apply(estfun(model), 2, function(x) tapply(x, cluster, sum));
-    rcse.cov <- dfc * sandwich(model, meat = crossprod(uj)/N)
+    rcse.cov <- dfc * sandwich(model, meat. = crossprod(uj)/N)
     ##colnames(rcse.cov)<-rownames(rcse.cov)<-names(model$coefficients)
     return(rcse.cov)
 }

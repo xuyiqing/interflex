@@ -1,8 +1,8 @@
 \name{interflex-package}
 \alias{interflex}
 \docType{package}
-\title{\packageTitle{interflex}}
-\description{\packageDescription{interflex}}
+\title{Multiplicative Interaction Models Diagnostics and Visualization}
+\description{Producing Flexible Marginal Effect Estimates with Multiplicative Interaction Models}
 
 \details{This package performs diagnostics and visualizations of
   multiplicative interaction models. Besides conventional linear
@@ -15,7 +15,7 @@
   safegiard against excessive extrapolation.}
 
 \author{Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer).\cr
-  Please write to <yiqingxu@ucsd.edu> if you find any bugs.}
+  Please report bugs to <yiqingxu@ucsd.edu>.}
 
 \references{Jens Hainmueller; Jonathan Mummolo; Yiqing Xu. 2016. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Available at SSRN: \url{https://papers.ssrn.com/abstract_id=2739221}.}
 

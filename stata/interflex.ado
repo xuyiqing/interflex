@@ -35,7 +35,8 @@ version 12
    local y `Y'
    local x `X'
    local d `D'
-   local var `y' `d' `varlist'
+   local z `varlist'
+   local var `y' `d' `z'
 
    /* check input and set default */
    /* type */
@@ -75,6 +76,7 @@ version 12
    }
    if ("`vce'"=="cluser"& "`cluster'"=="") {
        disp as error "Clustering variable not specified"
+       exit
    }
    if ("`vce'"=="cluster" & "`cluster'"!="") {
        local vce = "cl " + "`cluster'"
@@ -139,6 +141,12 @@ version 12
       disp as err "Weights not supported with the kernel estimation"
       exit
       }
+  /*check X more than 5 values if type = kernel*/
+  qui tab `x'
+  local xcount = r(r)
+  if("`type'"=="kernel"&`xcount'<5){
+     disp as res "Moderator has less than 5 values; consider a fully saturated model."
+  }
 
    preserve
    
@@ -154,7 +162,7 @@ version 12
   if("`type'"!="kernel"){ // binning or linear
        tempvar dx
        gen `dx' = `x'*`d'
-       local var `y' `d' `x' `dx' `varlist'
+       local var `y' `d' `x' `dx' `z'
        if("`vce'"!="bootstrap"){
            if("`fe'"==""){
                qui: reg `var' `wgt', vce(`vce')
@@ -208,14 +216,14 @@ version 12
        mat colnames margeff = xlevel marg se CI_l CI_u N
        local binary = 0
    }
-   scalar nc = colsof(margeff)
-   scalar quant = invnormal(0.975)
+   /*local nc = colsof(margeff)*/
+   local quant = invnormal(0.975)
 
    /****** cross-validation *****/
    if("`type'"=="kernel" & "`bw'"=="0") {
        local CV = 1
        mat kernel = J(`grid',1,0)
-       local first = log((`xmax' - `xmin')/20)
+       local first = log((`xmax' - `xmin')/10)
        local last = log(`xmax' - `xmin')
        local step = (`last'-`first')/`grid'
       
@@ -252,9 +260,8 @@ version 12
          }
 
        /* number of covariates (Z) */
-      local con: word count `varlist'
-      scalar con1 = `con'+1
-      local con2 `=con1'
+      local con: word count `z'
+      local con1 = `con'+1
 
       forvalues k = 1(1)`grid'{
          forvalues i = 1(1)5{
@@ -267,44 +274,61 @@ version 12
                qui: gen `wei' = sqrt(normalden(`xx'/el(gs,`k',1)))
                qui: gen `dx' = `xx'*`d'
                if ("`fe'"==""){
-                  qui reg `var' `xx' `dx' [weight= `wei'] if `fold' != `i'
+                  cap qui reg `var' `xx' `dx' [weight= `wei'] if `fold' != `i'
                   }
                else {
-                  qui reghdfe `var' `xx' `dx' [weight= `wei'] if `fold' != `i', absorb(`fe') 
+                  cap qui reghdfe `var' `xx' `dx' [weight= `wei'] if `fold' != `i', absorb(`fe') 
                   }
-               mat coe = e(b)
-               forvalues kk = 1(1)`con2'{
-                  mat coef1[`j',`kk'] = el(coe,1,`kk')    
+               if(_rc==0){
+                  mat coe = e(b)
+                  forvalues kk = 1(1)`con1'{
+                     mat coef1[`j',`kk'] = el(coe,1,`kk')    
+                     }
+                  if("`fe'"==""){
+                     mat coef1[`j',2+`con'] = el(coe,1,colsof(coe))
+                     }
+                  else{
+                     mat coef1[`j',2+`con'] = 0
+                     } 
+                  cap drop `xx' `wei' `dx'
+                  cap mat drop coe
                   }
-               if("`fe'"==""){
-                  mat coef1[`j',2+`con'] = el(coe,1,colsof(coe))
+               else {
+                  mat kernel[`k',1] = .  
                   }
-               else{
-                  mat coef1[`j',2+`con'] = 0
-                  } 
-               cap drop `xx' `wei' `dx'
-               cap mat drop coe
                }
-               mata:sumofse("`y' `x' `d' `varlist' `fold'","eval","coef1","fol")
-               mat kernel[`k',1] = el(kernel,`k',1) + r(SE)
-               cap mat drop coef1   
+               if(el(kernel,`k',1)!=.){
+                  mata:sumofse("`y' `x' `d' `z' `fold'","eval","coef1","fol")
+                  mat kernel[`k',1] = el(kernel,`k',1) + r(SE)
+                  cap mat drop coef1
+                  }
+               else {
+                  mat kernel[`k',1] = .
+                  }
            }
          }
-
       local j = 1
-      scalar coordinate = 1
-      scalar min = kernel[1,1]
+      local coordinate = 1
+      local min = kernel[1,1]
       while `j'<`grid'{
            local ++j
-           if(el(kernel,`j',1)<`=min'){
-               scalar min = kernel[`j',1]
-               scalar coordinate = `j'
+           if(el(kernel,`j',1)<`min'){
+               local min = kernel[`j',1]
+               local coordinate = `j'
            }
          }
 
-      local bw = exp(`first'+`step'*(`=coordinate'-1))
+      local bw = exp(`first'+`step'*(`coordinate'-1))
       mat cv = gs, kernel
       mat colnames cv = bw MSPE
+
+      /* mpse contains missing value*/
+      forvalues i =1(1)`grid'{
+         if(el(kernel,`i',1)==.){
+            display as txt "MPSE contains missing value"
+            continue, break
+            }  
+         }
 
       **mat list cv
       display as txt "The optimal bandwidth is" as res %9.4f `bw'
@@ -325,7 +349,7 @@ version 12
 
    /*******calculation *********/   
    if("`type'"=="kernel"){
-
+   
        if ("`vce'"!="bootstrap") {
            forvalues v = 1(1)`neval'{
                tempvar xx wei dx
@@ -333,19 +357,26 @@ version 12
                qui: gen `dx' = `xx'*`d'
                qui: gen `wei' = normalden(`xx'/`bw')
                if("`fe'"==""){
-                   qui: reg `var' `xx' `dx' [weight = `wei'], vce(`vce')
+                   cap qui: reg `var' `xx' `dx' [weight = `wei'], vce(`vce')
                }
                else {
-                   qui: reghdfe `var' `xx' `dx' [weight = `wei'], ///
+                   cap qui: reghdfe `var' `xx' `dx' [weight = `wei'], ///
                    absorb(`fe') vce(`vce')
                }
                mat margeff[`v',1] = el(eval,1,`v')
-               mat coe = e(b)
-               mat vcov = e(V)
-               mat margeff[`v',2] = el(coe,1,1)
-               mat margeff[`v',3] = sqrt(el(vcov,1,1))
-               mat margeff[`v',4] = el(coe,1,1)-`=quant'*sqrt(el(vcov,1,1))
-               mat margeff[`v',5] = el(coe,1,1)+`=quant'*sqrt(el(vcov,1,1))
+               if(_rc==0){
+                  mat coe = e(b)
+                  mat vcov = e(V)
+                  mat margeff[`v',2] = el(coe,1,1)
+                  mat margeff[`v',3] = sqrt(el(vcov,1,1))
+                  mat margeff[`v',4] = el(coe,1,1)-`quant'*sqrt(el(vcov,1,1))
+                  mat margeff[`v',5] = el(coe,1,1)+`quant'*sqrt(el(vcov,1,1))
+                  }
+               else {
+                  forvalues i =2(1)5{
+                     mat margeff[`v',`i'] =.
+                     }
+                  }
                qui count if `x' >= margeff[`v', 1] & `x' < (margeff[`v', 1] + `step')
                mat margeff[`v', 6] = `r(N)'
                if(`binary'==1){
@@ -353,7 +384,7 @@ version 12
                    mat margeff[`v', 7] = `r(N)'
                }
                drop `xx' `wei' `dx'
-               mat drop coe vcov
+               cap mat drop coe vcov
            }
        } // end non-bootstrap
       
@@ -371,13 +402,18 @@ version 12
                    qui: reg `var' `xx' `dx' [weight = `wei']
                }
                else {
-                   qui: reghdfe `var' `xx' `dx'[weight = `wei'], absorb(`fe') 
+                   cap qui: reghdfe `var' `xx' `dx'[weight = `wei'], absorb(`fe') 
                }
-               cap drop `xx' `wei' `dx'
+               drop `xx' `wei' `dx'
                mat margeff[`v',1] = el(eval,1,`v')
-               mat coe = e(b)
-               mat margeff[`v',2] = el(coe,1,1)
-               mat drop coe
+               if("`fe'"==""|_rc==0){
+                  mat coe = e(b)
+                  mat margeff[`v',2] = el(coe,1,1)
+                  mat drop coe
+                  }
+               else{
+                  mat margeff[`v',2] = .
+               }
 
                mat bootce = J(`reps',1,.)
                // preserve and restore
@@ -386,19 +422,26 @@ version 12
                    qui: gen `xx' = `x'- el(eval,1,`v')
                    qui: gen `dx' = `xx'*`d'
                    qui: gen `wei' = normalden(`xx'/`bw')
-                   qui myboot `var' `xx' `dx'[weight = `wei'], fe(`fe') cluster(`cluster')
-                   mat coe = r(coe)
-                   mat bootce[`j',1] = el(coe,1,1)
+                   cap qui myboot `var' `xx' `dx'[weight = `wei'], fe(`fe') cluster(`cluster')
+                   if(_rc==0){
+                      mat coe = r(coe)
+                      mat bootce[`j',1] = el(coe,1,1)
+                      }
+                   else{
+                      dis as err "bootstrap results don't converge"
+                      exit 430
+                      }
                    cap drop `xx' `wei' `dx'
                    cap mat drop coe
+
                }
                mata:bce=st_matrix("bootce")
                mata:se=sqrt(variance(bce))
                mata:st_numscalar("r(se)",se)
                local bse = r(se)
                mat margeff[`v',3] = `bse'
-               mat margeff[`v',4] = el(margeff,`v',2)-`=quant'*`bse'
-               mat margeff[`v',5] = el(margeff,`v',2)+`=quant'*`bse'
+               mat margeff[`v',4] = el(margeff,`v',2)-`quant'*`bse'
+               mat margeff[`v',5] = el(margeff,`v',2)+`quant'*`bse'
                mat drop bootce
 
                qui count if `x' >= margeff[`v', 1] & `x' < (margeff[`v', 1] + `step')
@@ -424,8 +467,8 @@ version 12
            mat margeff[`i', 1] = `xmin' + (`i'-1)* `step'
            mat margeff[`i', 2] = `coefD' + `coefDX' * margeff[`i',1]
            mat margeff[`i', 3] = sqrt(`varD' + margeff[`i',1]^2 * `varDX' + `covDX' * margeff[`i',1] * 2)
-           mat margeff[`i', 4] = margeff[`i', 2] - `=quant' * margeff[`i', 3]
-           mat margeff[`i', 5] = margeff[`i', 2] + `=quant' * margeff[`i', 3]
+           mat margeff[`i', 4] = margeff[`i', 2] - `quant' * margeff[`i', 3]
+           mat margeff[`i', 5] = margeff[`i', 2] + `quant' * margeff[`i', 3]
            /* est +/- 1.96 s.e. only work for relatively large samples */
            count if `x' >= margeff[`i', 1] & `x' < (margeff[`i', 1] + `step')
            mat margeff[`i', 6] = `r(N)'
@@ -453,12 +496,12 @@ version 12
                }
            }
            else {
-               scalar binsize = wordcount("`cutoffs'")
-               local nbins = `=binsize'+1
+               local binsize = wordcount("`cutoffs'")
+               local nbins = `binsize'+1
                mat cuts = J(`nbins'+1, 1, .)
                mat cuts[1,1] = `xmin'
                local k = 1
-               qui forvalues i=1/`=binsize' {
+               qui forvalues i=1/`binsize' {
                    gettoken xx cutoffs: cutoffs
                    if (`xx'>`xmin' & `xx'<`xmax') {
                        mat cuts[(`k'+1),1] = `xx'
@@ -493,22 +536,22 @@ version 12
          
            if("`vce'"!="bootstrap"){
                if("`fe'"==""){
-                   qui: reg `y' `binvar' `varlist' `wgt', ///
+                   qui: reg `y' `binvar' `z' `wgt', ///
                    noconstant vce(`vce')
                }
                else{
-                   qui: reghdfe `y' `binvar' `varlist' `wgt', ///
+                   qui: reghdfe `y' `binvar' `z' `wgt', ///
                    absorb(`fe') vce(`vce')    
                }
            }    
            else {  // bootstrap
                if("`fe'"==""){
                    qui: bootstrap, reps(`reps') cl(`cluster'): reg `y' `binvar' ///
-                   `varlist', noconstant 
+                   `z', noconstant 
                }
                else {
                    qui: bootstrap, reps(`reps') cl(`cluster'): reghdfe `y' `binvar' ///
-                   `varlist', absorb(`fe')  
+                   `z', absorb(`fe')  
                }
            }
           /* do not forget to put in the same set of control variables */
@@ -519,8 +562,8 @@ version 12
          qui forvalues i = 1/`nbins' {
             mat MEbin[`i',2] = coefs[1,1+4*(`i'-1)]
             mat MEbin[`i',3] = sqrt(vcov[1+4*(`i'-1),1+4*(`i'-1)])
-            mat MEbin[`i', 4] = MEbin[`i', 2] - `=quant' * MEbin[`i', 3]
-            mat MEbin[`i', 5] = MEbin[`i', 2] + `=quant' * MEbin[`i', 3]
+            mat MEbin[`i', 4] = MEbin[`i', 2] - `quant' * MEbin[`i', 3]
+            mat MEbin[`i', 5] = MEbin[`i', 2] + `quant' * MEbin[`i', 3]
             }
          
          /* wald test */
@@ -533,22 +576,22 @@ version 12
             g `dx' = `d'*`x'
             if ("`vce'"!="bootstrap"){
                if("`fe'"==""){
-                  qui: reg `y' `d' `x' `dx' `waldvar' `varlist' `wgt', ///
+                  qui: reg `y' `d' `x' `dx' `waldvar' `z' `wgt', ///
                     vce(`vce')
                   }
                else{
-                  qui: reghdfe `y' `d' `x' `dx' `waldvar' `varlist' `wgt', ///
+                  qui: reghdfe `y' `d' `x' `dx' `waldvar' `z' `wgt', ///
                     absorb(`fe') vce(`vce')    
                   }
                }    
             else {  // bootstrap
                if("`fe'"==""){
                   qui: bootstrap, reps(`reps') cl(`cluster'): reg `y' `d' `x' `dx' `waldvar' ///
-                    `varlist'
+                    `z'
                   }
                else {
                   qui: bootstrap, reps(`reps') cl(`cluster'): reghdfe `y' `d' `x' `dx' `waldvar' ///
-                    `varlist', absorb(`fe')  
+                    `z', absorb(`fe')  
                   }
                }
             local wcount = wordcount("`waldvar'")
@@ -828,11 +871,12 @@ version 12
       }
   }
   else{
-      qui reghdfe `varlist' `wgt',absorb(`fe') 
+     qui reghdfe `varlist' `wgt',absorb(`fe') 
   }
   mat coe = e(b)
   restore
   return mat coe=coe
+
 end
 *********************************************************mata
 version 12

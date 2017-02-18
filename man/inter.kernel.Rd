@@ -6,14 +6,14 @@
   linear interaction effect (LIE) assumption of conventional
   multiplicative interaction models and safeguards against excessive extrapolation
 }
-\usage{inter.binning(Y, D, X, Z = NULL, weights = NULL, FE = NULL,
+\usage{inter.kernel(Y, D, X, Z = NULL, weights = NULL, FE = NULL,
           data, na.rm = FALSE, CI = TRUE, conf.level = 0.95,
           cl = NULL, neval = 50, nboots = 200, 
           parallel = TRUE, cores = 4, seed = 02139,
           bw = NULL, grid = 20, metric = "MSPE",
-          Ylabel = NULL, Dlabel = NUL, Xlabel = NULL,
+          Ylabel = NULL, Dlabel = NULL, Xlabel = NULL,
           main = NULL, xlim = NULL, ylim = NULL,
-          Xdistr = "histogram")
+          Xdistr = "histogram", file = NULL)
 }
 \arguments{
   \item{Y}{a string, name of the outcome variable.}
@@ -68,7 +68,8 @@
     improve aesthetics).}
   \item{Xdistr}{a string indicating the way the distribution of the
     moderator will be plotted, either "histogram" (or "hist") or
-    "density". The default is "histogram".} 
+    "density". The default is "histogram".}
+  \item{file}{save the output graph to the file.}	
 }
 \details{
   \bold{inter.kernel} implements a kernel smoothing estimator of the
@@ -127,13 +128,8 @@ Available at SSRN: \url{https://papers.ssrn.com/abstract_id=2739221}.
 \examples{
 library(interflex)
 data(interflex)
-inter.kernel(Y = "Y", D = "D", X = "X", Z = "Z1",
-                    data = s3, nboots = 200, bw = 1.3)
-
-## with fixed effects
-inter.kernel(Y = "Y", D = "D", X = "X", Z = "Z1", FE = c("group","year"),
-                     data = s4, cl = "group")
-
+inter.kernel(Y = "Y", D = "D", X = "X", Z = "Z1", data = s3,
+             nboots = 200, bw = 1.3, parallel = FALSE)
 }
 \keyword{graphics}
 
