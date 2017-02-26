@@ -8,7 +8,7 @@
 
 **Maintainer:** Yiqing Xu [<yiqingxu@ucsd.edu>]  
 
-**How to Uses:** [Examples](http://yiqingxu.org/software/interplot/RGuide.html)
+**How to Uses:** [Examples](http://yiqingxu.org/software/interaction/RGuide.html)
 
 **Reference:** "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Available at SSRN: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2739221
 

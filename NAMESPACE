@@ -1,4 +1,4 @@
-useDynLib(interflex)
+useDynLib(interflex, .registration=TRUE)
 importFrom(Rcpp, evalCpp)
 importFrom("grDevices", "col2rgb", "graphics.off", "pdf", "rgb")
 importFrom("parallel", "detectCores", "stopCluster", "makeCluster")

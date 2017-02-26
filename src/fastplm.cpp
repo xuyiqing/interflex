@@ -7,7 +7,7 @@ using namespace Rcpp;
 List fastplm(arma::mat data,
              arma::mat FE,
              arma::colvec weight,
-             int FEcoefs = 0 
+             int FEcoefs = 0L 
              ){
       
   // parse data
@@ -33,9 +33,9 @@ List fastplm(arma::mat data,
   //arma::colvec se; // SE (full)
   arma::colvec coef; // coefficient
   //arma::colvec stderror; // SE
-  int df; // degrees of freedom
-  double sig2; // sigma2
-  double mu; // grand mean
+  //int df; // degrees of freedom
+  //double sig2; // sigma2
+  double mu = 0; // grand mean
   arma::colvec LHS; // group means 
   arma::mat W; // big weighting matrix to calculate fixed effects
   arma::colvec alphas; // fixed effect coefficients
@@ -146,8 +146,8 @@ List fastplm(arma::mat data,
  
       
   // std.err.
-  df = n - gtot - p;
-  sig2 = arma::as_scalar(resid.t()*resid/df);
+  // df = n - gtot - p;
+  //sig2 = arma::as_scalar(resid.t()*resid/df);
   // if (p>0) { 
   //   stderror = arma::sqrt(sig2 * arma::diagvec(arma::inv(arma::trans(X)*X))); 
   // } 
