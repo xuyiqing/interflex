@@ -9,13 +9,15 @@ SEXP interflex_fastplm(SEXP dataSEXP, SEXP FESEXP, SEXP weightSEXP, SEXP FEcoefs
 SEXP interflex_fastplm_predict(SEXP muSEXP, SEXP FEvaluesSEXP, SEXP FESEXP, SEXP newxSEXP, SEXP betaSEXP);
 
 R_CallMethodDef callMethods[]  = {
-  {"C_interflex_fastplm", (DL_FUNC) &interflex_fastplm, 4},
-  {"C_interflex_fastplm_predict", (DL_FUNC) &interflex_fastplm_predict, 5},
+  {"interflex_fastplm", (DL_FUNC) &interflex_fastplm, 4},
+  {"interflex_fastplm_predict", (DL_FUNC) &interflex_fastplm_predict, 5},
   {NULL, NULL, 0}
 };
 
 void R_init_interflex(DllInfo *info) {
   R_registerRoutines(info, NULL, callMethods, NULL, NULL);
   R_useDynamicSymbols(info, FALSE);
+  R_RegisterCCallable("interflex", "interflex_fastplm", (DL_FUNC) interflex_fastplm);
+  R_RegisterCCallable("interflex", "interflex_fastplm_predict", (DL_FUNC) interflex_fastplm_predict);
 }
 

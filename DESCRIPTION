@@ -12,4 +12,4 @@ Imports: Rcpp (>= 0.12.3), ggplot2 (>= 2.1.0), sandwich (>= 2.3-4),
         doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16)
 LinkingTo: Rcpp, RcppArmadillo
 NeedsCompilation: yes
-Packaged: 2017-02-25 16:02:46 UTC; lenovo
+Packaged: 2017-02-28 14:51:18 UTC; lenovo
