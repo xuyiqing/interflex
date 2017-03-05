@@ -129,7 +129,7 @@ Available at SSRN: \url{https://papers.ssrn.com/abstract_id=2739221}.
 library(interflex)
 data(interflex)
 inter.kernel(Y = "Y", D = "D", X = "X", Z = "Z1", data = s3,
-             nboots = 200, bw = 1.3, parallel = FALSE)
+             nboots = 50, bw = 1.3, parallel = FALSE)
 }
 \keyword{graphics}
 
