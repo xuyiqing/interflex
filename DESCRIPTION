@@ -6,6 +6,7 @@ Date: 2017-3-5
 Author: Jens Hainmueller, Jonathan Mummolo and Yiqing Xu
 Maintainer: Yiqing Xu <yiqingxu@ucsd.edu>
 Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
+URL: https://github.com/xuyiqing/interflex
 License: GPL-2
 Imports: Rcpp (>= 0.12.3), ggplot2 (>= 2.1.0), sandwich (>= 2.3-4),
         pcse (>= 1.9), lmtest (>= 0.9-34), Lmoments (>= 1.2-3),
