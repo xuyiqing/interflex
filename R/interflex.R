@@ -1136,6 +1136,7 @@ inter.binning<-function(
                                         )                            
         
         } else { # FE
+            requireNamespace("lfe")
             ## fit
             if (is.null(weights)==TRUE) {
                 mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug))
