@@ -1133,8 +1133,12 @@ inter.binning<-function(
             wald.out <- tryCatch(
                         p.wald <- round(waldtest(mod.re, mod.un,test="Chisq", vcov=v)[[4]][2],4),
                                         error = function(e){return(NULL)}
-                                        )                            
-        
+                                        )   
+            ## warning
+            if (is.null(wald.out)==TRUE) {
+                p.wald <- NULL
+                warning("Var-cov matrix nearly singular in the Wald test.")
+            }  
         } else { # FE
             requireNamespace("lfe")
             ## fit
@@ -1144,15 +1148,15 @@ inter.binning<-function(
                 mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug,weights=data.aug[,weights]))
             }
             ## wald test
-            constraints <- as.formula(paste0("~",paste0(c(Gs,GXs,DGs,DGXs), collapse = "|")))
-            wald.out <- tryCatch(
-            p.wald <- round(waldtest(mod.un, constraints)[1],4),error = function(e){return(NULL)})
-        }
-        ## warning
-        if (is.null(wald.out)==TRUE) {
-            p.wald <- NULL
-            warning("Var-cov matrix nearly singular in the Wald test.")
-        }
+            constraints <- as.formula(paste0("~",paste0(c(Gs,GXs,DGs,DGXs), collapse = "|")))            
+                if (vartype=="homoscedastic") {
+                    p.wald <- lfe::waldtest(mod.un, constraints, type = "default")[1]
+                } else if (vartype=="robust") {
+                    p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
+                } else {
+                    p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
+                }
+                p.wald <- round(p.wald,4)        
 
     } # end of Wald test
      
