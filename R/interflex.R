@@ -1149,14 +1149,15 @@ inter.binning<-function(
             }
             ## wald test
             constraints <- as.formula(paste0("~",paste0(c(Gs,GXs,DGs,DGXs), collapse = "|")))            
-                if (vartype=="homoscedastic") {
-                    p.wald <- lfe::waldtest(mod.un, constraints, type = "default")[1]
-                } else if (vartype=="robust") {
-                    p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
-                } else {
-                    p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
-                }
-                p.wald <- round(p.wald,4)        
+            if (vartype=="homoscedastic") {
+                p.wald <- lfe::waldtest(mod.un, constraints, type = "default")[1]
+            } else if (vartype=="robust") {
+                p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
+            } else {
+                p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
+            }            
+            p.wald <- round(p.wald,4)        
+        }
 
     } # end of Wald test
      
