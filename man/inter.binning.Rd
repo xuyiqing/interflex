@@ -41,7 +41,7 @@
   \item{cl}{a string specifying the name of clustering variable for clustered
     standard errors. \bold{vartype} must be either "cluster" or "pcse".
     \bold{vartype} will be automatically set to "cluster" if \bold{cl}
-    is supplied and \bold{vartype} is not "pcse".}
+    is supplied and \bold{vartype} is not "pcse". "pcse" is not allowed when \bold{FE} is specified.}
   \item{time}{a string specifying the name of time variable for panel corrected
     standard errors. Ignored when \bold{vartype} is not  "pcse".}
   \item{pairwise}{a logical flag indicating whether to switch on the
@@ -82,7 +82,7 @@
   multiplicative interaction model. First, the binning estimator is much more
   flexible as it jointly fits the interaction components of the standard
   model to each bin separately. The model does not impose the linear
-  interation effect (LIE) assumption. Instead, the conditional marginal effects can vary freely
+  interaction effect (LIE) assumption. Instead, the conditional marginal effects can vary freely
   across the three bins and therefore can take on any non-linear or
   non-monotonic pattern that might describe the heterogeneity in the
   effect of D on Y across low, medium, or high levels of
@@ -138,7 +138,7 @@
   Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer)
 }
 \references{Jens Hainmueller; Jonathan Mummolo; Yiqing
-Xu. 2016. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice."
+Xu. 2018. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, forthcoming.
 Available at SSRN: \url{https://papers.ssrn.com/abstract_id=2739221}.
 }
 

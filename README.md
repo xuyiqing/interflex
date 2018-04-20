@@ -10,14 +10,10 @@
 
 **How to Uses:** [Examples](http://yiqingxu.org/software/interaction/RGuide.html)
 
-**Reference:** "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Available at SSRN: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2739221
+**Reference:** "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, forthcoming. Available at SSRN: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2739221
 
 ---
 
 **Citation:** 
-@unpublished{HMX2016,
-author = {Hainmueller, Jens and Mummolo, Jonathan and Xu, Yiqing},
-title = {{How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice}},
-howpublished = {Paper presented at the Summer Meeting of the Society for Political Methodology, Rice University, Houston, TX, July 14, 2016},
-year = {2016}}
+@article{HMX2018, author = {Hainmueller, Jens and Mummolo, Jonathan and Xu, Yiqing}, title = {{How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice}}, journal = {Political Analysis}, number = {forthcoming}, year = {2018}}
 

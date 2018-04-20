@@ -1,5 +1,5 @@
 ## Jens Hainmueller; Jonathan Mummolo; Yiqing Xu
-## This Version: 2015.12.05
+## This Version: 2018.4.20
 
 ######   Interpreting Interaction Models  #######
 
@@ -113,6 +113,7 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
             Xlabel <- Xlabel[1]
         }   
     }
+
      
     ## load packages
     requireNamespace("ggplot2")
@@ -463,10 +464,15 @@ inter.binning<-function(
         }
     }
     if (is.null(FE) == FALSE) {
+        requireNamespace("lfe")
         for (i in 1:length(FE)) {
             if (is.character(FE[i]) == FALSE) {
                 stop("Some element in FE is not a string.")
             }
+        }
+        if (vartype == "pcse") {
+            vartype <- "cluster"
+            warning("Fixed-effect models do not allow panel corrected standard errors; changed to clustered standard errors.")
         }
     }
     if (is.null(weights) == FALSE) {
@@ -594,51 +600,69 @@ inter.binning<-function(
     
     #################################
     
-    requireNamespace("ggplot2")
+    
+
     n<-dim(data)[1]
     data[,D]<-as.numeric(data[,D])
-    
-    ## parsing fixed effects
-    if (is.null(FE)==FALSE) {
-        if (is.null(Z)==TRUE) {Z<-c()}
-        for (i in 1:length(FE)) {
-            Z<-c(Z,paste("as.factor(",FE[i],")",sep=""))
-        } 
-    } 
-    
-    ## a naive fit
+
+    ## formula
+    mod.f<-paste0(Y,"~",D,"+",X,"+",D,"*",X)
     if (is.null(Z)==FALSE) {
-        mod.f<-as.formula(paste(Y,"~",D,"+",X,"+",D,"*",X,"+",paste(Z,collapse="+"),sep=""))
-    } else {
-        mod.f<-as.formula(paste(Y,"~",D,"+",X,"+",D,"*",X,sep=""))
+        mod.f <- paste0(mod.f, "+", paste0(Z,collapse="+"))
     }
-    if (is.null(weights)==TRUE) {
-        mod.naive<-lm(mod.f,data=data)
-    } else {
-        mod.naive<-lm(mod.f,data=data,weights=data[,weights])
-    }    
+    if (is.null(FE)==FALSE) {
+        mod.f <- paste0(mod.f, "|",paste0(FE, collapse = "+"))
+        if (vartype=="cluster") {
+            mod.f <- paste0(mod.f, "| 0 |",paste0(cl,collapse = "+"))
+        }
+    }
+    mod.f <- as.formula(mod.f)
+    
+     
+    ## a naive fit
+    if (is.null(FE)==TRUE) { #OLS
+        if (is.null(weights)==TRUE) {
+            mod.naive<-lm(mod.f,data=data)
+        } else {
+            mod.naive<-lm(mod.f,data=data,weights=data[,weights])
+        }
+    } else { # FE
+        if (is.null(weights)==TRUE) {
+            mod.naive<-felm(mod.f,data=data)
+        } else {
+            mod.naive<-felm(mod.f,data=data,weights=data[,weights])
+        }
+    }
+  
     ## coefficients
     coefs<-summary(mod.naive)$coefficients[,1]
     coef.D<-coefs[D]
     coef.X<-coefs[X]
     coef.DX<-coefs[paste(D,X,sep=":")] #interaction
     
-    ## # variance
-    if (is.null(vartype)==TRUE) {
-        vartype<-"homoscedastic"
+    ## # variance    
+    if (is.null(FE)==TRUE) { #OLS
+        if (vartype=="homoscedastic") {
+            v<-vcov(mod.naive)
+        } else if (vartype=="robust") {
+            requireNamespace("sandwich")
+            v<-vcov(mod.naive,type="HC1") # White with small sample correction
+        } else if (vartype=="cluster") {
+            v<-vcovCluster(mod.naive,cluster = data[,cl])
+        } else if (vartype=="pcse") {
+            requireNamespace("pcse")
+            v<-pcse(mod.naive,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
+        }
+    } else { # FE
+        if (vartype=="homoscedastic") {
+            v<-vcov(mod.naive, type = "iid")
+        } else if (vartype=="robust") {
+            v<-vcov(mod.naive, type="robust") 
+        } else if (vartype=="cluster") {
+            v<-vcov(mod.naive, type = "cluster") 
+        }
     }
-    if (vartype=="homoscedastic") {
-        v<-vcov(mod.naive)
-    } else if (vartype=="robust") {
-        requireNamespace("sandwich")
-        v<-vcov(mod.naive,type="HC1") # White with small sample correction
-    } else if (vartype=="cluster") {
-        v<-vcovCluster(mod.naive,cluster = data[,cl])
-    } else if (vartype=="pcse") {
-        requireNamespace("pcse")
-        v<-pcse(mod.naive,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
-    }
-    
+    ## get variance
     if (vartype=="pcse") {
         var.D<-v[D,D]
         var.DX<-v[paste(D,X,sep="."),paste(D,X,sep=".")]
@@ -687,7 +711,7 @@ inter.binning<-function(
     gp.lab[1] <- paste(Xlabel, ": [", substring(levels(groupX2)[1],2), sep = "")
     
     
-    ############## Discre#tize X #################
+    ############## Discretize X #################
     
     ## mid points
     x0<-rep(NA,nbins)
@@ -708,41 +732,67 @@ inter.binning<-function(
     ## formula and esitmation
     Gs<-GXs<-DGs<-DGXs<-c()
     for (i in 1:nbins)  {
-        Gs<-c(Gs,paste("G[,",i,"]",sep=""))
-        GXs<-c(GXs,paste("GX[,",i,"]",sep=""))
-        DGs<-c(DGs,paste("DG[,",i,"]",sep=""))
-        DGXs<-c(DGXs,paste("DGX[,",i,"]",sep=""))
+        Gs<-c(Gs,paste0("G[,",i,"]"))
+        GXs<-c(GXs,paste0("GX[,",i,"]"))
+        DGs<-c(DGs,paste0("DG[,",i,"]"))
+        DGXs<-c(DGXs,paste0("DGX[,",i,"]"))
     }
-    Xf<-paste(Y,"~ -1+",paste(DGs,collapse="+"),"+",paste(DGXs,collapse="+"),
-              "+",paste(Gs,collapse="+"),"+",paste(GXs,collapse="+"),sep="")
+    Xf<-paste0(Y,"~ -1+",paste0(DGs,collapse="+"),"+",paste0(DGXs,collapse="+"),
+              "+",paste0(Gs,collapse="+"),"+",paste0(GXs,collapse="+"))
     if (is.null(Z)==FALSE) {
-        Xf<-paste(Xf,"+",paste(Z,collapse="+"),sep="")
+        Xf<- paste0(Xf,"+",paste0(Z,collapse="+"))
     }
-    mod.Xf<-as.formula(Xf)
-    if (is.null(weights)==TRUE) {
-        mod.X<-lm(mod.Xf,data=data) 
-    } else {
-        mod.X<-lm(mod.Xf,data=data,weights=data[,weights])
-    }    
-    
-    ## coefficients and CIs
-    Xcoefs<-mod.X$coefficients[1:nbins]
-    if (vartype=="homoscedastic") {
-        X.v<-vcov(mod.X)
-    } else if (vartype=="robust") {
-        X.v<-vcov(mod.X,type="HC1") ## White with small sample correction
-    } else if (vartype=="cluster") {
-        X.v<-vcovCluster(mod.X,cluster=data[,cl])
-    } else if (vartype=="pcse") {
-        if (is.null(Z)==FALSE) {
-            exclude<-names(which(is.na(mod.X$coefficients)==TRUE))  ## drop colinear variables
-            Z.ex<-setdiff(Z,exclude)
-            Xf<-paste(Y,"~ -1+",paste(DGs,collapse="+"),"+",paste(DGXs,collapse="+"),
-                      "+",paste(Gs,collapse="+"),"+",paste(GXs,collapse="+"),"+",paste(Z.ex,collapse="+"),sep="")
-            mod.X<-lm(as.formula(Xf),data=data)
+    if (is.null(FE)==FALSE) {
+        Xf <- paste0(Xf, "|",paste0(FE, collapse = "+"))
+        if (vartype=="cluster") {
+            Xf <- paste0(Xf, "| 0 |",paste0(cl,collapse = "+"))
         }
-        X.v<-pcse(mod.X,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
     }
+    mod.Xf<-as.formula(Xf)    
+     
+    ## fit
+    if (is.null(FE)==TRUE) { #OLS
+        if (is.null(weights)==TRUE) {
+            mod.X<-lm(mod.Xf,data=data)
+        } else {
+            mod.X<-lm(mod.Xf,data=data,weights=data[,weights])
+        }
+    } else { # FE
+        if (is.null(weights)==TRUE) {
+            mod.X<-suppressWarnings(felm(mod.Xf,data=data))
+        } else {
+            mod.X<-suppressWarnings(felm(mod.Xf,data=data,weights=data[,weights]))
+        }
+    }
+
+    ## coefficients and CIs
+    if (is.null(FE)==TRUE) { #OLS
+        if (vartype=="homoscedastic") {
+            X.v<-vcov(mod.X)
+        } else if (vartype=="robust") {
+            X.v<-vcov(mod.X,type="HC1") ## White with small sample correction
+        } else if (vartype=="cluster") {
+            X.v<-vcovCluster(mod.X,cluster=data[,cl])
+        } else if (vartype=="pcse") {
+            if (is.null(Z)==FALSE) {
+                exclude<-names(which(is.na(mod.X$coefficients)==TRUE))  ## drop colinear variables
+                Z.ex<-setdiff(Z,exclude)
+                Xf<-paste(Y,"~ -1+",paste(DGs,collapse="+"),"+",paste(DGXs,collapse="+"),
+                                "+",paste(Gs,collapse="+"),"+",paste(GXs,collapse="+"),"+",paste(Z.ex,collapse="+"),sep="")
+                mod.X<-lm(as.formula(Xf),data=data)
+            }
+            X.v<-pcse(mod.X,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
+        }
+    } else { # FE
+        if (vartype=="homoscedastic") {
+            X.v<-vcov(mod.X, type = "iid")
+        } else if (vartype=="robust") {
+            X.v<-vcov(mod.X, type="robust") 
+        } else if (vartype=="cluster") {
+            X.v<-vcov(mod.X, type = "cluster") 
+        }
+    }
+    Xcoefs<-mod.X$coefficients[1:nbins]
     X.v<-X.v[1:nbins,1:nbins] 
     X.se<-sqrt(diag(as.matrix(X.v,drop=FALSE)))
     X.se[which(is.na(Xcoefs))]<-NA
@@ -758,6 +808,8 @@ inter.binning<-function(
     ## margin and label adjustment
     
     if (figure==TRUE) {
+
+        requireNamespace("ggplot2")
         
         if(is.null(Xlabel)==FALSE){
             x.label<-c(paste("Moderator: ", Xlabel, sep=""))
@@ -1008,73 +1060,100 @@ inter.binning<-function(
 
     ##############  Ward Test #####################
     
-    ## formula
-    formula0 <- paste(Y,"~",D,"+",X,"+",D,"*",X)
-    ## create dummies for bins and interactions
-    ## G -- a matrix of group dummies
-    ## DG -- a matrix of interactions
-    G<-DG<-GX<-DGX<-matrix(0,n,(nbins-1))
-    for (i in 1:(nbins-1)) {
-        G[which(groupX==(i+1)),i]<-1
-        DG[,i]<-data[,D]*G[,i]
-        GX[,i]<-data[,X]*G[,i]
-        DGX[,i]<-data[,D]*data[,X]*G[,i]
-    } 
-    ## formula and esitmation
-    Gs<-GXs<-DGs<-DGXs<-c()
-    for (i in 2:nbins)  {
-        Gs<-c(Gs,paste("G",i,sep=""))
-        GXs<-c(GXs,paste("GX",i,sep=""))
-        DGs<-c(DGs,paste("DG",i,sep=""))
-        DGXs<-c(DGXs,paste("DGX",i,sep=""))
-    }
-    colnames(G) <- Gs
-    colnames(DG) <- DGs
-    colnames(GX) <- GXs
-    colnames(DGX) <- DGXs
-    data.aug <- cbind.data.frame(data, G, DG, GX, DGX)
-    formula1<-paste(formula0,
-                    "+",paste(Gs,collapse=" + "),
-                    "+",paste(GXs,collapse=" + "),
-                    "+",paste(DGs,collapse=" + "),
-                    "+",paste(DGXs,collapse=" + "))
-    if (is.null(Z)==FALSE) {
-        formula0 <- paste(formula0, "+",paste(Z,collapse=" + "))
-        formula1 <- paste(formula1, "+",paste(Z,collapse=" + "))
-    } 
-    if (is.null(weights)==TRUE) {
-        mod.re<-lm(as.formula(formula0),data=data.aug) 
-        mod.un<-lm(as.formula(formula1), data=data.aug) 
-    } else {
-        mod.re<-lm(as.formula(formula0), data=data.aug, weights=data.aug[,weights])
-        mod.un<-lm(as.formula(formula1), data=data.aug, weights=data.aug[,weights])
-    }
-    ## vcov
-    if (is.null(vartype)==TRUE) vartype <- "homoscedastic"
-    if (vartype=="homoscedastic") {
-        v<-vcov(mod.un)
-    } else if (vartype=="robust") {
-        v<-vcov(mod.un,type="HC1") # White with small sample correction
-    } else if (vartype=="cluster") {
-        v<-vcovCluster(mod.un,cluster = data.aug[,cl])
-    } else if (vartype=="pcse") {
-        v<-pcse(mod.un,
-                groupN=data.aug[,cl],
-                groupT=data.aug[,time],
-                pairwise=pairwise)$vcov
-    }
-    if (wald == TRUE) {
-        requireNamespace("lmtest")
-        wald.out <- tryCatch(
-            p.wald <- round(waldtest(mod.re, mod.un,
-                                     test="Chisq", vcov=v)[[4]][2],4) 
-          , error = function(e){return(NULL)}
-        )
+    if (wald == TRUE) { 
+        ## formula
+        formula0 <- paste(Y,"~",D,"+",X,"+",D,"*",X)
+        ## create dummies for bins and interactions
+        ## G -- a matrix of group dummies
+        ## DG -- a matrix of interactions
+        G<-DG<-GX<-DGX<-matrix(0,n,(nbins-1))
+        for (i in 1:(nbins-1)) {
+            G[which(groupX==(i+1)),i]<-1
+            DG[,i]<-data[,D]*G[,i]
+            GX[,i]<-data[,X]*G[,i]
+            DGX[,i]<-data[,D]*data[,X]*G[,i]
+        } 
+        ## formula and esitmation
+        Gs<-GXs<-DGs<-DGXs<-c()
+        for (i in 2:nbins)  {
+            Gs<-c(Gs,paste("G",i,sep=""))
+            GXs<-c(GXs,paste("GX",i,sep=""))
+            DGs<-c(DGs,paste("DG",i,sep=""))
+            DGXs<-c(DGXs,paste("DGX",i,sep=""))
+        }
+        colnames(G) <- Gs
+        colnames(DG) <- DGs
+        colnames(GX) <- GXs
+        colnames(DGX) <- DGXs
+        data.aug <- cbind.data.frame(data, G, DG, GX, DGX)
+        formula1<-paste(formula0,
+            "+",paste(Gs,collapse=" + "),
+            "+",paste(GXs,collapse=" + "),
+            "+",paste(DGs,collapse=" + "),
+            "+",paste(DGXs,collapse=" + "))
+        if (is.null(Z)==FALSE) {
+            formula0 <- paste0(formula0, "+",paste(Z,collapse=" + "))
+            formula1 <- paste0(formula1, "+",paste(Z,collapse=" + "))
+        } 
+        if (is.null(FE)==FALSE) {
+            formula1 <- paste0(formula1, "|",paste0(FE, collapse = "+"))
+            if (vartype=="cluster") {
+                formula1 <- paste0(formula1, "| 0 |",paste0(cl,collapse = "+"))
+            }
+        }
+        mod.formula0<-as.formula(formula0)
+        mod.formula1<-as.formula(formula1)    
+
+        ## fit
+        if (is.null(FE)==TRUE) { #OLS
+            ## fit
+            if (is.null(weights)==TRUE) {
+                mod.re<-lm(mod.formula0,data=data.aug)
+                mod.un<-lm(mod.formula1,data=data.aug)
+            } else {
+                mod.re<-lm(mod.formula0,data=data.aug,weights=data.aug[,weights])
+                mod.un<-lm(mod.formula1,data=data.aug,weights=data.aug[,weights])
+            }
+            ## vcov
+            if (is.null(vartype)==TRUE) {vartype <- "homoscedastic"}
+            if (vartype=="homoscedastic") {
+                v<-vcov(mod.un)
+            } else if (vartype=="robust") {
+                v<-vcov(mod.un,type="HC1") # White with small sample correction
+            } else if (vartype=="cluster") {
+                v<-vcovCluster(mod.un,cluster = data.aug[,cl])
+            } else if (vartype=="pcse") {
+                v<-pcse(mod.un,
+                    groupN=data.aug[,cl],
+                    groupT=data.aug[,time],
+                    pairwise=pairwise)$vcov
+            }
+            ## wald test
+            requireNamespace("lmtest")
+            wald.out <- tryCatch(
+                        p.wald <- round(waldtest(mod.re, mod.un,test="Chisq", vcov=v)[[4]][2],4),
+                                        error = function(e){return(NULL)}
+                                        )                            
+        
+        } else { # FE
+            ## fit
+            if (is.null(weights)==TRUE) {
+                mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug))
+            } else {
+                mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug,weights=data.aug[,weights]))
+            }
+            ## wald test
+            constraints <- as.formula(paste0("~",paste0(c(Gs,GXs,DGs,DGXs), collapse = "|")))
+            wald.out <- tryCatch(
+            p.wald <- round(waldtest(mod.un, constraints)[1],4),error = function(e){return(NULL)})
+        }
+        ## warning
         if (is.null(wald.out)==TRUE) {
             p.wald <- NULL
-            warning("Var-cov matrix nearly sigular in the Wald test.")
-        } 
-    }
+            warning("Var-cov matrix nearly singular in the Wald test.")
+        }
+
+    } # end of Wald test
      
     ##################################
     ## storage

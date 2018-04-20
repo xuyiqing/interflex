@@ -17,8 +17,10 @@
 \author{Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer).\cr
   Please report bugs to <yiqingxu@ucsd.edu>.}
 
-\references{Jens Hainmueller; Jonathan Mummolo; Yiqing Xu. 2016. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Available at SSRN: \url{https://papers.ssrn.com/abstract_id=2739221}.}
-
+\references{Jens Hainmueller; Jonathan Mummolo; Yiqing
+Xu. 2018. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, forthcoming.
+Available at SSRN: \url{https://papers.ssrn.com/abstract_id=2739221}.
+}
 
 \seealso{
   \code{\link{inter.raw}}, \code{\link{inter.binning}}, 
