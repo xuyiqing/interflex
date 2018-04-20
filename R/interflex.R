@@ -1045,11 +1045,11 @@ inter.binning<-function(
         return(p)
     }
     if (nbins==3) {
-        p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digits=4)
+        p.twosided<-sprintf("%.4f",c(pvalue(1,2),pvalue(2,3),pvalue(1,3)))
         names(p.twosided)<-c("p.1v2","p.2v3","p.1v3")
         names(Xcoefs)<-c("X_low","X_med","X_high")
     } else if (nbins==2) {
-        p.twosided<-round(pvalue(1,2),digits=4)
+        p.twosided<-sprintf("%.4f",pvalue(1,2))
         names(p.twosided)<-c("p.LvH")
         names(Xcoefs)<-c("X_low","X_high")
     } else if (nbins==4) {
@@ -1131,7 +1131,7 @@ inter.binning<-function(
             ## wald test
             requireNamespace("lmtest")
             wald.out <- tryCatch(
-                        p.wald <- round(waldtest(mod.re, mod.un,test="Chisq", vcov=v)[[4]][2],4),
+                        p.wald <- sprintf("%.4f",waldtest(mod.re, mod.un,test="Chisq", vcov=v)[[4]][2]),
                                         error = function(e){return(NULL)}
                                         )   
             ## warning
@@ -1155,19 +1155,20 @@ inter.binning<-function(
                 p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
             } else {
                 p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
-            }            
-            p.wald <- round(p.wald,4)        
+            }
+            names(p.wald) <- NULL            
+            p.wald <- sprintf("%.4f",p.wald)        
         }
 
     } # end of Wald test
      
     ##################################
     ## storage
-    out<-list(est.binning = round(est.binning, 4),
-              binary.treatment=round(btreat,4),
-              bin.size = round(c(table(groupX)/length(groupX)),4),
-              treat.variation.byGroup=round(varD,4),
-              X.Lkurtosis = round(Lkurtosis,4))
+    out<-list(est.binning = sprintf("%.4f",est.binning),
+              binary.treatment=sprintf("%.4f",btreat),
+              bin.size = sprintf("%.4f",c(table(groupX)/length(groupX))),
+              treat.variation.byGroup=sprintf("%.4f",varD),
+              X.Lkurtosis = sprintf("%.4f",Lkurtosis))
     if (nbins==3) {
         out<-c(out,list(correctOrder=correctOrder))
     }
@@ -1892,9 +1893,9 @@ crossvalidate <- function(data, Y, D, X, Z = NULL, weights = NULL,
     } else {
         opt.bw <- grid[which.min(Error[,3])]
     } 
-    output <- list(CV.out = round(Error,3),
+    output <- list(CV.out = sprintf("%.3f",Error),
                    opt.bw = opt.bw)
-    cat(paste("Bandwidth =", round(output$opt.bw,3),"\n"))
+    cat(paste("Bandwidth =", sprintf("%.3f",output$opt.bw),"\n"))
     return(output)
 }
 
