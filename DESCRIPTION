@@ -1,8 +1,8 @@
 Package: interflex
 Type: Package
 Title: Multiplicative Interaction Models Diagnostics and Visualization
-Version: 1.0.4
-Date: 2018-4-20
+Version: 1.0.5
+Date: 2018-4-24
 Author: Jens Hainmueller, Jonathan Mummolo and Yiqing Xu
 Maintainer: Yiqing Xu <yiqingxu@ucsd.edu>
 Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.

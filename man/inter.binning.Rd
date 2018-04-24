@@ -56,6 +56,8 @@
   \item{ylim}{a two-element numeric vector that controls the range of
     the y-axis to be shown in the plot (with small adjustments to
     improve aesthetics).}
+  \item{bin.labs}{a logical flag indicating whether to show a label for each bin; 
+    only meaningful when \bold{nbins} is 3 or 4. The default is TRUE.}  
   \item{Xdistr}{a string indicating the way the distribution of the
     moderator will be plotted, either "histogram" (or "hist") or
     "density". The default is "histogram".}

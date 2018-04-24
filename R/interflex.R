@@ -429,6 +429,7 @@ inter.binning<-function(
                         Xlabel = NULL,
                         xlim = NULL,
                         ylim = NULL,
+                        bin.labs = TRUE,
                         interval = NULL,
                         Xdistr = "histogram", # c("density","histogram")
                         wald = TRUE
@@ -598,8 +599,7 @@ inter.binning<-function(
         }
     }
     
-    #################################
-    
+    #################################    
     
 
     n<-dim(data)[1]
@@ -972,23 +972,25 @@ inter.binning<-function(
         
       
         ## labels: L, M, H and so on 
-        if (nbins==3) {
-            p1<-p1 + annotate(geom="text", x=out.bin[1,1], y=pos,
-                              label="L",colour="gray50",size=10) +
+        if (bin.labs == TRUE) {
+            if (nbins==3) {
+                p1<-p1 + annotate(geom="text", x=out.bin[1,1], y=pos,
+                  label="L",colour="gray50",size=10) +
                 annotate(geom="text", x=out.bin[2,1], y=pos,
-                         label="M",colour="gray50",size=10) +
+                   label="M",colour="gray50",size=10) +
                 annotate(geom="text", x=out.bin[3,1], y=pos,
-                         label="H",colour="gray50",size=10)
-        } else if (nbins==4) {
-            p1<-p1 + annotate(geom="text", x=out.bin[1,1], y=pos,
-                              label="L",colour="gray50",size=10) +
+                   label="H",colour="gray50",size=10)
+            } else if (nbins==4) {
+                p1<-p1 + annotate(geom="text", x=out.bin[1,1], y=pos,
+                  label="L",colour="gray50",size=10) +
                 annotate(geom="text", x=out.bin[2,1], y=pos,
-                         label="M1",colour="gray50",size=10) +
+                   label="M1",colour="gray50",size=10) +
                 annotate(geom="text", x=out.bin[3,1], y=pos,
-                         label="M2",colour="gray50",size=10) +
+                   label="M2",colour="gray50",size=10) +
                 annotate(geom="text", x=out.bin[4,1], y=pos,
-                         label="H",colour="gray50",size=10)
-        } 
+                   label="H",colour="gray50",size=10)
+            } 
+        }
         
         ## linear plot 
         p1<-p1 + geom_line(data=out,aes(X.lvls,marg))+
