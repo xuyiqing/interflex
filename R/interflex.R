@@ -1,16 +1,16 @@
 ## Jens Hainmueller; Jonathan Mummolo; Yiqing Xu
-## This Version: 2018.4.20
+## This Version: 2018.7.22
 
 ######   Interpreting Interaction Models  #######
 
 ## 1. inter.raw: first look at the data: D, X, Y
 ## 2. inter.gam: GAM plots
-## 3. inter.binning: estimat
+## 3. inter.binning: estimate
 ## 4. inter.kernel: kernel smooth plot
 
 ## Supporting
 ## 1. coefs: kernel weighted least squares
-## 2. crossvalidation: cross validate kernel bandwidth
+## 2. cross-validation: cross validate kernel bandwidth
 ## 3. vcovCluster: clustered standard error
 
 
@@ -23,10 +23,10 @@ inter.raw <- NULL
 vcovCluster <- NULL
 #################################################
 
-inter.raw<-function(Y,D,X,weights=NULL,data,
-                        nbins=3,cutoffs=NULL, span=NULL,
-                        Ylabel=NULL,Dlabel= NULL,Xlabel=NULL,
-                        pos=NULL){ 
+inter.raw<-function(data,Y,D,X,weights=NULL,
+    nbins=3,cutoffs=NULL, span=NULL,
+    Ylabel=NULL,Dlabel= NULL,Xlabel=NULL,
+    pos=NULL){ 
     
     ## Y: outcome
     ## D: "treatment" indicator
@@ -35,40 +35,42 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
     ## cutoffs: specified cut-points
     ## span: bandwidth for loess
 
+    ## in case data is in tibble format
+    if (is.data.frame(data) == FALSE) {
+        data <- as.data.frame(data)
+    }
+
     ## check input
     if (is.character(Y) == FALSE) {
-        stop("Y is not a string.")
+        stop("\"Y\" is not a string.")
     } else {
         Y <- Y[1]
     }
     if (is.character(D) == FALSE) {
-        stop("D is not a string.")
+        stop("\"D\" is not a string.")
     } else {
         D <- D[1]
     }
     if (is.character(X) == FALSE) {
-        stop("X is not a string.")
+        stop("\"X\" is not a string.")
     } else {
         X <- X[1]
     }
     if (is.null(weights) == FALSE) {
         if (is.character(weights) == FALSE) {
-            stop("weigths is not a string.")
+            stop("\"weights\" is not a string.")
         } else {
             weights <- weights[1]
         }   
     }
-    if (is.data.frame(data) == FALSE) {
-        stop("Not a data frame.")
-    }
     if (is.null(nbins) == FALSE) {
         if (nbins%%1 != 0) {
-            stop("nbins is not a positive integer.")
+            stop("\"nbins\" is not a positive integer.")
         } else {
             nbins <- nbins[1]
         }
         if (nbins < 1) {
-            stop("nbins is not a positive integer.")
+            stop("\"nbins\" is not a positive integer.")
         }
     }
     if (is.null(cutoffs) == FALSE) {
@@ -78,11 +80,11 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
     }
     if (is.null(span) == FALSE) {
         if (is.numeric(span) == FALSE) {
-            stop("span is not numeric.")
+            stop("\"span\" is not numeric.")
         } else {
             span <- span[1]
             if (span <= 0) {
-                stop("span is not a positive number.")
+                stop("\"span\" is not a positive number.")
             }
         }
     } 
@@ -90,7 +92,7 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
         Ylabel <- Y
     } else {
         if (is.character(Ylabel) == FALSE) {
-            stop("Ylabel is not a string.")
+            stop("\"Ylabel\" is not a string.")
         } else {
             Ylabel <- Ylabel[1]
         }   
@@ -99,7 +101,7 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
         Dlabel <- D   
     } else {
         if (is.character(Dlabel) == FALSE) {
-            stop("Dlabel is not a string.")
+            stop("\"Dlabel\" is not a string.")
         } else {
             Dlabel <- Dlabel[1]
         }   
@@ -108,7 +110,7 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
         Xlabel <- X   
     } else {
         if (is.character(Xlabel) == FALSE) {
-            stop("Xlabel is not a string.")
+            stop("\"Xlabel\" is not a string.")
         } else {
             Xlabel <- Xlabel[1]
         }   
@@ -268,25 +270,30 @@ inter.raw<-function(Y,D,X,weights=NULL,data,
 ## GAM
 
 
-inter.gam<-function(Y,D,X,Z=NULL,weights=NULL,FE=NULL,data,
-                        SE = FALSE,
-                        k=10,
-                        angle=c(30,100,-30,-120),
-                        Ylabel = NULL, Dlabel = NULL, Xlabel = NULL){
+inter.gam<-function(data,Y,D,X,Z=NULL,weights=NULL,FE=NULL,
+    SE = FALSE,
+    k=10,
+    angle=c(30,100,-30,-120),
+    Ylabel = NULL, Dlabel = NULL, Xlabel = NULL){
+
+    ## in case data is in tibble format
+    if (is.data.frame(data) == FALSE) {
+        data <- as.data.frame(data)
+    }
 
     ## check input
     if (is.character(Y) == FALSE) {
-        stop("Y is not a string.")
+        stop("\"Y\" is not a string.")
     } else {
         Y <- Y[1]
     }
     if (is.character(D) == FALSE) {
-        stop("D is not a string.")
+        stop("\"D\" is not a string.")
     } else {
         D <- D[1]
     }
     if (is.character(X) == FALSE) {
-        stop("X is not a string.")
+        stop("\"X\" is not a string.")
     } else {
         X <- X[1]
     }
@@ -306,29 +313,26 @@ inter.gam<-function(Y,D,X,Z=NULL,weights=NULL,FE=NULL,data,
     }
     if (is.null(weights) == FALSE) {
         if (is.character(weights) == FALSE) {
-            stop("weigths is not a string.")
+            stop("\"weights\" is not a string.")
         } else {
             weights <- weights[1]
         }   
     }
-    if (is.data.frame(data) == FALSE) {
-        stop("Not a data frame.")
-    }
     if (is.logical(SE) == FALSE & is.numeric(SE)==FALSE) {
-        stop("SE is not a logical flag.")
+        stop("\"SE\" is not a logical flag.")
     }
     if (is.null(k) == FALSE) {
         if (is.numeric(k) == FALSE) {
-            stop("k is not numeric.")
+            stop("\"k\" is not numeric.")
         } else {
             k <- k[1]
             if (k <= 0) {
-                stop("k is not a positive number.")
+                stop("\"k\" is not a positive number.")
             }
         }
     }
     if (length(angle)>=5 | length(angle)<1) {
-        stop("angle must have length 1 to 4.")
+        stop("\"angle\" must have length 1 to 4.")
     } else {
         if (is.numeric(angle)==FALSE) {
             stop("Some element in angle is not numeric.")
@@ -338,7 +342,7 @@ inter.gam<-function(Y,D,X,Z=NULL,weights=NULL,FE=NULL,data,
         Ylabel <- Y
     } else {
         if (is.character(Ylabel) == FALSE) {
-            stop("Ylabel is not a string.")
+            stop("\"Ylabel\" is not a string.")
         } else {
             Ylabel <- Ylabel[1]
         }   
@@ -347,7 +351,7 @@ inter.gam<-function(Y,D,X,Z=NULL,weights=NULL,FE=NULL,data,
         Dlabel <- D   
     } else {
         if (is.character(Dlabel) == FALSE) {
-            stop("Dlabel is not a string.")
+            stop("\"Dlabel\" is not a string.")
         } else {
             Dlabel <- Dlabel[1]
         }   
@@ -356,7 +360,7 @@ inter.gam<-function(Y,D,X,Z=NULL,weights=NULL,FE=NULL,data,
         Xlabel <- X   
     } else {
         if (is.character(Xlabel) == FALSE) {
-            stop("Xlabel is not a string.")
+            stop("\"Xlabel\" is not a string.")
         } else {
             Xlabel <- Xlabel[1]
         }   
@@ -406,14 +410,13 @@ inter.gam<-function(Y,D,X,Z=NULL,weights=NULL,FE=NULL,data,
 
 ####################################################
 
-inter.binning<-function(
+inter.binning<-function(data,
                         Y, # outcome
                         D, # treatment indicator
                         X, # moderator
                         Z = NULL, # covariates
                         FE = NULL, # fixed effects
                         weights = NULL, # weigthing variable
-                        data,
                         na.rm = FALSE,
                         nbins = 3,  # No. of X bins
                         cutoffs = NULL,
@@ -441,19 +444,25 @@ inter.binning<-function(
     xmax <- NULL
     ymin <- NULL
     ymax <- NULL
+
+    ## in case data is in tibble format
+    if (is.data.frame(data) == FALSE) {
+        data <- as.data.frame(data)
+    }
+
     ## check input
     if (is.character(Y) == FALSE) {
-        stop("Y is not a string.")
+        stop("\"Y\" is not a string.")
     } else {
         Y <- Y[1]
     }
     if (is.character(D) == FALSE) {
-        stop("D is not a string.")
+        stop("\"D\" is not a string.")
     } else {
         D <- D[1]
     }
     if (is.character(X) == FALSE) {
-        stop("X is not a string.")
+        stop("\"X\" is not a string.")
     } else {
         X <- X[1]
     }
@@ -478,25 +487,22 @@ inter.binning<-function(
     }
     if (is.null(weights) == FALSE) {
         if (is.character(weights) == FALSE) {
-            stop("weigths is not a string.")
+            stop("\"weights\" is not a string.")
         } else {
             weights <- weights[1]
         }   
     }
-    if (is.data.frame(data) == FALSE) {
-        stop("Not a data frame.")
-    }
     if (is.logical(na.rm) == FALSE & is.numeric(na.rm)==FALSE) {
-        stop("na.rm is not a logical flag.")
+        stop("\"na.rm\" is not a logical flag.")
     }
     if (is.null(nbins) == FALSE) {
         if (nbins%%1 != 0) {
-            stop("nbins is not a positive integer.")
+            stop("\"nbins\" is not a positive integer.")
         } else {
             nbins <- nbins[1]
         }
         if (nbins < 1) {
-            stop("nbins is not a positive integer.")
+            stop("\"nbins\" is not a positive integer.")
         }
     }
     if (is.null(cutoffs) == FALSE) {
@@ -508,14 +514,14 @@ inter.binning<-function(
         vartype <- "homoscedastic"
     }
     if (!vartype %in% c("homoscedastic","robust","cluster","pcse")){
-        stop("vartype must be one of the following: \"homoscedastic\",\"robust\",\"cluster\",\"pcse\".")
+        stop("\"vartype\" must be one of the following: \"homoscedastic\",\"robust\",\"cluster\",\"pcse\".")
     } else if (vartype == "cluster") {
         if (is.null(cl)==TRUE) {
-            stop("cl not specified; set cl = \"varname\".")
+            stop("\"cl\" not specified; set cl = \"varname\".")
         }
     } else if (vartype == "pcse") {
         if (is.null(cl)==TRUE | is.null(time)==TRUE) {
-            stop("cl or time not specified; set cl = \"varname1\", time = \"varname2\":.")
+            stop("\"cl\" or \"time\" not specified; set cl = \"varname1\", time = \"varname2\":.")
         }
     }
     if (is.null(cl)==FALSE) {
@@ -1186,11 +1192,11 @@ inter.binning<-function(
 
 ###########################
 
-inter.kernel <- function(Y, D, X,
+inter.kernel <- function(data,
+                         Y, D, X,
                          Z = NULL,
                          weights = NULL, # weighting variable
                          FE = NULL,
-                         data,
                          na.rm = FALSE,
                          CI = TRUE,
                          conf.level = 0.95,
@@ -1222,19 +1228,25 @@ inter.kernel <- function(Y, D, X,
     ME <- NULL
     CI_lower <- NULL
     CI_upper <- NULL
+
+    ## in case data is in tibble format
+    if (is.data.frame(data) == FALSE) {
+        data <- as.data.frame(data)
+    }
+
     ## check input
     if (is.character(Y) == FALSE) {
-        stop("Y is not a string.")
+        stop("\"Y\" is not a string.")
     } else {
         Y <- Y[1]
     }
     if (is.character(D) == FALSE) {
-        stop("D is not a string.")
+        stop("\"D\" is not a string.")
     } else {
         D <- D[1]
     }
     if (is.character(X) == FALSE) {
-        stop("X is not a string.")
+        stop("\"X\" is not a string.")
     } else {
         X <- X[1]
     }
@@ -1254,99 +1266,96 @@ inter.kernel <- function(Y, D, X,
     }
     if (is.null(weights) == FALSE) {
         if (is.character(weights) == FALSE) {
-            stop("weigths is not a string.")
+            stop("\"weights\" is not a string.")
         } else {
             weights <- weights[1]
         }   
     }
-    if (is.data.frame(data) == FALSE) {
-        stop("Not a data frame.")
-    }
     if (is.logical(na.rm) == FALSE & is.numeric(na.rm)==FALSE) {
-        stop("na.rm is not a logical flag.")
+        stop("\"na.rm\" is not a logical flag.")
     } 
     if (is.logical(CI) == FALSE & is.numeric(CI)==FALSE) {
-        stop("CI is not a logical flag.")
+        stop("\"CI\" is not a logical flag.")
     }
     if (is.null(conf.level)==FALSE) {
         if (is.numeric(conf.level)==FALSE) {
-            stop("conf.level should be a number between 0.5 and 1.")
+            stop("\"conf.level\" should be a number between 0.5 and 1.")
         } else {
             if (conf.level<=0.5 | conf.level>1) {
-                stop("conf.level should be a number between 0.5 and 1.")
+                stop("\"conf.level\" should be a number between 0.5 and 1.")
             }
         } 
     }
     if (is.null(cl)==FALSE) {
         if (is.character(cl) == FALSE) {
-            stop("cl is not a string.")
+            stop("\"cl\" is not a string.")
         } else {
             cl <- cl[1] 
         }
     }
     if (is.null(neval)==FALSE) {
         if (is.numeric(neval)==FALSE) {
-            stop("neval is not a positive integer.")
+            stop("\"neval\" is not a positive integer.")
         } else {
             neval <- neval[1]
             if (neval%%1!=0 | neval<=0) {
-                stop("neval is not a positive integer.")
+                stop("\"neval\" is not a positive integer.")
             }  
         } 
     } 
     if (is.null(nboots) == FALSE) {
         if (is.numeric(nboots)==FALSE) {
-            stop("nboots is not a positive integer.")
+            stop("\"nboots\" is not a positive integer.")
         } else {
             nboots <- nboots[1]
             if (nboots%%1 != 0 | nboots < 1) {
-                stop("nboots is not a positive number.")
+                stop("\"nboots\" is not a positive number.")
             }
         } 
     }
     if (is.logical(parallel) == FALSE & is.numeric(parallel)==FALSE) {
-        stop("paralell is not a logical flag.")
+        stop("\"paralell\" is not a logical flag.")
     }
     if (is.numeric(cores)==FALSE) {
-        stop("cores is not a positive integer.")
+        stop("\"cores\" is not a positive integer.")
     } else {
         cores <- cores[1]
         if (cores%%1!= 0 | cores<=0) {
-            stop("cores is not a positive integer.")
+            stop("\"cores\" is not a positive integer.")
         }
     }
     if (is.null(bw)==FALSE) {
         if (is.numeric(bw)==FALSE) {
-            stop("bw should be a positive number.")
+            stop("\"bw\" should be a positive number.")
         } else {
             bw <- bw[1]
         } 
         if (bw<=0) {
-            stop("bw should be a positive number.")
+            stop("\"bw\" should be a positive number.")
         }
     }
     if (is.numeric(seed)==FALSE) {
-        stop("seed should be a number.")
+        stop("\"seed\" should be a number.")
     }
     if (is.numeric(grid) == FALSE) {
-        stop("grid should be numeric.")
+        stop("\"grid\" should be numeric.")
     } else {
         if (length(grid)==1) {
             if (grid%%1 != 0 | grid<1) {
-                stop("grid is not a positive integer.")
+                stop("\"grid\" is not a positive integer.")
             }
         } else {
             grid <- grid[which(grid>0)]
         }
     }
     if (!metric%in%c("MSPE","MAPE")) {
-        stop("metric should be either \"MSPE\" or \"MAPE\".")
+        stop("\"metric\" should be either \"MSPE\" or \"MAPE\".")
     } 
     if (is.null(Ylabel)==TRUE) {
         Ylabel <- Y
     } else {
         if (is.character(Ylabel) == FALSE) {
-            stop("Ylabel is not a string.")
+            stop("\"Ylabel\" is not a string.")
         } else {
             Ylabel <- Ylabel[1]
         }   
@@ -1355,7 +1364,7 @@ inter.kernel <- function(Y, D, X,
         Dlabel <- D   
     } else {
         if (is.character(Dlabel) == FALSE) {
-            stop("Dlabel is not a string.")
+            stop("\"Dlabel\" is not a string.")
         } else {
             Dlabel <- Dlabel[1]
         }   
@@ -1364,7 +1373,7 @@ inter.kernel <- function(Y, D, X,
         Xlabel <- X   
     } else {
         if (is.character(Xlabel) == FALSE) {
-            stop("Xlabel is not a string.")
+            stop("\"Xlabel\" is not a string.")
         } else {
             Xlabel <- Xlabel[1]
         }   
@@ -1373,14 +1382,14 @@ inter.kernel <- function(Y, D, X,
         main <- main[1]
     } 
     if (!Xdistr %in% c("hist","histogram","density")){
-        stop("Xdistr must be either \"histogram\" or \"density\".")
+        stop("\"Xdistr\" must be either \"histogram\" or \"density\".")
     }
     if (is.null(xlim)==FALSE) {
         if (is.numeric(xlim)==FALSE) {
             stop("Some element in xlim is not numeric.")
         } else {
             if (length(xlim)!=2) {
-                stop("xlim must be of length 2.")
+                stop("\"xlim\" must be of length 2.")
             }
         }
     }
@@ -1389,7 +1398,7 @@ inter.kernel <- function(Y, D, X,
             stop("Some element in ylim is not numeric.")
         } else {
             if (length(ylim)!=2) {
-                stop("ylim must be of length 2.")
+                stop("\"ylim\" must be of length 2.")
             }
         }
     }
@@ -1718,6 +1727,7 @@ coefs <- function(data,bw,Y,X,D,
                   X.eval = NULL,
                   neval = 50){
 
+    
     
     ## evaluation points
     if (is.null(X.eval) == TRUE) {
