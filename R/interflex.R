@@ -846,7 +846,7 @@ inter.binning<-function(data,
         if (theme.bw == FALSE) {
             p1 <- p1 + geom_hline(yintercept=0,colour="white",size=2)
         } else {
-            p1 <- p1 + geom_hline(yintercept=0,colour="gray50",size=2)
+            p1 <- p1 + geom_hline(yintercept=0,colour="#AAAAAA50",size=2)
         }
 
         ## mark the original interval
@@ -1566,7 +1566,7 @@ inter.kernel <- function(data,
     if (theme.bw == FALSE) {
         p1 <- ggplot() + geom_hline(yintercept=0,colour="white",size=2)
     } else {
-        p1 <- ggplot() + geom_hline(yintercept=0,colour="gray50",size=2)
+        p1 <- ggplot() + geom_hline(yintercept=0,colour="#AAAAAA50",size=2)
     }
     
     ## point estimates
