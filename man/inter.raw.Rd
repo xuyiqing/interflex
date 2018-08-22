@@ -4,7 +4,8 @@
 \description{Plotting raw data before estimating a multiplicative interaction model}
 \usage{inter.raw(Y, D, X, weights = NULL, data,
               nbins  = 3, cutoffs = NULL, span = NULL,
-              Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, pos = NULL, theme.bw = FALSE)
+              Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, 
+              pos = NULL, theme.bw = FALSE)
 }
 \arguments{
   \item{Y}{a string, name of the outcome variable.}

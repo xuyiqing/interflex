@@ -8,7 +8,8 @@
           vartype = "homoscedastic", 
           cl = NULL, time = NULL, pairwise = TRUE, figure = TRUE, main = NULL,
           Ylabel = NULL, Dlabel = NULL, Xlabel = NULL,
-          xlim = NULL, ylim = NULL, interval = NULL, Xdistr = "histogram", wald = TRUE, theme.bw = FALSE)
+          xlim = NULL, ylim = NULL, interval = NULL, Xdistr = "histogram", 
+          wald = TRUE, theme.bw = FALSE)
 }
 \arguments{
   \item{Y}{a string, name of the outcome variable.}
