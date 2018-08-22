@@ -13,7 +13,7 @@
           bw = NULL, grid = 20, metric = "MSPE",
           Ylabel = NULL, Dlabel = NULL, Xlabel = NULL,
           main = NULL, xlim = NULL, ylim = NULL,
-          Xdistr = "histogram", file = NULL)
+          Xdistr = "histogram", file = NULL, theme.bw = FALSE)
 }
 \arguments{
   \item{Y}{a string, name of the outcome variable.}
@@ -70,6 +70,7 @@
     moderator will be plotted, either "histogram" (or "hist") or
     "density". The default is "histogram".}
   \item{file}{save the output graph to the file.}	
+  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}    
 }
 \details{
   \bold{inter.kernel} implements a kernel smoothing estimator of the

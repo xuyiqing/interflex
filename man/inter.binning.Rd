@@ -8,7 +8,7 @@
           vartype = "homoscedastic", 
           cl = NULL, time = NULL, pairwise = TRUE, figure = TRUE, main = NULL,
           Ylabel = NULL, Dlabel = NULL, Xlabel = NULL,
-          xlim = NULL, ylim = NULL, interval = NULL, Xdistr = "histogram", wald = TRUE)
+          xlim = NULL, ylim = NULL, interval = NULL, Xdistr = "histogram", wald = TRUE, theme.bw = FALSE)
 }
 \arguments{
   \item{Y}{a string, name of the outcome variable.}
@@ -65,6 +65,7 @@
     The default is TRUE.}
   \item{interval}{manually set the interval for the graph.}
   \item{wald}{wald test.}
+  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}    
 }
 \details{
   \bold{inter.binning} implements the binning estimator. There are

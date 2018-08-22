@@ -26,7 +26,7 @@ vcovCluster <- NULL
 inter.raw<-function(data,Y,D,X,weights=NULL,
     nbins=3,cutoffs=NULL, span=NULL,
     Ylabel=NULL,Dlabel= NULL,Xlabel=NULL,
-    pos=NULL){ 
+    pos=NULL,theme.bw = FALSE){ 
     
     ## Y: outcome
     ## D: "treatment" indicator
@@ -262,6 +262,11 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         p1 <- p1 + xlab(Dlabel) + ylab(Ylabel) + facet_grid(.~groupID)
         
     }
+    if (theme.bw == TRUE) {
+        p1 <- p1 + theme_bw() 
+    }
+
+
     return(list(graph = p1)) 
 }
 
@@ -435,7 +440,8 @@ inter.binning<-function(data,
                         bin.labs = TRUE,
                         interval = NULL,
                         Xdistr = "histogram", # c("density","histogram")
-                        wald = TRUE
+                        wald = TRUE,
+                        theme.bw = FALSE
                         ){
     
     x <- NULL
@@ -837,7 +843,11 @@ inter.binning<-function(data,
         pos<-max(yrange)-maxdiff/20
 
         ## mark zero
-        p1 <- p1 + geom_hline(yintercept=0,colour="white",size=2)
+        if (theme.bw == FALSE) {
+            p1 <- p1 + geom_hline(yintercept=0,colour="white",size=2)
+        } else {
+            p1 <- p1 + geom_hline(yintercept=0,colour="gray50",size=2)
+        }
 
         ## mark the original interval
         if (is.null(interval)==FALSE) {
@@ -1023,7 +1033,9 @@ inter.binning<-function(data,
         if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
             p1<-p1+coord_cartesian(xlim = xlim)
         }
-        
+        if (theme.bw == TRUE) {
+            p1 <- p1 + theme_bw() 
+        }        
         
     }  # end of plotting
 
@@ -1216,7 +1228,8 @@ inter.kernel <- function(data,
                          xlim = NULL,
                          ylim = NULL,
                          Xdistr = "histogram",
-                         file = NULL
+                         file = NULL,
+                         theme.bw = FALSE
                          ){
 
     x <- NULL
@@ -1550,8 +1563,12 @@ inter.kernel <- function(data,
     }
     
     ## mark zero
-    p1 <- ggplot() + geom_hline(yintercept=0,colour="white",size=2)
-
+    if (theme.bw == FALSE) {
+        p1 <- ggplot() + geom_hline(yintercept=0,colour="white",size=2)
+    } else {
+        p1 <- ggplot() + geom_hline(yintercept=0,colour="gray50",size=2)
+    }
+    
     ## point estimates
     p1 <-  p1 + geom_line(data=est,aes(X,ME))
 
@@ -1697,6 +1714,9 @@ inter.kernel <- function(data,
     if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
         p1<-p1+coord_cartesian(xlim = xlim)
     } 
+    if (theme.bw == TRUE) {
+        p1 <- p1 + theme_bw() 
+    }
     
     if (is.null(file)==FALSE) {
         pdf(file)
