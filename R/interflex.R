@@ -20,6 +20,7 @@ crossvalidate <- NULL
 inter.binning <- NULL
 inter.kernel <- NULL
 inter.raw <- NULL
+inter.gam <- NULL
 vcovCluster <- NULL
 #################################################
 
@@ -123,7 +124,7 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
     ## drop missing values
     data <- na.omit(data[,c(Y, D, X)])
      
-    ## ploting
+    ## plotting
     if (length(unique(data[,D]))==2) { ## binary case
         
         ## plotting
@@ -173,7 +174,10 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         } else {
             p1 <- ggplot(data.aug, aes_string(X, Y, weight=weights))
                 
-        } 
+        }
+        if (theme.bw == TRUE) {
+            p1 <- p1 + theme_bw() 
+        }
         p1 <- p1 + geom_point() +
             geom_smooth(method = "lm", se = F, fullrange = T,
                         colour = "steelblue", size = 1)
@@ -246,6 +250,9 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         } else {
             p1 <- ggplot(data.aug, aes_string(D, Y,weight=weights))
         }
+        if (theme.bw == TRUE) {
+            p1 <- p1 + theme_bw() 
+        }
         p1 <- p1 + geom_point() + 
             geom_smooth(method = "lm", se = F, fullrange = T,
                         colour = "steelblue", size = 1)
@@ -257,15 +264,11 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
             p1 <- p1 +
                 geom_smooth(method = "loess", formula = y ~ x,
                             se = F, colour="red",span=span) 
-        }
-        
+        }        
         p1 <- p1 + xlab(Dlabel) + ylab(Ylabel) + facet_grid(.~groupID)
         
     }
-    if (theme.bw == TRUE) {
-        p1 <- p1 + theme_bw() 
-    }
-
+    
 
     return(list(graph = p1)) 
 }
@@ -837,6 +840,9 @@ inter.binning<-function(data,
         errorbar.width<-(max(X.lvls)-min(X.lvls))/20
         
         p1 <- ggplot()
+        if (theme.bw == TRUE) {
+            p1 <- p1 + theme_bw() 
+        }
         yrange<-na.omit(c(marg,lb,ub,Xcoefs,lb.X,ub.X))
         if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/6)}
         maxdiff<-(max(yrange)-min(yrange))
@@ -981,7 +987,7 @@ inter.binning<-function(data,
         ## title
         if (is.null(main)==FALSE) {
             p1<-p1 + ggtitle(main) +
-                theme(plot.title = element_text(hjust = 0.5, size=35,
+                theme(plot.title = element_text(hjust = 0.5, size=20,
                                                 lineheight=.8, face="bold"))
         } 
 
@@ -1032,10 +1038,7 @@ inter.binning<-function(data,
         }
         if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
             p1<-p1+coord_cartesian(xlim = xlim)
-        }
-        if (theme.bw == TRUE) {
-            p1 <- p1 + theme_bw() 
-        }        
+        }               
         
     }  # end of plotting
 
@@ -1568,6 +1571,9 @@ inter.kernel <- function(data,
     } else {
         p1 <- ggplot() + geom_hline(yintercept=0,colour="#AAAAAA50",size=2)
     }
+    if (theme.bw == TRUE) {
+        p1 <- p1 + theme_bw() 
+    }
     
     ## point estimates
     p1 <-  p1 + geom_line(data=est,aes(X,ME))
@@ -1697,7 +1703,7 @@ inter.kernel <- function(data,
     ## title
     if (is.null(main)==FALSE) {
         p1<-p1 + ggtitle(main) +
-            theme(plot.title = element_text(hjust = 0.5, size=35,
+            theme(plot.title = element_text(hjust = 0.5, size=20,
                                             lineheight=.8, face="bold"))
     } 
     
@@ -1713,10 +1719,7 @@ inter.kernel <- function(data,
     }
     if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
         p1<-p1+coord_cartesian(xlim = xlim)
-    } 
-    if (theme.bw == TRUE) {
-        p1 <- p1 + theme_bw() 
-    }
+    }     
     
     if (is.null(file)==FALSE) {
         pdf(file)
