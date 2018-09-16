@@ -27,7 +27,7 @@ vcovCluster <- NULL
 inter.raw<-function(data,Y,D,X,weights=NULL,
     nbins=3,cutoffs=NULL, span=NULL,
     Ylabel=NULL,Dlabel= NULL,Xlabel=NULL,
-    pos=NULL,theme.bw = FALSE){ 
+    pos=NULL,theme.bw = FALSE, showgrid = TRUE){ 
     
     ## Y: outcome
     ## D: "treatment" indicator
@@ -178,6 +178,9 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         if (theme.bw == TRUE) {
             p1 <- p1 + theme_bw() 
         }
+        if (showgrid == FALSE) {
+            p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        }
         p1 <- p1 + geom_point() +
             geom_smooth(method = "lm", se = F, fullrange = T,
                         colour = "steelblue", size = 1)
@@ -252,6 +255,9 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         }
         if (theme.bw == TRUE) {
             p1 <- p1 + theme_bw() 
+        }
+        if (showgrid == FALSE) {
+            p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
         p1 <- p1 + geom_point() + 
             geom_smooth(method = "lm", se = F, fullrange = T,
@@ -444,7 +450,8 @@ inter.binning<-function(data,
                         interval = NULL,
                         Xdistr = "histogram", # c("density","histogram")
                         wald = TRUE,
-                        theme.bw = FALSE
+                        theme.bw = FALSE,
+                        showgrid = TRUE
                         ){
     
     x <- NULL
@@ -843,6 +850,9 @@ inter.binning<-function(data,
         if (theme.bw == TRUE) {
             p1 <- p1 + theme_bw() 
         }
+        if (showgrid == FALSE) {
+            p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        }
         yrange<-na.omit(c(marg,lb,ub,Xcoefs,lb.X,ub.X))
         if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/6)}
         maxdiff<-(max(yrange)-min(yrange))
@@ -1232,7 +1242,8 @@ inter.kernel <- function(data,
                          ylim = NULL,
                          Xdistr = "histogram",
                          file = NULL,
-                         theme.bw = FALSE
+                         theme.bw = FALSE,
+                         showgrid = TRUE
                          ){
 
     x <- NULL
@@ -1573,6 +1584,9 @@ inter.kernel <- function(data,
     }
     if (theme.bw == TRUE) {
         p1 <- p1 + theme_bw() 
+    }
+    if (showgrid == FALSE) {
+        p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
     }
     
     ## point estimates

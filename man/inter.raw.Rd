@@ -35,7 +35,8 @@
   \item{Dlabel}{a string that controls the label of D in the plot.}
   \item{Xlabel}{a string that controls the label of X in the plot.}
   \item{pos}{the interval of Y.}
-  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}    
+  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}
+  \item{showgrid}{a logical flag indicating whether to show grid in the plot.}     
 }
 \details{ 
   \bold{inter.raw} provides a simple visual diagnostic, a scatterplot,

@@ -70,7 +70,8 @@
     moderator will be plotted, either "histogram" (or "hist") or
     "density". The default is "histogram".}
   \item{file}{save the output graph to the file.}	
-  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}    
+  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}
+  \item{showgrid}{a logical flag indicating whether to show grid in the plot.}     
 }
 \details{
   \bold{inter.kernel} implements a kernel smoothing estimator of the

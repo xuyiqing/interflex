@@ -66,7 +66,8 @@
     The default is TRUE.}
   \item{interval}{manually set the interval for the graph.}
   \item{wald}{wald test.}
-  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}    
+  \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}
+  \item{showgrid}{a logical flag indicating whether to show grid in the plot.}    
 }
 \details{
   \bold{inter.binning} implements the binning estimator. There are
