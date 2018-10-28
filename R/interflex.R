@@ -614,9 +614,9 @@ inter.binning<-function(data,
     
     ## check missing values
     if (na.rm == TRUE) {
-        data <- na.omit(data[,c(Y, D, X, Z, FE)])
+        data <- na.omit(data[,c(Y, D, X, Z, FE, cl)])
     } else {
-        if (sum(is.na(data[,c(Y, D, X, Z, FE)]))>0) {
+        if (sum(is.na(data[,c(Y, D, X, Z, FE, cl)]))>0) {
             stop("Missing values. Try option na.rm = TRUE\n")
         }
     }
@@ -1445,9 +1445,9 @@ inter.kernel <- function(data,
     
     ## check missing values
     if (na.rm == TRUE) {
-        data <- na.omit(data[,c(Y, D, X, Z, FE)])
+        data <- na.omit(data[,c(Y, D, X, Z, FE, cl)])
     } else {
-        if (sum(is.na(data[,c(Y, D, X, Z, FE)]))>0) {
+        if (sum(is.na(data[,c(Y, D, X, Z, FE, cl)]))>0) {
             stop("Missing values. Try option na.rm = TRUE\n")
         }
     }
