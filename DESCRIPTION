@@ -1,7 +1,7 @@
 Package: interflex
 Type: Package
 Title: Multiplicative Interaction Models Diagnostics and Visualization
-Version: 1.0.6
+Version: 1.0.7
 Date: 2018-9-15
 Author: Jens Hainmueller, Jonathan Mummolo and Yiqing Xu
 Maintainer: Yiqing Xu <yiqingxu@ucsd.edu>

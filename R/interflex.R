@@ -430,7 +430,7 @@ inter.binning<-function(data,
                         X, # moderator
                         Z = NULL, # covariates
                         FE = NULL, # fixed effects
-                        weights = NULL, # weigthing variable
+                        weights = NULL, # weighting variable
                         na.rm = FALSE,
                         nbins = 3,  # No. of X bins
                         cutoffs = NULL,
@@ -613,10 +613,11 @@ inter.binning<-function(data,
     }
     
     ## check missing values
-    if (na.rm == TRUE) {
-        data <- na.omit(data[,c(Y, D, X, Z, FE)])
+    vars <- c(Y, D, X, Z, FE, cl, weights)
+    if (na.rm == TRUE) {        
+        data <- na.omit(data[,vars])
     } else {
-        if (sum(is.na(data[,c(Y, D, X, Z, FE)]))>0) {
+        if (sum(is.na(data[,vars]))>0) {
             stop("Missing values. Try option na.rm = TRUE\n")
         }
     }
@@ -1444,10 +1445,11 @@ inter.kernel <- function(data,
     }
     
     ## check missing values
-    if (na.rm == TRUE) {
-        data <- na.omit(data[,c(Y, D, X, Z, FE)])
+    vars <- unique(c(Y, D, X, Z, FE, cl, weights))
+    if (na.rm == TRUE) {        
+        data <- na.omit(data[,vars])
     } else {
-        if (sum(is.na(data[,c(Y, D, X, Z, FE)]))>0) {
+        if (sum(is.na(data[,vars]))>0) {
             stop("Missing values. Try option na.rm = TRUE\n")
         }
     }
