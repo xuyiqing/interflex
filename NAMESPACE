@@ -7,10 +7,7 @@ importFrom("graphics", "hist", "par", "plot")
 importFrom("stats", "as.formula", "density", "dnorm", "lm", "median",
              "model.matrix", "na.omit", "pt", "qt", "quantile", "sd",
              "var", "vcov")
-importFrom("ggplot2","geom_errorbar", "geom_hline", "geom_line", "geom_point", "geom_rect",
-           "geom_ribbon", "geom_smooth", "geom_vline", "ggplot", "ggtitle", "theme", "aes",
-		   "element_text", "annotate", "xlab", "ylab", "aes_string", "coord_cartesian",
-		   "facet_wrap", "facet_grid","theme_bw","element_blank")
+importFrom("ggplot2","geom_errorbar", "geom_hline", "geom_line", "geom_point", "geom_rect","geom_ribbon", "geom_smooth", "geom_vline", "ggplot", "ggtitle", "theme", "aes","element_text", "annotate", "xlab", "ylab", "aes_string", "coord_cartesian", "facet_wrap", "facet_grid","theme_bw","element_blank","ggsave")
 importFrom("mgcv","vis.gam","gam")
 importFrom("sandwich","sandwich","estfun")
 importFrom("pcse","pcse")
@@ -24,4 +21,4 @@ export(inter.raw)
 export(inter.gam)
 export(inter.binning)
 export(inter.kernel)
-
+export(inter.plot)

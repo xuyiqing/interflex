@@ -7,6 +7,8 @@
 ## 2. inter.gam: GAM plots
 ## 3. inter.binning: estimate
 ## 4. inter.kernel: kernel smooth plot
+## 5. inter.plot: change looks of a plot based on 
+##     an interflex object
 
 ## Supporting
 ## 1. coefs: kernel weighted least squares
@@ -21,13 +23,26 @@ inter.binning <- NULL
 inter.kernel <- NULL
 inter.raw <- NULL
 inter.gam <- NULL
+inter.plot <- NULL
 vcovCluster <- NULL
 #################################################
 
-inter.raw<-function(data,Y,D,X,weights=NULL,
-    nbins=3,cutoffs=NULL, span=NULL,
-    Ylabel=NULL,Dlabel= NULL,Xlabel=NULL,
-    pos=NULL,theme.bw = FALSE, showgrid = TRUE){ 
+inter.raw<-function(
+    data,Y,D,X,weights=NULL,
+    nbins=3,
+    cutoffs=NULL, 
+    span=NULL,
+    pos=NULL,
+    main = NULL,
+    Ylabel=NULL,
+    Dlabel= NULL,
+    Xlabel=NULL,
+    theme.bw = FALSE, 
+    show.grid = TRUE,
+    cex.main = NULL,
+    cex.lab = NULL,
+    cex.axis = NULL
+    ){ 
     
     ## Y: outcome
     ## D: "treatment" indicator
@@ -117,6 +132,28 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         }   
     }
 
+    ## font size
+    if (is.null(cex.lab)==FALSE) {
+        if (is.numeric(cex.lab)==FALSE) {
+            stop("\"cex.lab\" is not numeric.")
+        }
+    }
+    if (is.null(cex.main)==FALSE) {
+        if (is.numeric(cex.main)==FALSE) {
+            stop("\"cex.main\" is not numeric.")
+        }
+    }
+    if (is.null(cex.axis)==FALSE) {
+        if (is.numeric(cex.axis)==FALSE) {
+            stop("\"cex.axis\" is not numeric.")
+        }    
+    }  
+
+    ## title
+    if (is.null(main)==FALSE) {
+        main <- main[1]
+    } 
+
      
     ## load packages
     requireNamespace("ggplot2")
@@ -178,7 +215,7 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         if (theme.bw == TRUE) {
             p1 <- p1 + theme_bw() 
         }
-        if (showgrid == FALSE) {
+        if (show.grid == FALSE) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
         p1 <- p1 + geom_point() +
@@ -202,7 +239,6 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         p1 <- p1 + geom_point(aes_string(X,"med"),size=3,
                               shape=21,fill="white",colour="red", na.rm = TRUE)
 
-        p1 <- p1 + theme(axis.title = element_text(size=15))
 
         p1 <- p1 + facet_wrap(~treat, ncol=1) 
         #p1 <- p1 + facet_grid(treat ~.)                
@@ -256,7 +292,7 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         if (theme.bw == TRUE) {
             p1 <- p1 + theme_bw() 
         }
-        if (showgrid == FALSE) {
+        if (show.grid == FALSE) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
         p1 <- p1 + geom_point() + 
@@ -274,7 +310,30 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
         p1 <- p1 + xlab(Dlabel) + ylab(Ylabel) + facet_grid(.~groupID)
         
     }
-    
+
+    ## axis labels
+    if (is.null(cex.lab)==TRUE) {
+        cex.lab <- 15
+    } else {
+        cex.lab <- 15 * cex.lab
+    }
+    if (is.null(cex.axis)==TRUE) {
+        cex.axis <- 15
+    } else {
+        cex.axis <- 15 * cex.axis
+    }
+    p1 <- p1 + theme(axis.text = element_text(size=cex.axis), axis.title = element_text(size=cex.lab))
+
+    ## title
+    if (is.null(cex.main)==TRUE) {
+        cex.main <- 18
+    } else {
+        cex.main <- 18 * cex.main
+    }
+    if (is.null(main)==FALSE) {
+            p1<-p1 + ggtitle(main) +
+            theme(plot.title = element_text(hjust = 0.5, size=cex.main,lineheight=.8, face="bold"))
+    } 
 
     return(list(graph = p1)) 
 }
@@ -284,10 +343,13 @@ inter.raw<-function(data,Y,D,X,weights=NULL,
 ## GAM
 
 
-inter.gam<-function(data,Y,D,X,Z=NULL,weights=NULL,FE=NULL,
+inter.gam<-function(data,Y,D,X,
+    Z=NULL,
+    weights=NULL,
+    FE=NULL,
     SE = FALSE,
     k=10,
-    angle=c(30,100,-30,-120),
+    angle=c(30, 100,-30,-120),
     Ylabel = NULL, Dlabel = NULL, Xlabel = NULL){
 
     ## in case data is in tibble format
@@ -432,6 +494,7 @@ inter.binning<-function(data,
                         FE = NULL, # fixed effects
                         weights = NULL, # weighting variable
                         na.rm = FALSE,
+                        Xunif = FALSE,
                         nbins = 3,  # No. of X bins
                         cutoffs = NULL,
                         vartype = "homoscedastic", # variance type
@@ -439,19 +502,25 @@ inter.binning<-function(data,
                         cl = NULL, # variable to be clustered on
                         time = NULL, # time variable for pcse
                         pairwise = TRUE, # pcse option
+                        wald = TRUE,
                         figure = TRUE,
+                        Xdistr = "histogram", # c("density","histogram","none")
                         main = NULL,
                         Ylabel = NULL,
                         Dlabel = NULL,
                         Xlabel = NULL,
+                        xlab = NULL,
+                        ylab = NULL,
                         xlim = NULL,
                         ylim = NULL,
-                        bin.labs = TRUE,
-                        interval = NULL,
-                        Xdistr = "histogram", # c("density","histogram")
-                        wald = TRUE,
                         theme.bw = FALSE,
-                        showgrid = TRUE
+                        show.grid = TRUE,
+                        cex.main = NULL,
+                        cex.lab = NULL,
+                        cex.axis = NULL,
+                        bin.labs = TRUE,                        
+                        interval = NULL,
+                        file = NULL                        
                         ){
     
     x <- NULL
@@ -590,8 +659,8 @@ inter.binning<-function(data,
     if (is.null(main)==FALSE) {
         main <- main[1]
     }
-    if (!Xdistr %in% c("hist","histogram","density")){
-        stop("Xdistr must be either \"histogram\" or \"density\".")
+    if (!Xdistr %in% c("hist","histogram","density","none")){
+        stop("\"Xdistr\" must be \"histogram\", \"density\", or \"none\".")
     }
     if (is.null(xlim)==FALSE) {
         if (is.numeric(xlim)==FALSE) {
@@ -611,6 +680,18 @@ inter.binning<-function(data,
             }
         }
     }
+
+    ## axis labels
+    if(is.null(xlab)==FALSE){
+        if (is.character(xlab) == FALSE) {
+            stop("\"xlab\" is not a string.")
+        }        
+    }
+    if(is.null(ylab)==FALSE){
+        if (is.character(ylab) == FALSE) {
+            stop("\"ylab\" is not a string.")
+        }        
+    }
     
     ## check missing values
     vars <- c(Y, D, X, Z, FE, cl, weights)
@@ -627,6 +708,13 @@ inter.binning<-function(data,
 
     n<-dim(data)[1]
     data[,D]<-as.numeric(data[,D])
+
+    ## transform moderator into uniform
+    if (Xunif == TRUE) {
+        x <- data[, X]
+        data[, X] <- rank(x, ties.method = "average")/length(x)*100
+        Xlabel <- paste(Xlabel,"(Percentile)")
+    }
 
     ## formula
     mod.f<-paste0(Y,"~",D,"+",X,"+",D,"*",X)
@@ -823,242 +911,14 @@ inter.binning<-function(data,
     crit.X<-abs(qt(.025, df=df.X))
     lb.X<-Xcoefs-crit.X*X.se
     ub.X<-Xcoefs+crit.X*X.se
-    est.binning <- cbind(x0, coef=Xcoefs, se = X.se, CI_lower = lb.X, CI_upper = ub.X)
-    rownames(est.binning) <- gp.lab
 
-    ################### plotting ###############################
-    
-    ## margin and label adjustment
-    
-    if (figure==TRUE) {
+    est.lin<-data.frame(X.lvls, marg, lb, ub)
+    est.bin <- data.frame(x0, Xcoefs, X.se, lb.X, ub.X)
+    colnames(est.bin) <- c("x0", "coef", "se", "CI_lower", "CI_upper")
+    rownames(est.bin) <- gp.lab
 
-        requireNamespace("ggplot2")
-        
-        if(is.null(Xlabel)==FALSE){
-            x.label<-c(paste("Moderator: ", Xlabel, sep=""))
-            y.label<-c(paste("Marginal Effect of ",Dlabel," on ",Ylabel,sep=""))
-        } else {
-            x.label<-c(paste("Moderator: ", X, sep=""))
-            y.label<-c(paste("Marginal Effect of ",D," on ",Y,sep=""))
-        }
-        out<-data.frame(X.lvls,marg,lb,ub)
-        out.bin<-data.frame(x0,Xcoefs,lb.X,ub.X)
-        out.bin2<-out.bin[which(is.na(Xcoefs)==FALSE),] ## non missing part
-        out.bin3<-out.bin[which(is.na(Xcoefs)==TRUE),]  ## missing part
-        errorbar.width<-(max(X.lvls)-min(X.lvls))/20
-        
-        p1 <- ggplot()
-        if (theme.bw == TRUE) {
-            p1 <- p1 + theme_bw() 
-        }
-        if (showgrid == FALSE) {
-            p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-        }
-        yrange<-na.omit(c(marg,lb,ub,Xcoefs,lb.X,ub.X))
-        if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/6)}
-        maxdiff<-(max(yrange)-min(yrange))
-        pos<-max(yrange)-maxdiff/20
+    ################### testing  ###############################
 
-        ## mark zero
-        if (theme.bw == FALSE) {
-            p1 <- p1 + geom_hline(yintercept=0,colour="white",size=2)
-        } else {
-            p1 <- p1 + geom_hline(yintercept=0,colour="#AAAAAA50",size=2)
-        }
-
-        ## mark the original interval
-        if (is.null(interval)==FALSE) {
-            p1<- p1 + geom_vline(xintercept=interval,colour="steelblue",
-                                 linetype=2,size=1.5)
-        }
-
-        ## plotting moderator distribution
-        if (is.null(Xdistr) == TRUE) {
-            Xdistr <- "density"
-        } else if (Xdistr != "density" & Xdistr != "histogram" & Xdistr != "hist") {
-            Xdistr <- "density"
-        }  
-        if (Xdistr == "density") { # density plot
-
-            if (length(unique(data[,D]))==2) { ## binary D
-
-                ## get densities
-                if (is.null(weights)==TRUE) {
-                    de.co <- density(data[data[,D]==0,X])
-                    de.tr <- density(data[data[,D]==1,X])
-                } else {
-                    suppressWarnings(de.co<-density(data[data[,D]==0,X],
-                                                    weights=data[data[,D]==0,weights]))
-                    suppressWarnings(de.tr<-density(data[data[,D]==1,X],
-                                                    weights=data[data[,D]==1,weights]))
-                }
- 
-                ## put in data frames
-                deX.ymin <- min(yrange)-maxdiff/5
-                deX.co <- data.frame(
-                    x = de.co$x,
-                    y = de.co$y/max(de.co$y) * maxdiff/5 + min(yrange) - maxdiff/5
-                )
-                deX.tr <- data.frame(
-                    x = de.tr$x,
-                    y = de.tr$y/max(de.tr$y) * maxdiff/5 + min(yrange) - maxdiff/5
-                )
-
-                ## color
-                feed.col<-col2rgb("gray50")
-                col.co<-rgb(feed.col[1]/1000, feed.col[2]/1000,feed.col[3]/1000)
-                col.tr<-rgb(red=1, blue=0, green=0)
-
-                ## plotting
-                p1 <- p1 + geom_ribbon(data = deX.co,
-                                       aes(x = x, ymax = y, ymin = deX.ymin),
-                                       fill = col.co, alpha = 0.2) +
-                    geom_ribbon(data = deX.tr,
-                                aes(x = x, ymax = y, ymin = deX.ymin),
-                                fill = col.tr, alpha = 0.2)
-               
-               
-                
-            } else { ## continuous D
-                
-                ## get densities
-                if (is.null(weights)==TRUE) {
-                    de <- density(data[,X])
-                } else {
-                    suppressWarnings(de <- density(data[,X],weights=data[,weights]))
-                }
-
-                ## put in data frames
-                deX.ymin <- min(yrange)-maxdiff/5
-                deX <- data.frame(
-                    x = de$x,
-                    y = de$y/max(de$y) * maxdiff/5 + min(yrange) - maxdiff/5
-                ) 
-
-                ## color
-                feed.col<-col2rgb("gray50")
-                col<-rgb(feed.col[1]/1000, feed.col[2]/1000,feed.col[3]/1000)
-                
-                ## plotting
-                p1 <- p1 + geom_ribbon(data = deX,
-                                       aes(x = x, ymax = y, ymin = deX.ymin),
-                                       fill = col, alpha = 0.2)  
-                
-            }
-            
-        } else  { # histogram plot
-
-            if (length(unique(data[,D]))==2) { ## binary D
-
-                if (is.null(weights)==TRUE) {
-                    hist.out<-hist(data[,X],breaks=80,plot=FALSE)
-                } else {
-                    suppressWarnings(hist.out<-hist(data[,X],data[,weights],
-                                                    breaks=80,plot=FALSE))
-                } 
-                n.hist<-length(hist.out$mids)
-                dist<-hist.out$mids[2]-hist.out$mids[1]
-                hist.max<-max(hist.out$counts)
-                ## count the number of treated
-                count1<-rep(0,n.hist)
-                treat<-which(data[,D]==max(data[,D]))
-                for (i in 1:n.hist) {
-                    count1[i]<-sum(data[treat,X]>=hist.out$breaks[i] &
-                                   data[treat,X]<hist.out$breaks[(i+1)])
-                }
-                count1[n.hist]<-sum(data[treat,X]>=hist.out$breaks[n.hist] &
-                                    data[treat,X]<=hist.out$breaks[n.hist+1])
-                ## put in a data frame
-                histX<-data.frame(ymin=rep(min(yrange)-maxdiff/5,n.hist),
-                                  ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
-                                  xmin=hist.out$mids-dist/2,
-                                  xmax=hist.out$mids+dist/2,
-                                  count1=count1/hist.max*maxdiff/5+min(yrange)-maxdiff/5)
-                p1 <- p1 + geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-                                     colour="gray50",alpha=0,size=0.5) + # control
-                    geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=count1),
-                              fill="red",colour="grey50",alpha=0.3,size=0.5) # treated
-                
-            }  else { ## continuous D
-                hist.out<-hist(data[,X],breaks=80,plot=FALSE)
-                n.hist<-length(hist.out$mids)
-                dist<-hist.out$mids[2]-hist.out$mids[1]
-                hist.max<-max(hist.out$counts)
-                
-                histX<-data.frame(ymin=rep(min(yrange)-maxdiff/5,n.hist),
-                                  ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
-                                  xmin=hist.out$mids-dist/2,
-                                  xmax=hist.out$mids+dist/2)
-                p1 <- p1 + geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-                                     colour="gray50",alpha=0,size=0.5)
-            }
-        }
-        
-    
-        ## title
-        if (is.null(main)==FALSE) {
-            p1<-p1 + ggtitle(main) +
-                theme(plot.title = element_text(hjust = 0.5, size=20,
-                                                lineheight=.8, face="bold"))
-        } 
-
-        
-      
-        ## labels: L, M, H and so on 
-        if (bin.labs == TRUE) {
-            if (nbins==3) {
-                p1<-p1 + annotate(geom="text", x=out.bin[1,1], y=pos,
-                  label="L",colour="gray50",size=10) +
-                annotate(geom="text", x=out.bin[2,1], y=pos,
-                   label="M",colour="gray50",size=10) +
-                annotate(geom="text", x=out.bin[3,1], y=pos,
-                   label="H",colour="gray50",size=10)
-            } else if (nbins==4) {
-                p1<-p1 + annotate(geom="text", x=out.bin[1,1], y=pos,
-                  label="L",colour="gray50",size=10) +
-                annotate(geom="text", x=out.bin[2,1], y=pos,
-                   label="M1",colour="gray50",size=10) +
-                annotate(geom="text", x=out.bin[3,1], y=pos,
-                   label="M2",colour="gray50",size=10) +
-                annotate(geom="text", x=out.bin[4,1], y=pos,
-                   label="H",colour="gray50",size=10)
-            } 
-        }
-        
-        ## linear plot 
-        p1<-p1 + geom_line(data=out,aes(X.lvls,marg))+
-            geom_ribbon(data=out, aes(x=X.lvls,ymin=lb,ymax=ub),alpha=0.2)+
-                xlab(x.label) + ylab(y.label)
-        ## bin estimates
-        p1<-p1+ geom_errorbar(data=out.bin2, aes(x=x0, ymin=lb.X, ymax=ub.X),colour="red",
-                              width= errorbar.width)+
-                                  geom_point(data=out.bin2,aes(x0,Xcoefs),size=4,shape=21,fill="white",colour="red") +
-                                      theme(axis.title = element_text(size=15))
-        ## in case there's non-overlap
-        p1<-p1+annotate(geom="text", x=out.bin3[,1], y=rep(0,dim(out.bin3)[1]),
-                        label="NaN",colour="red") 
-
-        if (is.null(ylim)==FALSE) {
-            ylim2 = c(ylim[1]-(ylim[2]-ylim[1])*0.25/6, ylim[2]+(ylim[2]-ylim[1])*0.4/6)
-        }
-        if (is.null(xlim)==FALSE & is.null(ylim)==FALSE) {
-            p1<-p1+coord_cartesian(xlim = xlim, ylim = ylim2)
-        }
-        if (is.null(xlim)==TRUE & is.null(ylim)==FALSE) {
-            p1<-p1+coord_cartesian(ylim = ylim2)
-        }
-        if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
-            p1<-p1+coord_cartesian(xlim = xlim)
-        }               
-        
-    }  # end of plotting
-
-    ## ################# testing  ###############################
-
-    ## binary treatment
-    btreat<-length(unique(data[,D]))==2
-
-   
     ## variance of treatment in each group 
     varD<-c()
     for (i in 1:nbins) {
@@ -1198,54 +1058,145 @@ inter.binning<-function(data,
      
     ##################################
     ## storage
-    out<-list(est.binning = round(est.binning, 4),
-              binary.treatment=round(btreat,4),
-              bin.size = round(c(table(groupX)/length(groupX)),4),
-              treat.variation.byGroup=round(varD,4),
-              X.Lkurtosis = round(Lkurtosis,4))
+    ##################################
+
+    ## binary treatment (for plotting)
+    binaryD <- FALSE
+    if (length(unique(data[,D]))==2) {binaryD <- TRUE}
+
+    ## get densities and histogram
+    if (binaryD == TRUE) { ## binary D
+        # density
+        de <- NULL
+        if (is.null(weights)==TRUE) {
+            de.co <- density(data[data[,D]==0,X])
+            de.tr <- density(data[data[,D]==1,X])
+        } else {
+            suppressWarnings(de.co<-density(data[data[,D]==0,X],
+                weights=data[data[,D]==0,weights]))
+            suppressWarnings(de.tr<-density(data[data[,D]==1,X],
+                weights=data[data[,D]==1,weights]))
+        }
+        # histogram
+        if (is.null(weights)==TRUE) {
+            hist.out<-hist(data[,X],breaks=80,plot=FALSE)
+        } else {
+            suppressWarnings(hist.out<-hist(data[,X],data[,weights],
+                breaks=80,plot=FALSE))
+        } 
+        n.hist<-length(hist.out$mids)
+        ## count the number of treated
+        count1<-rep(0,n.hist)
+        treat<-which(data[,D]==max(data[,D]))
+        for (i in 1:n.hist) {
+            count1[i]<-sum(data[treat,X]>=hist.out$breaks[i] &
+            data[treat,X]<hist.out$breaks[(i+1)])
+        }
+        count1[n.hist]<-sum(data[treat,X]>=hist.out$breaks[n.hist] &
+            data[treat,X]<=hist.out$breaks[n.hist+1])        
+    }  else { ## continuous D
+        if (is.null(weights)==TRUE) {
+            de <- density(data[,X])
+        } else {
+            suppressWarnings(de <- density(data[,X],weights=data[,weights]))
+        }
+        if (is.null(weights)==TRUE) {
+            hist.out<-hist(data[,X],breaks=80,plot=FALSE)
+        } else {
+            suppressWarnings(hist.out<-hist(data[,X],data[,weights],
+                breaks=80,plot=FALSE))
+        }
+        de.co <- de.tr <- NULL 
+        count1 <- NULL
+    }  
+
+    tests <- list(
+        est.binning = round(est.bin, 3),
+        bin.size = sprintf(c(table(groupX)/length(groupX)),fmt = '%#.3f'),
+        treat.variation.byGroup=sprintf(varD,fmt = '%#.3f'),
+        X.Lkurtosis = sprintf(Lkurtosis,fmt = '%#.3f')
+        )
     if (nbins==3) {
-        out<-c(out,list(correctOrder=correctOrder))
+        tests<-c(tests,list(correctOrder=correctOrder))
     }
     if (nbins%in%c(2,3)) {
-        out<-c(out,list(p.twosided=p.twosided)) 
+        tests<-c(tests,list(p.twosided=sprintf(p.twosided, fmt = '%#.3f'))) 
     }
     if (wald == TRUE) {
-        out <- c(out, list(p.wald = p.wald))
+        tests <- c(tests, list(p.wald = sprintf(p.wald, fmt = '%#.3f')))
+    }    
+    
+    ## saving
+    output<-list(
+        type = "binning",
+        nbins = nbins,
+        est.lin = est.lin,
+        est.bin = est.bin,
+        binaryD= binaryD,
+        Xlabel = Xlabel,
+        Dlabel = Dlabel,
+        Ylabel = Ylabel,
+        de = de, # density
+        de.co = de.co, 
+        de.tr = de.tr, 
+        hist.out = hist.out,
+        count.tr = count1,
+        tests = tests
+        )
+    
+    
+    if (figure==TRUE) {
+
+        class(output) <- "interflex"
+        graph <- inter.plot(out = output, CI = TRUE, xlab = xlab, ylab = ylab,
+           Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
+           main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,
+           file = file, theme.bw = theme.bw, show.grid = show.grid, bin.labs = bin.labs, 
+           cex.main = cex.main, cex.axis = cex.axis, cex.lab = cex.lab)  
+
+        output<-c(output,list(graph=graph))
     }
-    if (figure==TRUE) {out<-c(out,list(graph=p1))} 
-    return(out)
+    
+    class(output) <- "interflex"
+    return(output)
 }
 
 ###########################
 
 inter.kernel <- function(data,
-                         Y, D, X,
-                         Z = NULL,
-                         weights = NULL, # weighting variable
-                         FE = NULL,
-                         na.rm = FALSE,
-                         CI = TRUE,
-                         conf.level = 0.95,
-                         cl = NULL,
-                         neval = 50,
-                         nboots = 200,
-                         parallel = TRUE,
-                         cores = 4,
-                         seed = 02139,
-                         bw = NULL, # bandwidth   
-                         grid = 20, # either a number of a sequence of numbers
-                         metric = "MSPE",
-                         Ylabel = NULL,
-                         Dlabel = NULL,
-                         Xlabel = NULL,
-                         main = NULL,
-                         xlim = NULL,
-                         ylim = NULL,
-                         Xdistr = "histogram",
-                         file = NULL,
-                         theme.bw = FALSE,
-                         showgrid = TRUE
-                         ){
+   Y, D, X,
+   Z = NULL,
+   weights = NULL, # weighting variable
+   FE = NULL,
+   na.rm = FALSE,
+   Xunif = FALSE, ## transform moderate into a uniform distribution
+   CI = TRUE,
+   conf.level = 0.95,
+   cl = NULL,
+   neval = 50,
+   nboots = 200,
+   parallel = TRUE,
+   cores = 4,
+   seed = 02139,
+   bw = NULL, # bandwidth   
+   grid = 20, # either a number of a sequence of numbers
+   metric = "MSPE",
+   Xdistr = "histogram",
+   main = NULL,
+   Ylabel = NULL,
+   Dlabel = NULL,
+   Xlabel = NULL,
+   xlab = NULL,
+   ylab = NULL,
+   xlim = NULL,
+   ylim = NULL,                         
+   theme.bw = FALSE,
+   show.grid = TRUE,
+   cex.main = NULL,
+   cex.lab = NULL,
+   cex.axis = NULL,
+   file = NULL                        
+   ){
 
     x <- NULL
     y <- NULL
@@ -1409,8 +1360,8 @@ inter.kernel <- function(data,
     if (is.null(main)==FALSE) {
         main <- main[1]
     } 
-    if (!Xdistr %in% c("hist","histogram","density")){
-        stop("\"Xdistr\" must be either \"histogram\" or \"density\".")
+    if (!Xdistr %in% c("hist","histogram","density","none")){
+        stop("\"Xdistr\" must be \"histogram\", \"density\", or \"none\".")
     }
     if (is.null(xlim)==FALSE) {
         if (is.numeric(xlim)==FALSE) {
@@ -1429,6 +1380,18 @@ inter.kernel <- function(data,
                 stop("\"ylim\" must be of length 2.")
             }
         }
+    }
+
+    ## axis labels
+    if(is.null(xlab)==FALSE){
+        if (is.character(xlab) == FALSE) {
+            stop("\"xlab\" is not a string.")
+        }        
+    }
+    if(is.null(ylab)==FALSE){
+        if (is.character(ylab) == FALSE) {
+            stop("\"ylab\" is not a string.")
+        }        
     }
     
     
@@ -1454,6 +1417,13 @@ inter.kernel <- function(data,
         }
     }
     n<-dim(data)[1]
+
+    ## transform moderator into uniform
+    if (Xunif == TRUE) {
+        x <- data[, X]
+        data[, X] <- rank(x, ties.method = "average")/length(x)*100
+        Xlabel <- paste(Xlabel,"(Percentile)")
+    }
 
     ## check cluster
     if (is.null(cl)==TRUE & is.null(FE)==FALSE) {
@@ -1567,162 +1537,390 @@ inter.kernel <- function(data,
         cat("\n") 
     }
 
-    ##########################################
-    ## plotting
-    requireNamespace("ggplot2")
-    if(is.null(Xlabel)==FALSE){
-        x.label<-c(paste("Moderator: ", Xlabel, sep=""))
-        y.label<-c(paste("Marginal Effect of ",Dlabel," on ",Ylabel,sep=""))
-    } else {
-        x.label<-c(paste("Moderator: ", X, sep=""))
-        y.label<-c(paste("Marginal Effect of ",D," on ",Y,sep=""))
-    }
-    
-    ## mark zero
-    if (theme.bw == FALSE) {
-        p1 <- ggplot() + geom_hline(yintercept=0,colour="white",size=2)
-    } else {
-        p1 <- ggplot() + geom_hline(yintercept=0,colour="#AAAAAA50",size=2)
-    }
-    if (theme.bw == TRUE) {
-        p1 <- p1 + theme_bw() 
-    }
-    if (showgrid == FALSE) {
-        p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-    }
-    
-    ## point estimates
-    p1 <-  p1 + geom_line(data=est,aes(X,ME))
+    ## binary treatment
+    binaryD <- FALSE
+    if (length(unique(data[,D]))==2) {binaryD <- TRUE}
 
-    ## confidence intervals
-    if (CI == TRUE) {
-        p1 <- p1 + geom_ribbon(data=est, aes(x=X,ymin=CI_lower,ymax=CI_upper),alpha=0.2)
-        yrange<-na.omit(c(est$CI_lower, est$CI_upper))
-    }  else {
-        yrange<-na.omit(c(est$ME))
+    ## get densities and histogram
+    if (binaryD == TRUE) { ## binary D
+        # density
+        de <- NULL
+        de.co <- density(data[data[,D]==0,X])
+        de.tr <- density(data[data[,D]==1,X])
+        # histogram
+        hist.out<-hist(data[,X],breaks=80,plot=FALSE)
+        n.hist<-length(hist.out$mids)        
+        ## count the number of treated
+        count1<-rep(0,n.hist)
+        treat<-which(data[,D]==max(data[,D]))
+        for (i in 1:n.hist) {
+            count1[i]<-sum(data[treat,X]>=hist.out$breaks[i] &
+            data[treat,X]<hist.out$breaks[(i+1)])
+        }
+        count1[n.hist]<-sum(data[treat,X]>=hist.out$breaks[n.hist] &
+            data[treat,X]<=hist.out$breaks[n.hist+1])        
+    }  else { ## continuous D
+        de <- density(data[,X]) 
+        de.co <- de.tr <- NULL
+        hist.out<-hist(data[,X],breaks=80,plot=FALSE)
+        count1 <- NULL
+    }  
+
+    ######################################################
+    
+    output<-list(
+        type = "kernel",
+        bw = bw,
+        est = est,                 
+        binaryD = binaryD, # binary treatment
+        Xlabel = Xlabel,
+        Dlabel = Dlabel,
+        Ylabel = Ylabel,
+        de = de, # density
+        de.co = de.co, 
+        de.tr = de.tr, 
+        hist.out = hist.out,
+        count.tr = count1)
+
+    if (CV == 1) {
+        output <- c(output, list(CV.out = cv.out$CV.out))
+    }    
+    
+    #################
+    ## plotting
+    #################
+    
+    class(output) <- "interflex"
+    graph <- inter.plot(out = output, CI = CI, xlab = xlab, ylab = ylab,
+     Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
+     main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,
+     file = file, theme.bw = theme.bw, show.grid = show.grid,
+     cex.main = cex.main, cex.axis = cex.axis, cex.lab = cex.lab)
+
+    output <- c(output, list(graph = graph))
+    
+    class(output) <- "interflex"
+    return (output)
+}
+
+#### Plot kernel results #######
+
+inter.plot <- function(
+    out,
+    CI = TRUE,
+    Xdistr = "histogram",
+    main = NULL,
+    Ylabel = NULL,
+    Dlabel = NULL,
+    Xlabel = NULL,
+    xlab = NULL,
+    ylab = NULL,
+    xlim = NULL,
+    ylim = NULL,
+    theme.bw = FALSE,
+    show.grid = TRUE,     
+    cex.main = NULL,
+    cex.lab = NULL,
+    cex.axis = NULL,
+    bin.labs = TRUE, # bin labels    
+    interval = NULL, # interval in replicated papers
+    file = NULL
+   ){
+
+    x <- NULL
+    y <- NULL
+    xmin <- NULL
+    xmax <- NULL
+    ymin <- NULL
+    ymax <- NULL
+    count1 <- NULL
+    X <- NULL
+    ME <- NULL
+    CI_lower <- NULL
+    CI_upper <- NULL
+    marg <- NULL
+    lb <- NULL
+    ub <- NULL
+    x0 <- NULL
+    coef <- NULL
+
+    if (!class(out) %in% c("interflex")) {
+        stop("Not an \"interflex\" object.")
+    }     
+    type <- out$type
+    
+
+    requireNamespace("ggplot2")
+
+    binaryD <- out$binaryD
+    Xlabel <- out$Xlabel
+    Dlabel <- out$Dlabel
+    Ylabel <- out$Ylabel
+    de <- out$de
+    de.co <- out$de.co
+    de.tr <- out$de.tr
+    hist.out <- out$hist.out
+    count.tr <- out$count.tr
+
+    if (is.null(xlim)==FALSE) {
+        if (is.numeric(xlim)==FALSE) {
+            stop("Some element in xlim is not numeric.")
+        } else {
+            if (length(xlim)!=2) {
+                stop("\"xlim\" must be of length 2.")
+            }
+        }
     }
+    if (is.null(ylim)==FALSE) {
+        if (is.numeric(ylim)==FALSE) {
+            stop("Some element in ylim is not numeric.")
+        } else {
+            if (length(ylim)!=2) {
+                stop("\"ylim\" must be of length 2.")
+            }
+        }
+    }
+
+    ## font size
+    if (is.null(cex.lab)==FALSE) {
+        if (is.numeric(cex.lab)==FALSE) {
+            stop("\"cex.lab\" is not numeric.")
+        }
+    }
+    if (is.null(cex.main)==FALSE) {
+        if (is.numeric(cex.main)==FALSE) {
+            stop("\"cex.main\" is not numeric.")
+        }
+    }
+    if (is.null(cex.axis)==FALSE) {
+        if (is.numeric(cex.axis)==FALSE) {
+            stop("\"cex.axis\" is not numeric.")
+        }    
+    }   
+
 
     ## axis labels
-    p1 <- p1 + xlab(x.label) + ylab(y.label) + theme(axis.title = element_text(size=15))
-    
-    ## ylim
-    if (is.null(ylim)==FALSE) {
-        yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/6)
+    if(is.null(xlab)==TRUE){
+        xlab<-c(paste("Moderator: ", Xlabel, sep=""))
+    } else {
+        if (is.character(xlab) == FALSE) {
+            stop("\"xlab\" is not a string.")
+        }        
     }
-    maxdiff<-(max(yrange)-min(yrange))
-
-    ## plotting moderator distribution
+    if(is.null(ylab)==TRUE){
+        ylab<-c(paste("Marginal Effect of ",Dlabel," on ",Ylabel,sep=""))
+    } else {
+        if (is.character(ylab) == FALSE) {
+            stop("\"ylab\" is not a string.")
+        }        
+    }
+    if (is.null(main)==FALSE) {
+        main <- main[1]
+    }
+    if (!Xdistr %in% c("hist","histogram","density","none")){
+        stop("\"Xdistr\" must be \"histogram\", \"density\", or \"none\".")
+    }
     if (is.null(Xdistr) == TRUE) {
         Xdistr <- "density"
-    } else if (Xdistr != "density" & Xdistr != "histogram" & Xdistr != "hist") {
+    } else if (!Xdistr %in% c("density","histogram","hist","none")) {
         Xdistr <- "density"
-    }  
+    }
+
+    #########################################
+
+    if (type == "binning") {
+
+        # est.lin<-data.frame(X.lvls,marg,lb,ub)
+        # est.bin<-data.frame(x0,Xcoefs,se,lb.X,ub.X)
+        nbins <- out$nbins
+        est.lin <- out$est.lin
+        est.bin<-out$est.bin
+        est.bin2<-est.bin[which(is.na(est.bin[,2])==FALSE),] ## non missing part
+        est.bin3<-est.bin[which(is.na(est.bin[,2])==TRUE),]  ## missing part
+        X.lvls <- est.lin[,1]
+        errorbar.width<-(max(X.lvls)-min(X.lvls))/20        
+        
+        # y-range
+        yrange<-na.omit(unlist(c(est.lin[,c(3,4)],est.bin[,c(4,5)])))
+        if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/8)}
+        maxdiff<-(max(yrange)-min(yrange))
+        pos<-max(yrange)-maxdiff/20
+
+    } else if (type == "kernel") {
+
+        est <- out$est 
+        # Checking options
+        if (is.logical(CI) == FALSE & is.numeric(CI)==FALSE) {
+            stop("\"CI\" is not a logical flag.")
+        }
+        ## y-range
+        if (CI == TRUE) {
+            yrange<-na.omit(c(est$CI_lower, est$CI_upper))
+        }  else {
+            yrange<-na.omit(c(est$ME))
+        }
+        if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/8)}
+        maxdiff<-(max(yrange)-min(yrange)) 
+
+    }
+
+    ## Start Plotting ###
+    p1 <- ggplot()
+
+    ## black white theme and mark zero
+    if (theme.bw == FALSE) {
+        p1 <- p1 + geom_hline(yintercept=0,colour="white",size=2)
+    } else {
+        p1 <- p1 + theme_bw() + geom_hline(yintercept=0,colour="#AAAAAA50",size=2)
+    }
+
+    if (show.grid == FALSE) {
+        p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+    }
+
+    ## plotting moderator distribution      
     if (Xdistr == "density") { # density plot
-
-        if (length(unique(data[,D]))==2) { ## binary D
-
-            ## get densities
-            de.co <- density(data[data[,D]==0,X])
-            de.tr <- density(data[data[,D]==1,X])
-            
+        if (binaryD == TRUE) { ## binary D
             ## put in data frames
             deX.ymin <- min(yrange)-maxdiff/5
-            deX.co <- data.frame(
-                x = de.co$x,
-                y = de.co$y/max(de.co$y) * maxdiff/5 + min(yrange) - maxdiff/5
-            )
-            deX.tr <- data.frame(
-                x = de.tr$x,
-                y = de.tr$y/max(de.tr$y) * maxdiff/5 + min(yrange) - maxdiff/5
-            )
-
+            deX.co <- data.frame(x = de.co$x,
+                y = de.co$y/max(de.co$y) * maxdiff/5 + min(yrange) - maxdiff/5)
+            deX.tr <- data.frame(x = de.tr$x,
+                y = de.tr$y/max(de.tr$y) * maxdiff/5 + min(yrange) - maxdiff/5)
             ## color
             feed.col<-col2rgb("gray50")
             col.co<-rgb(feed.col[1]/1000, feed.col[2]/1000,feed.col[3]/1000)
             col.tr<-rgb(red=1, blue=0, green=0)
 
             ## plotting
-            p1 <- p1 + geom_ribbon(data = deX.co,
-                                   aes(x = x, ymax = y, ymin = deX.ymin),
-                                   fill = col.co, alpha = 0.2) +
-                geom_ribbon(data = deX.tr,
-                            aes(x = x, ymax = y, ymin = deX.ymin),
-                            fill = col.tr, alpha = 0.2) 
-            
-            
+            p1 <- p1 + geom_ribbon(data = deX.co, aes(x = x, ymax = y, ymin = deX.ymin),
+             fill = col.co, alpha = 0.2) +
+            geom_ribbon(data = deX.tr, aes(x = x, ymax = y, ymin = deX.ymin),
+                fill = col.tr, alpha = 0.2)          
+
         } else { ## continuous D
-            
-            ## get densities
-            de <- density(data[,X])
-           
-            ## put in data frames
+            # put in data frames
             deX.ymin <- min(yrange)-maxdiff/5
-            deX <- data.frame(
-                x = de$x,
-                y = de$y/max(de$y) * maxdiff/5 + min(yrange) - maxdiff/5
-            ) 
+            deX <- data.frame(x = de$x,
+                y = de$y/max(de$y) * maxdiff/5 + min(yrange) - maxdiff/5) 
 
             ## color
             feed.col<-col2rgb("gray50")
             col<-rgb(feed.col[1]/1000, feed.col[2]/1000,feed.col[3]/1000)
-            
+
             ## plotting
-            p1 <- p1 + geom_ribbon(data = deX,
-                                   aes(x = x, ymax = y, ymin = deX.ymin),
-                                   fill = col, alpha = 0.2)  
-            
+            p1 <- p1 + geom_ribbon(data = deX, aes(x = x, ymax = y, ymin = deX.ymin),
+                fill = col, alpha = 0.2)
         }
-        
-    } else  { # histogram plot
-
-        if (length(unique(data[,D]))==2) { ## binary D
-
-            hist.out<-hist(data[,X],breaks=80,plot=FALSE)
+    } else if (Xdistr %in% c("histogram","hist")) { # histogram plot
+        if (binaryD == TRUE) { ## binary D
             n.hist<-length(hist.out$mids)
             dist<-hist.out$mids[2]-hist.out$mids[1]
             hist.max<-max(hist.out$counts)
-            ## count the number of treated
-            count1<-rep(0,n.hist)
-            treat<-which(data[,D]==max(data[,D]))
-            for (i in 1:n.hist) {
-                count1[i]<-sum(data[treat,X]>=hist.out$breaks[i] &
-                               data[treat,X]<hist.out$breaks[(i+1)])
-            }
-            count1[n.hist]<-sum(data[treat,X]>=hist.out$breaks[n.hist] &
-                                data[treat,X]<=hist.out$breaks[n.hist+1])
             ## put in a data frame
             histX<-data.frame(ymin=rep(min(yrange)-maxdiff/5,n.hist),
-                              ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
-                              xmin=hist.out$mids-dist/2,
-                              xmax=hist.out$mids+dist/2,
-                              count1=count1/hist.max*maxdiff/5+min(yrange)-maxdiff/5)
+              ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
+              xmin=hist.out$mids-dist/2,
+              xmax=hist.out$mids+dist/2,
+              count1=count.tr/hist.max*maxdiff/5+min(yrange)-maxdiff/5)     
             p1 <- p1 + geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-                                 colour="gray50",alpha=0,size=0.5) + # control
-                geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=count1),
-                          fill="red",colour="grey50",alpha=0.3,size=0.5) # treated
-            
+                colour="gray50",alpha=0,size=0.5) + # control
+            geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=count1),
+              fill="red",colour="grey50",alpha=0.3,size=0.5) # treated
+
         }  else { ## continuous D
-            hist.out<-hist(data[,X],breaks=80,plot=FALSE)
+
             n.hist<-length(hist.out$mids)
             dist<-hist.out$mids[2]-hist.out$mids[1]
-            hist.max<-max(hist.out$counts)
-            
+            hist.max<-max(hist.out$counts)            
             histX<-data.frame(ymin=rep(min(yrange)-maxdiff/5,n.hist),
-                              ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
-                              xmin=hist.out$mids-dist/2,
-                              xmax=hist.out$mids+dist/2)
+              ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
+              xmin=hist.out$mids-dist/2,
+              xmax=hist.out$mids+dist/2)
+
             p1 <- p1 + geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-                                 colour="gray50",alpha=0,size=0.5)
+               colour="gray50",alpha=0,size=0.5)
         }
+    } # end of plotting X distribution  
+
+
+    # kernel estimates
+    if (type == "kernel") {  
+        ## point estimates
+        p1 <-  p1 + geom_line(data=est,aes(X,ME))
+        ## confidence interval
+        if (CI == TRUE) {
+            p1 <- p1 + geom_ribbon(data=est, aes(x=X,ymin=CI_lower,ymax=CI_upper),alpha=0.2)
+        }         
+    } # end of kernel-specific part
+
+    ## binning estimates and bin labels
+    if (type == "binning") {    
+        ## linear plot 
+        p1<-p1 + geom_line(data=est.lin,aes(X.lvls,marg))+
+            geom_ribbon(data=est.lin, aes(x=X.lvls,ymin=lb,ymax=ub),alpha=0.2)
+        ## bin estimates
+        p1<-p1+ geom_errorbar(data=est.bin2, aes(x=x0, ymin=CI_lower, ymax=CI_upper),colour="red",
+                              width= errorbar.width)+
+                                  geom_point(data=est.bin2,aes(x0,coef),size=4,shape=21,fill="white",colour="red") 
+
+        ## in case there's non-overlap
+        p1<-p1+annotate(geom="text", x=est.bin3[,1], y=rep(0,dim(est.bin3)[1]),
+                        label="NaN",colour="red")  
+        ## labels: L, M, H and so on 
+        if (bin.labs == TRUE) {
+            if (nbins==3) {
+                p1<-p1 + annotate(geom="text", x=est.bin[1,1], y=pos,
+                  label="L",colour="gray50",size=10) +
+                annotate(geom="text", x=est.bin[2,1], y=pos,
+                   label="M",colour="gray50",size=10) +
+                annotate(geom="text", x=est.bin[3,1], y=pos,
+                   label="H",colour="gray50",size=10)
+            } else if (nbins==4) {
+                p1<-p1 + annotate(geom="text", x=est.bin[1,1], y=pos,
+                  label="L",colour="gray50",size=10) +
+                annotate(geom="text", x=est.bin[2,1], y=pos,
+                   label="M1",colour="gray50",size=10) +
+                annotate(geom="text", x=est.bin[3,1], y=pos,
+                   label="M2",colour="gray50",size=10) +
+                annotate(geom="text", x=est.bin[4,1], y=pos,
+                   label="H",colour="gray50",size=10)
+            } 
+        }        
+    } # end of binning-specific case
+
+    ## mark the original interval (in replicated papers)
+    if (is.null(interval)==FALSE) {
+        p1<- p1 + geom_vline(xintercept=interval,colour="steelblue", linetype=2,size=1.5)
     }
 
+    ## Other universal options
+    ## axis labels
+    if (is.null(cex.lab)==TRUE) {
+        cex.lab <- 15
+    } else {
+        cex.lab <- 15 * cex.lab
+    }
+    if (is.null(cex.axis)==TRUE) {
+        cex.axis <- 15
+    } else {
+        cex.axis <- 15 * cex.axis
+    }
+    p1 <- p1 + xlab(xlab) + ylab(ylab) + 
+        theme(axis.text = element_text(size=cex.axis), axis.title = element_text(size=cex.lab))
+
     ## title
+    if (is.null(cex.main)==TRUE) {
+        cex.main <- 18
+    } else {
+        cex.main <- 18 * cex.main
+    }
     if (is.null(main)==FALSE) {
-        p1<-p1 + ggtitle(main) +
-            theme(plot.title = element_text(hjust = 0.5, size=20,
-                                            lineheight=.8, face="bold"))
+            p1<-p1 + ggtitle(main) +
+            theme(plot.title = element_text(hjust = 0.5, size=cex.main,
+                lineheight=.8, face="bold"))
     } 
-    
+
     ## xlim and ylim
     if (is.null(ylim)==FALSE) {
         ylim2 = c(ylim[1]-(ylim[2]-ylim[1])*0.25/6, ylim[2]+(ylim[2]-ylim[1])*0.4/6)
@@ -1735,25 +1933,19 @@ inter.kernel <- function(data,
     }
     if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
         p1<-p1+coord_cartesian(xlim = xlim)
-    }     
+    } 
     
+    ## save to file
     if (is.null(file)==FALSE) {
-        pdf(file)
-        plot(p1)
-        graphics.off() 
+        ggsave(file, plot = p1)         
     } 
     ######################################################
     
-    output<-list(bw = bw,
-                 est = est,
-                 graph = p1)
-
-    if (CV == 1) {
-        output <- c(output, list(CV.out = cv.out$CV.out))
-    }
-    
-    return (output)
+    graph <- p1     
+    return (graph)
 }
+
+
 
 ######################################
 ## Weighted Least-Squares
