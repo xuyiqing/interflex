@@ -446,7 +446,7 @@ inter.gam<-function(data,Y,D,X,
     }
 
     ## drop missing values
-    data <- na.omit(data[,c(Y, D, X, Z)])
+    data <- na.omit(data[,c(Y, D, X, Z, FE)])
     
     requireNamespace("mgcv") 
     if (is.null(FE)==FALSE) {
