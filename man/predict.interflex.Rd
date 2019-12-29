@@ -50,6 +50,7 @@
 \seealso{
   \code{\link{interflex}} and \code{\link{plot.interflex}}
 }
+\examples{
 library(interflex)
 data(interflex)
 out <- inter.binning(data = s1, Y = "Y", D = "D", X = "X", Z = "Z1",predict = TRUE)
