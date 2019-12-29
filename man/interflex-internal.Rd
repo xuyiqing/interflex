@@ -1,7 +1,8 @@
 
 \name{interflex-internal}
-\alias{coefs}
-\alias{crossvalidate}
+\alias{coefs.new}
+\alias{crossvalidate.new}
+\alias{inter.plot.pool}
 \alias{fastplm}
 \alias{fastplm_predict}
 \alias{interflex_fastplm}

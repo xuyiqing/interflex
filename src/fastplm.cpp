@@ -2,14 +2,14 @@
 // [[Rcpp::depends(RcppArmadillo)]]  
 
 using namespace Rcpp;
-  
+
 // [[Rcpp::export()]]
 List fastplm(arma::mat data,
              arma::mat FE,
              arma::colvec weight,
              int FEcoefs = 0L 
-             ){
-      
+){
+  
   // parse data
   int n = data.n_rows;
   int k = data.n_cols;
@@ -21,7 +21,7 @@ List fastplm(arma::mat data,
   double diff = 100;
   
   /*if(weight.is_empty()){
-    weight = arma::ones(n, 1);
+   weight = arma::ones(n, 1);
   }*/
   
   // declare variables
@@ -39,6 +39,9 @@ List fastplm(arma::mat data,
   arma::colvec LHS; // group means 
   arma::mat W; // big weighting matrix to calculate fixed effects
   arma::colvec alphas; // fixed effect coefficients
+  arma::rowvec FEobs;
+  arma::colvec FEindex;
+  std::map<std::string,int> FEindex_map;
   
   /* count total number of groups (loss of degrees of freedom) */
   arma::mat FEvalues;  
@@ -50,20 +53,21 @@ List fastplm(arma::mat data,
     arma::mat FEvalue = join_rows(gp, fe);
     FEvalues = join_cols(FEvalues, FEvalue);
   }
+  
   int gtot = FEvalues.n_rows;
-
+  
   
   /* FWL-MAP iteration */
   int niter = 0;
   while ((diff > 1e-5) & (niter<50)) { 
-
+    
     // demean Y and X
     for(int ii=0; ii<m; ii++){ // cluster
       // weighted data
       for(int i=0; i<k; i++){
         data_wei.col(i)=data_wei.col(i)%weight.col(0);
       }
-
+      
       arma::colvec fe=arma::unique(FE.col(ii));   
       int g=fe.n_rows; // No. of group values
       arma::mat mean_value=arma::zeros(g,(p+1)); // store Y, X means
@@ -82,7 +86,7 @@ List fastplm(arma::mat data,
       // take average
       for(int i=0; i<(p+1); i++){
         for(int j=0; j<g; j++){
-           if (fe_length(j)!=0) {
+          if (fe_length(j)!=0) {
             mean_value(j,i)=mean_value(j,i)/fe_length(j);
           } else{
             mean_value(j,i)=0;
@@ -106,9 +110,8 @@ List fastplm(arma::mat data,
     data_old = data;
     niter++;
   }
-
- 
- 
+  
+  
   /* Estimation */
   y = data.col(0);  // n*1
   if (p>0) {
@@ -116,7 +119,7 @@ List fastplm(arma::mat data,
     //store coefficents and check variation of X
     coeff =arma::zeros(p,1); //store coefficients
     //se =arma::zeros(p,1);
-
+    
     // check X variation
     int cc = p;
     for(int i=0;i<cc;i++){
@@ -134,7 +137,7 @@ List fastplm(arma::mat data,
     for(int i=0;i<cc;i++){
       X.col(i)=X.col(i)%sqrt(weight);
     } 
-
+    
     // OLS
     coef =  solve(X, y);    // fit model y ~ X
     //arma::colvec coef = (X.t() * X ).i() * X.t() * y ;
@@ -143,32 +146,32 @@ List fastplm(arma::mat data,
   else {
     resid = y;
   }
- 
-      
+  
+  
   // std.err.
   // df = n - gtot - p;
   //sig2 = arma::as_scalar(resid.t()*resid/df);
   // if (p>0) { 
   //   stderror = arma::sqrt(sig2 * arma::diagvec(arma::inv(arma::trans(X)*X))); 
   // } 
-      
+  
   // fill in non-NaN coefficients
   int count=0;
   //String label = xname(0); 
   for(int i=0; i<p; i++){
     if(coeff(i)==0){
-    //  if(coeff(i)==0||se(i)==0){
+      //  if(coeff(i)==0||se(i)==0){
       coeff(i)=coef(count);
       //  se(i)=stderror(count); 
       count=count+1;
     }
   }
-
+  
   // Calculate fixed effects coefficients
   if (FEcoefs == 1) {
     data = data_bak;
     y = data.col(0);  // n*1
-
+    
     // grand mean
     mu = arma::mean(y);
     if (p > 0) {
@@ -187,41 +190,38 @@ List fastplm(arma::mat data,
     if (p > 0) {
       e = e - X * coef;
     }
-
+    
     arma::colvec LHS(gtot, arma::fill::zeros);
     arma::mat W(gtot, gtot, arma::fill::zeros);
-    arma::colvec FEval1 = arma::unique(FE.col(0));
-    arma::colvec FEval2 = arma::unique(FE.col(1));
-    int f1 = FEval1.n_rows;
-    int f2 = FEval2.n_rows; 
+    
+    for(int i=0; i<gtot; i++){
+      std::string tempFE = std::to_string(int(FEvalues(i,0)))+"."+std::to_string(int(FEvalues(i,1)));
       
-    for (int i=0; i<n; i++) {
-      int cont = 1; // continue
-      int j = 0;
-      while ((cont==1) & (j < f1)) { 
-        if (FE(i,0) == FEval1[j]) {
-          int k = 0;
-          while ((cont==1) & (k < f2)) {
-            if (FE(i,1) == FEval2[k]) {
-              LHS(j) = LHS(j) + e(i);
-              LHS(f1 + k) = LHS(f1 + k) + e(i);
-              W(j, j) = W(j, j) + 1;
-              W(j, f1 + k) = W(j, f1 + k) + 1;
-              W(f1 + k, j) = W(f1 + k, j) + 1;
-              W(f1 + k, f1 +k) = W(f1 + k, f1 +k) + 1;
-              cont = 0;
-            } 
-            k = k + 1;
-          } 
+      FEindex_map[tempFE] = i;
+    }
+    
+    for(int i=0; i<n; i++) {
+      arma::colvec FEindex(m,arma::fill::zeros);
+      arma::rowvec FEobs = FE.row(i);
+      for(int j=0; j<m; j++) {
+        std::string tempFE = std::to_string(j)+"."+std::to_string(int(FEobs(j)));
+        //std::cout << tempFE << std::endl;
+        FEindex(j) = FEindex_map[tempFE];
+      }
+      for(int j=0;j<m;j++) {
+        int index1 = FEindex(j);
+        LHS(index1) = LHS(index1) + e(i);
+        for(int k=0;k<m;k++) {
+          int index2 = FEindex(k);
+          W(index1, index2) = W(index1, index2) + 1;
         }
-        j = j + 1;
       }
     }
     alphas = arma::solve(W,LHS);
     FEvalues = join_rows(FEvalues, alphas);
   }
   
-
+  
   // storage
   List output;
   if (p > 0) {
@@ -236,65 +236,5 @@ List fastplm(arma::mat data,
     output["ngroups"] = gtot; 
   }
   return(output); 
-      
-}
-
-
-// [[Rcpp::export()]]
-arma::colvec fastplm_predict(double mu,
-                             arma::mat FEvalues, // 3 columns
-                             arma::mat FE,
-                             arma::mat newx,
-                             arma::mat beta) {
-  // parse data
-  int n = newx.n_rows;
-  int p = newx.n_cols;
-  int m = FE.n_cols; // number of fixed effects
-  int g = FEvalues.n_rows;
-
-  // number of FE levels in each grouping
-  arma::ivec nlvls(m, arma::fill::zeros);
-  for (int i=0; i<m; i++) {
-    for (int j=0; j<g; j++) {
-      if (FEvalues(j,0)==i) {
-        nlvls(i) = nlvls(i) + 1;
-      }
-    }
-  }
-   
-  // starting point of a group of FE coefficients
-  arma::ivec gp_start(m, arma::fill::zeros);
-  for (int i=1; i<m; i++) {
-    gp_start(i) = gp_start(i-1) + nlvls(i-1);
-  }
   
-  // grand mean
-  arma::colvec pred_y(n);
-  pred_y.fill(mu);
-
-  // covariates
-  if (p > 0) {
-    pred_y = pred_y + arma::vectorise(newx * beta);
-  }
-
-  //fixed effects 
-  for (int i=0; i<n; i++) {
-    int check = 0; // check all FE coefficients are found
-    for (int j=0; j<m; j++) {
-      int cont = 1;
-      int lvl = gp_start(j);
-      while ((cont == 1) & (lvl<(gp_start(j)+nlvls(j)))) {
-        if (FE(i,j) == FEvalues(lvl,1)) {
-          pred_y(i) = pred_y(i) + FEvalues(lvl,2);
-          cont = 0;
-          check++;
-        }
-        lvl++;
-      } 
-    }
-    if (check < m) {
-      pred_y(i) = arma::datum::nan;
-    }
-  }
-  return(pred_y);
 }

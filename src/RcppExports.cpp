@@ -8,7 +8,7 @@ using namespace Rcpp;
 
 // fastplm
 List fastplm(arma::mat data, arma::mat FE, arma::colvec weight, int FEcoefs);
-RcppExport SEXP interflex_fastplm(SEXP dataSEXP, SEXP FESEXP, SEXP weightSEXP, SEXP FEcoefsSEXP) {
+RcppExport SEXP _interflex_fastplm(SEXP dataSEXP, SEXP FESEXP, SEXP weightSEXP, SEXP FEcoefsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -20,18 +20,10 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// fastplm_predict
-arma::colvec fastplm_predict(double mu, arma::mat FEvalues, arma::mat FE, arma::mat newx, arma::mat beta);
-RcppExport SEXP interflex_fastplm_predict(SEXP muSEXP, SEXP FEvaluesSEXP, SEXP FESEXP, SEXP newxSEXP, SEXP betaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type FEvalues(FEvaluesSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type FE(FESEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type newx(newxSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type beta(betaSEXP);
-    rcpp_result_gen = Rcpp::wrap(fastplm_predict(mu, FEvalues, FE, newx, beta));
-    return rcpp_result_gen;
-END_RCPP
-}
+
+static const R_CallMethodDef CallEntries[] = {
+    {"_interflex_fastplm", (DL_FUNC) &_interflex_fastplm, 4},
+    {NULL, NULL, 0}
+};
+
+

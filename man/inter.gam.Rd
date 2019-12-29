@@ -2,7 +2,7 @@
 \alias{inter.gam}
 \title{Visualization of a Generalized Additive Model (GAM)}
 \description{Estimating and plotting a GAM before estimating a multiplicative interaction model}
-\usage{inter.gam(data, Y, D, X, Z = NULL, weights = NULL, 
+\usage{inter.gam(data, Y, D, X, Z = NULL, weights = NULL, full.moderate = TRUE,
   FE = NULL, SE = FALSE, k = 10, angle = c(30, 100,-30,-120), 
   Ylabel = NULL, Dlabel = NULL, Xlabel = NULL)
 }
@@ -12,6 +12,7 @@
   \item{D}{a string, name of the treatment variable.}
   \item{X}{a string, name of the moderating variable.}
   \item{Z}{a vector of variable names of control variables.}
+  \item{full.moderate}{a logical flag indicating whether to use fully moderated model.}
   \item{weights}{a string, name of the weighting variable.}
   \item{FE}{a vector of variable names of fixed effects indicators.}
   \item{SE}{a logical variable indicating whether to show the surfaces
@@ -28,13 +29,13 @@
   \bold{inter.gam} provides a convenient way to visualize the relationships between the outcome, treatment, and moderator using GAM when both the treatment and moderator are continuous (based on \code{\link[mgcv]{vis.gam}} of the \bold{mgcv} package).
 }
 \author{
-  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer)
+  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer); Ziyi Liu
 }
 \references{
-  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu. 2019. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, Vol. 27, Iss. 2, April 2019, pp. 163--192. Available at SSRN: \url{https://papers.ssrn.com/abstract_id=2739221}.
+  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu. 2019. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, Vol. 27, Iss. 2, April 2019, pp. 163--192. Available at SSRN: \url{http://bit.ly/HMX2019}.
 }
 \seealso{
-  \code{\link{inter.raw}}, \code{\link{inter.binning}}, and \code{\link{inter.kernel}}
+  \code{\link{inter.raw}}, \code{\link{plot.interflex}, and \code{\link{predict.interflex}}
 }
 \examples{
 library(interflex)

@@ -10,7 +10,7 @@
 
 **How to Uses:** [Examples](http://yiqingxu.org/software/interaction/RGuide.html)
 
-**Reference:** "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, Vol. 27, Iss. 2, April 2019, pp. 163--192. Available at SSRN: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2739221
+**Reference:** "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, Vol. 27, Iss. 2, April 2019, pp. 163--192. Available at: http://bit.ly/HMX2019.
 
 ---
 
