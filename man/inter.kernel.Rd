@@ -105,7 +105,7 @@
 }
 \seealso{
   \code{\link{interflex}}
-}s
+}
 \examples{
 library(interflex)
 data(interflex)
