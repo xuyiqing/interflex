@@ -285,7 +285,7 @@ plot.interflex <- function(
 	max.XX <- max(tempxx)
 	for(a in diff.values){
 		if(a<min.XX|a>max.XX){
-			stop("Elements in \"diff.values\" should be larger than the minimum of moderator and less than the maximum of it.")
+			stop("Elements in \"diff.values\" should be greater than the minimum and less than the maximum of the moderator.")
 		}
 	}
   }

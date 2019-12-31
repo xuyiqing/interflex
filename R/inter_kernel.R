@@ -133,10 +133,10 @@ if(TRUE){ #INPUT CHECK
 	if (!CV.method %in% c("simple","cluster","stratify") ){
 		stop("\"treat.type\" must be one of the following: \"simple\",\"cluster\",\"stratify\".")
 	}
-  } else{
+  }else{
 	if(is.null(cl)==FALSE){
-		CV.method='cluster'
-	}else{CV.method='simple'}
+		CV.method <- 'cluster'
+	}else{CV.method <- 'simple'}
   }
   
   
@@ -351,7 +351,7 @@ if(TRUE){ #INPUT CHECK
 	max.XX <- max(data[,X])
 	for(a in diff.values){
 		if(a<min.XX|a>max.XX){
-			stop("Elements in \"diff.values\" should be larger than the minimum of moderator and less than the maximum of it.")
+			stop("Elements in \"diff.values\" should be greater than the minimum and less than the maximum of the moderator.")
 		}
 	}
   }

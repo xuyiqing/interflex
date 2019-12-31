@@ -23,7 +23,7 @@ interflex <- function(data,
 						 bin.labs = TRUE, 
 						 
 						 #kernel
-						 CV.method = 'simple',
+						 CV.method = NULL,
                          kfold = 10,
 						 grid = 30, # either a number of a sequence of numbers
                          neval = 50,
