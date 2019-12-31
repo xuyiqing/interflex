@@ -42,7 +42,7 @@
   \item{time}{a string specifying the name of time variable for panel corrected standard errors. Ignored when \bold{vartype} is not  "pcse".}
   \item{pairwise}{a logical flag indicating whether to switch on the \bold{pairwise} option when estimating panel corrected standard errors. Ignored when \bold{vartype} is not "pcse". The default is TRUE.}
   \item{wald}{a logical flag controlling whether to conduct a Wald test.}
-  \item{predict}{a logical flag that specifies whether to estimate the expected value of Y conditional on X, D and the mean of all covariates. The default is FALSE. If it is set to TRUE, it will take a bit more time to estimate and save expected values of Y. Users can later use the command plot(predict=TRUE,...) to visualize the plots.}
+  \item{predict}{a logical flag that specifies whether to estimate the expected value of Y conditional on X, D and the mean of all covariates. The default is FALSE. If it is set to TRUE, it will take a bit more time to estimate and save expected values of Y. Users can later use the command predict(...) to visualize the plots.}
   \item{D.ref}{a vector of numbers that specifies the reference values of D which the expected values of Y will be conditional on when \bold{treat.type} is "continuous". If it is not specified, the 0.25, 0.5, and 0.75 quantiles of D will be chosen.}
   \item{figure}{a logical flag controlling whether to draw a marginal effect plot.}
   \item{order}{a vector of strings that determines the order of subplots when visualizing marginal effects. It should contain all kinds of treatment arms except for the base group.}

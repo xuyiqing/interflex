@@ -9,11 +9,12 @@
   CV.method = NULL, kfold = 10, grid = 30, neval = 50, nboots = 200, parallel = TRUE, 
   cores = 4, seed = 02139, bw = NULL, bw.adaptive = TRUE, quantile.eval = FALSE, 
   metric = "MSPE", predict = FALSE, D.ref = NULL, figure = TRUE, order = NULL, 
-  subtitle2 = NULL, show.subtitle2 = NULL, Xdistr = "histogram", main = NULL, 
+  subtitles = NULL, show.subtitles = NULL, Xdistr = "histogram", main = NULL, 
   Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, 
   xlim = NULL, ylim = NULL, theme.bw = FALSE, interval = NULL, show.grid = TRUE, 
   cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
-  file = NULL, ncols = NULL, pool = FALSE, color = NULL, legend.title = NULL, diff.values = NULL)
+  file = NULL, ncols = NULL, pool = FALSE, color = NULL, legend.title = NULL, 
+  diff.values = NULL)
 }
 \arguments{
   \item{data}{a data.frame that stores Y, D, and X.}
@@ -46,12 +47,12 @@
   \item{quantile.eval}{a logical flag indicating whether to choose evaluation points based on quantiles rather than uniformly. If it is set to TRUE, denser evaluation points will be assigned to the region with high-density observations
 	 and vice versa. The default is FALSE.}
   \item{metric}{either "MSPE" (Mean Squared Prediction Error) or "MAPE" (Mean Absolute Prediction Error), criterion to be used in cross-validation to select bandwidth. The default is "MSPE".}
-  \item{predict}{a logical flag that specifies whether to estimate the expected value of Y conditional on X, D and the mean of all covariates. The default is FALSE. If it is set to TRUE, it will take a bit more time to estimate and save expected values of Y. Users can later use the command plot(predict=TRUE,...) to visualize the plots.}
+  \item{predict}{a logical flag that specifies whether to estimate the expected value of Y conditional on X, D and the mean of all covariates. The default is FALSE. If it is set to TRUE, it will take a bit more time to estimate and save expected values of Y. Users can later use the command predict(...) to visualize the plots.}
   \item{D.ref}{a vector of numbers that specifies the reference values of D which the expected values of Y will be conditional on when \bold{treat.type} is "continuous". If it is not specified, the 0.25, 0.5, and 0.75 quantiles of D will be chosen.}
   \item{figure}{a logical flag controlling whether to draw a marginal effect plot.}
   \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing marginal effects. It should contain all kinds of treatment arms except for the base group.}
-  \item{subtitle2}{a vector of strings that determines the subtitles of subplots when \bold{pool} is FALSE, or determines the label in the legend when \bold{pool} is TRUE. It should have the same length as the number of categories of treatment arms minus one.}
-  \item{show.subtitle2}{a logical flag controlling whether to show subtitles.}
+  \item{subtitles}{a vector of strings that determines the subtitles of subplots when \bold{pool} is FALSE, or determines the label in the legend when \bold{pool} is TRUE. It should have the same length as the number of categories of treatment arms minus one.}
+  \item{show.subtitles}{a logical flag controlling whether to show subtitles.}
   \item{Xdistr}{a string indicating the way the distribution of the moderator will be plotted: "histogram" (or "hist"), "density", or "none". The default is "histogram".}
   \item{main}{a string that controls the title of the plot.}
   \item{Ylabel}{a string that controls the label of the outcome variable Y in the plot.}

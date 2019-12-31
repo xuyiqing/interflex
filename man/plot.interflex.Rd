@@ -3,7 +3,7 @@
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting marginal effect estimates after either the binning estimator or the kernel estimator is applied}
 \usage{\method{plot}{interflex}(out, order = NULL, subtitles = NULL, show.subtitles = NULL,
-  CI = NULL, Xdistr = "histogram", main = NULL, 
+  CI = NULL, diff.values = NULL, Xdistr = "histogram", main = NULL, 
   Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, 
   xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
   cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
@@ -16,6 +16,7 @@
   \item{subtitles}{a vector of strings that determines the subtitles of subplots. Its length should be equal to the number of categories of treatment arms minus one. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
   \item{CI}{a logical flag indicating whether the confidence intervals need to be shown.}
+  \item{diff.values}{a two-element numeric vector. The treatment effects at corresponding values of the moderator will be marked on the plot.}
   \item{Xdistr}{a string indicating the way the distribution of the moderator will be plotted: "histogram" (or "hist"), "density", or "none". The default is "histogram".}
   \item{main}{a string that controls the title of the plot.}
   \item{Ylabel}{a string that controls the label of the outcome variable Y in the plot.}

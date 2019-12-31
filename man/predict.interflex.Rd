@@ -3,10 +3,10 @@
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting expected outcomes given fixed values of the treatment and moderator after either the linear, binning or the kernel estimator is applied.}
 \usage{\method{predict}{interflex}(out, order = NULL, subtitles = NULL, show.subtitles = NULL, 
-  CI = NULL, pool = FALSE,main = NULL, Ylabel = NULL, Xlabel = NULL, 
-  xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, theme.bw = FALSE, 
-  show.grid = TRUE, cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
-  color = NULL, file = NULL,interval = NULL, 
+  Xdistr = "histogram", CI = NULL, pool = FALSE,main = NULL, Ylabel = NULL, 
+  Xlabel = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, 
+  theme.bw = FALSE, show.grid = TRUE, cex.main = NULL, cex.sub = NULL, 
+  cex.lab = NULL, cex.axis = NULL, color = NULL, file = NULL,interval = NULL, 
   legend.title = NULL, ncols = NULL)
 }
 \arguments{
@@ -14,6 +14,7 @@
   \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing expected values. It should contain all kinds of treatment arms.}
   \item{subtitles}{a vector of strings that determines the subtitles of subplots when \bold{pool} is FALSE, or determines the label in the legend when \bold{pool} is TRUE. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
+  \item{Xdistr}{a string indicating the way the distribution of the moderator will be plotted: "histogram" (or "hist"), "density", or "none". The default is "histogram".}
   \item{CI}{a logical flag indicating whether the confidence intervals need to be shown.}
   \item{pool}{a logical flag specifying whether to integrate expected values of Y for each treatment arm in one plot.}
   \item{main}{a string that controls the title of the plot.}
