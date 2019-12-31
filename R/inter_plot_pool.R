@@ -1,5 +1,6 @@
 inter.plot.pool <- function( # only for discrete treatments 
   out,
+  diff.values = NULL,
   order = NULL,
   subtitle = NULL,
   legend.title = NULL,
@@ -18,11 +19,12 @@ inter.plot.pool <- function( # only for discrete treatments
   cex.main = NULL,
   cex.lab = NULL,
   cex.axis = NULL,
+  cex.sub = NULL,
   bin.labs = TRUE, # bin labels    
   interval = NULL, # interval in replicated papers
   color = NULL,
   file = NULL,
-  jitter = F
+  jitter = FALSE
 ) {
   
   if (!class(out) %in% c("interflex")) {
@@ -32,6 +34,24 @@ inter.plot.pool <- function( # only for discrete treatments
   type <- out$type
   requireNamespace("ggplot2")
   
+  if(out$type=='linear'){
+	out$type <- 'binning'
+	out$nbins <- 1
+	type <- out$type
+	nbins <- out$nbins
+  }
+  
+  if(out$type=='kernel'){
+	if(is.null(CI)==TRUE){
+		CI <- out$CI
+	}
+  }
+  
+  if(out$type=='binning'){
+	if(is.null(CI)==TRUE){
+		CI <- TRUE
+	}
+  }
   
   if(is.null(Ylabel)==T){
 	Ylabel <- out$Ylabel
@@ -42,8 +62,7 @@ inter.plot.pool <- function( # only for discrete treatments
   if(is.null(Dlabel)==T){
 	Dlabel <- out$Dlabel
   }
-  
-  
+
   de <- out$de
   base <- out$base
   treat.type <- out$treat.type
@@ -55,6 +74,10 @@ inter.plot.pool <- function( # only for discrete treatments
   other_treat <- sort(all_treat[which(all_treat!=base)])
   ntreat <- length(other_treat)
   
+  if(is.null(subtitle)==TRUE){
+	base.name <- paste0("Base Group (",base,")")
+  }else{base.name <- subtitle[1]}
+    
   if(is.null(order)==F){
     if(length(order)!=length(other_treat)){
       stop("\"order\" should contain all kinds of treatments except for the base group.")
@@ -69,15 +92,18 @@ inter.plot.pool <- function( # only for discrete treatments
     other_treat <- order
    }
    
-   if(is.null(subtitle)==F){
-      if(length(subtitle)!=length(other_treat)){
+   if(is.null(subtitle)==FALSE){
+      if(length(subtitle)!=length(all_treat)){
         stop("\"subtitle\" had a wrong length.")
       }
    }else{
-	subtitle <- other_treat
-   }
+	subtitle <- c(base.name,other_treat)
+  }
   
-  #print(other_treat)
+  subtitle.all <- as.character(subtitle)
+  subtitle <- subtitle.all[2:length(subtitle.all)]
+  all_treat <- c(base,other_treat)
+
   
   if (is.null(xlim)==FALSE) {
     if (is.numeric(xlim)==FALSE) {
@@ -103,6 +129,11 @@ inter.plot.pool <- function( # only for discrete treatments
   if (is.null(cex.lab)==FALSE) {
     if (is.numeric(cex.lab)==FALSE) {
       stop("\"cex.lab\" is not numeric.")
+    }
+  }
+  if (is.null(cex.sub)==FALSE) {
+    if (is.numeric(cex.sub)==FALSE) {
+      stop("\"cex.sub\" is not numeric.")
     }
   }
   if (is.null(cex.main)==FALSE) {
@@ -151,6 +182,38 @@ inter.plot.pool <- function( # only for discrete treatments
     Xdistr <- "density"
   }
   
+
+  
+  if(is.null(diff.values)==FALSE){
+	if(is.numeric(diff.values)==FALSE){
+		stop("\"diff.values\" is not numeric.")
+	}
+	if(length(diff.values)!=2){
+		stop("\"diff.values\" must be of length 2.")
+	}
+	
+	if(treat.type=='discrete' & type=='binning'){
+		tempxx <- out$est.lin[[other_treat[1]]][,'X.lvls']
+	}
+	if(treat.type=='discrete' & type=='kernel'){
+		tempxx <- out$est[[other_treat[1]]][,'X']
+	}
+	if(treat.type=='continuous' & type=='binning'){
+		tempxx <- out$est.lin[,'X.lvls']
+	}
+	if(treat.type=='continuous' & type=='kernel'){
+		tempxx <- out$est[,'X']
+	}
+	min.XX <- min(tempxx)
+	max.XX <- max(tempxx)
+	for(a in diff.values){
+		if(a<min.XX|a>max.XX){
+			stop("Elements in \"diff.values\" should be larger than the minimum of moderator and less than the maximum of it.")
+		}
+	}
+  }
+  
+  
   if (type == "binning") {
       nbins <- out$nbins
       if(nbins>1){
@@ -185,7 +248,6 @@ inter.plot.pool <- function( # only for discrete treatments
         pos<-max(yrange)-maxdiff/20
       }
   }
-  
   else if (type == "kernel") {
       est <- out$est
       # Checking options
@@ -216,8 +278,14 @@ inter.plot.pool <- function( # only for discrete treatments
     platte <- platte[c(1:ntreat)]
   }
   
+  if(is.null(color)==TRUE){
+	base.color <- 'gray50'
+  }
   if(is.null(color)==FALSE){
-	platte <- c(color,platte)
+	base.color <- color[1]
+	if(length(color)==1){
+		platte <- platte
+	}else{platte <- c(color[2:length(color)],platte)}
   }
   
   # initialize
@@ -234,11 +302,11 @@ inter.plot.pool <- function( # only for discrete treatments
     p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
   }
   
+  
 
   
   # kernel estimates
   if (type == "kernel"){
-      
       for(char in other_treat) {
         if(char==other_treat[1]){
           tempest <- est[[char]]
@@ -246,23 +314,66 @@ inter.plot.pool <- function( # only for discrete treatments
           tempest <- rbind(tempest,est[[char]])
         }
       }
-		
 	  tempest$Treatment <- factor(tempest$Treatment, levels = other_treat)
-	  
-      p1 <- p1 + geom_line(data=tempest,aes(x = X,y = ME,color = Treatment))
-	  #p1 <- p1 + scale_color_discrete(name = Dlabel, )
-	  #p1 <- p1 + scale_x_discrete(limits = other_treat,labels=NULL)
-      p1 <- p1 + scale_color_manual(values = platte[1:length(other_treat)],labels = subtitle)
+      p1 <- p1 + geom_line(data=tempest,aes(x = X,y = ME,color = Treatment),show.legend = F)
+	  p1 <- p1 + scale_color_manual(values = platte[1:length(other_treat)],labels = subtitle)
       if (CI == TRUE) {
-          p1 <- p1 + geom_ribbon(data=tempest, aes(x=X,ymin=CI_lower,ymax=CI_upper,fill = Treatment),alpha=0.2)
+          p1 <- p1 + geom_ribbon(data=tempest, aes(x=X,ymin=CI_lower,ymax=CI_upper,fill = Treatment),alpha=0.2,show.legend = F)
           p1 <- p1 + scale_fill_manual(values = platte[1:length(other_treat)],labels = subtitle)
       }
-
       ymin=min(yrange)-maxdiff/5
+	  
+
+	  if(is.null(diff.values)==FALSE){
+		k <- 1
+		for(char in other_treat){
+			tempest <- est[[char]]
+			for(target.value in diff.values){
+				Xnew<-abs(tempest[,'X']-target.value)
+				d1<-min(Xnew)     
+				label1<-which.min(Xnew)
+				Xnew[label1]<-Inf
+				d2<-min(Xnew)     
+				label2<-which.min(Xnew)
+				if(d1==0){
+					est.mark <- tempest[label1,"ME"]
+						if(CI==TRUE){
+							lb.mark <- tempest[label1,"CI_lower"]
+							ub.mark <- tempest[label1,"CI_upper"]
+						}
+				}  
+				else if(d2==0){
+					est.mark <- tempest[label2,"ME"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label2,"CI_lower"]
+						ub.mark <- tempest[label2,"CI_upper"]
+					}
+				} 
+				else{ ## weighted average
+					est.mark1 <- tempest[label1,"ME"]
+					est.mark2 <- tempest[label2,"ME"]
+					est.mark <- ((est.mark1 * d2 + est.mark2 * d1)/(d1 + d2))
+					if(CI==TRUE){
+						lb.mark1 <- tempest[label1,"CI_lower"]
+						ub.mark1 <- tempest[label1,"CI_upper"]
+						lb.mark2 <- tempest[label2,"CI_lower"]
+						ub.mark2 <- tempest[label2,"CI_upper"]
+						lb.mark <- ((lb.mark1 * d2 + lb.mark2 * d1)/(d1 + d2))
+						ub.mark <- ((ub.mark1 * d2 + ub.mark2 * d1)/(d1 + d2))
+					}
+				}
+				p1 <- p1 + annotate("point",x=target.value,y=est.mark,size=1,colour=platte[k])
+				if(CI==TRUE){
+					p1 <- p1+ annotate("errorbar",x=target.value,ymin=lb.mark,ymax=ub.mark,colour=platte[k],size=0.5,width= (max(tempxx)-min(tempxx))/20)
+				}
+			}
+		k <- k + 1
+		}
+		}
   }
   # end of kernel-specific part
   
-  
+
   
   if (type == "binning") {
     
@@ -274,12 +385,12 @@ inter.plot.pool <- function( # only for discrete treatments
       }
     }
 	
+
     tempest$Treatment <- factor(tempest$Treatment, levels = other_treat)
-	#print(tempest)
-    p1 <- p1 + geom_line(data=tempest,aes(x = X.lvls,y = marg,color = Treatment))
+    p1 <- p1 + geom_line(data=tempest,aes(x = X.lvls,y = marg,color = Treatment),show.legend = F)
     p1 <- p1 + scale_color_manual(values = platte[1:length(other_treat)], labels = subtitle)
     if (CI == TRUE) {
-    p1 <- p1 + geom_ribbon(data=tempest, aes(x=X.lvls,ymin=lb,ymax=ub,fill = Treatment),alpha=0.2)
+    p1 <- p1 + geom_ribbon(data=tempest, aes(x=X.lvls,ymin=lb,ymax=ub,fill = Treatment),alpha=0.2,show.legend = F)
     p1 <- p1 + scale_fill_manual(values = platte[1:length(other_treat)],labels = subtitle)
     }
 
@@ -340,7 +451,57 @@ inter.plot.pool <- function( # only for discrete treatments
       }
   }
      ymin=min(yrange)-maxdiff/5
+  
+  if(nbins==1 & is.null(diff.values)==FALSE){
+	k <- 1
+	for(char in other_treat){
+		tempest <- est.lin[[char]]
+		for(target.value in diff.values){
+			Xnew<-abs(tempest[,'X.lvls']-target.value)
+			d1<-min(Xnew)     
+			label1<-which.min(Xnew)
+			Xnew[label1]<-Inf
+			d2<-min(Xnew)     
+			label2<-which.min(Xnew)
+			if(d1==0){
+				est.mark <- tempest[label1,"marg"]
+				if(CI==TRUE){
+					lb.mark <- tempest[label1,"lb"]
+					ub.mark <- tempest[label1,"ub"]
+					}
+				}  
+				else if(d2==0){
+					est.mark <- tempest[label2,"marg"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label2,"lb"]
+						ub.mark <- tempest[label2,"ub"]
+					}
+				} 
+				else{ ## weighted average
+					est.mark1 <- tempest[label1,"marg"]
+					est.mark2 <- tempest[label2,"marg"]
+					est.mark <- ((est.mark1 * d2 + est.mark2 * d1)/(d1 + d2))
+					if(CI==TRUE){
+						lb.mark1 <- tempest[label1,"lb"]
+						ub.mark1 <- tempest[label1,"ub"]
+						lb.mark2 <- tempest[label2,"lb"]
+						ub.mark2 <- tempest[label2,"ub"]
+						lb.mark <- ((lb.mark1 * d2 + lb.mark2 * d1)/(d1 + d2))
+						ub.mark <- ((ub.mark1 * d2 + ub.mark2 * d1)/(d1 + d2))
+					}
+				}
+				p1 <- p1 + annotate("point",x=target.value,y=est.mark,size=1,colour=platte[k])
+				if(CI==TRUE){
+					p1 <- p1+ annotate("errorbar",x=target.value,ymin=lb.mark,ymax=ub.mark,colour=platte[k],size=0.5,width= (max(tempxx)-min(tempxx))/20)
+				}
+			}
+		k <- k + 1
+		}
+		
+	}
   }
+  
+  
   # end of binning-specific part
   
 
@@ -356,7 +517,7 @@ inter.plot.pool <- function( # only for discrete treatments
     feed.col<-col2rgb("gray50")
     col.co<-rgb(feed.col[1]/1000, feed.col[2]/1000,feed.col[3]/1000)
     p1 <- p1 + geom_ribbon(data = deX.co, aes(x = x, ymax = y, ymin = deX.ymin),color='gray50',
-                           fill = col.co, alpha = 0.0, size=0.3)
+                           fill = base.color, alpha = 0.0, size=0.3)
     k <- 1
     char0 <- other_treat[1]
     start_level <- rep(deX.ymin,length(de.tr[[char0]]$x))
@@ -391,11 +552,9 @@ inter.plot.pool <- function( # only for discrete treatments
                            xmax=hist.out$mids+dist/2,
                            count1=count.tr[[base]]/hist.max*maxdiff/5+min(yrange)-maxdiff/5) 
       
-      p1 <- p1 + geom_rect(data=hist.col,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=count1),fill='gray50',color='gray50',
+      p1 <- p1 + geom_rect(data=hist.col,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=count1),fill=base.color,color='gray50',
                            alpha=0.3,size=0.5) 
       
-      #p1 <- p1 + annotate(geom='text',x=min(hist.out$mids)+dist*6,y=ymin-maxdiff/20,label=paste0("Base Group: ",base),
-       #                  colour='gray50',size=2.2)
       
       k <- 1
       start_level <- count.tr[[base]]/hist.max*maxdiff/5+min(yrange)-maxdiff/5
@@ -449,6 +608,14 @@ inter.plot.pool <- function( # only for discrete treatments
   } else {
     cex.main <- 18 * cex.main
   }
+  
+  if (is.null(cex.sub)==TRUE) {
+    cex.sub <- 10
+  } else {
+    cex.sub <- 10 * cex.sub
+  }
+  
+  
   if (is.null(main)==FALSE) {
     p1<-p1 + ggtitle(main) +
       theme(plot.title = element_text(hjust = 0.5, size=cex.main,
@@ -469,9 +636,34 @@ inter.plot.pool <- function( # only for discrete treatments
     p1<-p1+coord_cartesian(xlim = xlim)
   } 
   
+  #legend
+  if(TRUE){
+	p1_table <- ggplot_gtable(ggplot_build(p1))
+
+	data.touse3 <- data.frame(X=rep(1,length(all_treat)),D=all_treat)
+	data.touse3$D <- factor(data.touse3$D,levels = all_treat)
+	p0 <- ggplot(data=data.touse3, aes(x=X,fill=D)) + geom_histogram(binwidth=.5,alpha=0.3)
+	p0 <-  p0 + scale_fill_manual(values = c(base.color,platte[1:length(other_treat)]),labels = as.character(subtitle.all))
+    if(is.null(legend.title)==F){
+		p0 <- p0 + labs(fill = legend.title,color = legend.title)
+    }else{p0 <- p0 + labs(fill = "Treatment",color = "Treatment")}
+	p0 <- p0 + theme(legend.title = element_text(colour="black", size=cex.sub),
+					 legend.text = element_text(color = "black", size = cex.sub*0.95))
+	
+	p0 <- ggplot_gtable(ggplot_build(p0))
+	pp <-c(subset(p0$layout, name == "panel", se=t:r))
+	
+	gt <- gtable_add_grob(p0,
+						  p1_table$grobs[[which(p1_table$layout$name == "panel")]],
+						  pp$t,pp$l,pp$b,pp$l)
+
+	gt <- as.ggplot(gt)
+	p1 <- gt
+  }
+  
   ## save to file
   if (is.null(file)==FALSE) {
-    ggsave(file, p1,scale = 1.5)         
+    ggsave(file, p1,scale = 1.2)         
   } 
 
   return(p1)

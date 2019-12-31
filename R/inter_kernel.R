@@ -351,7 +351,7 @@ if(TRUE){ #INPUT CHECK
 	max.XX <- max(data[,X])
 	for(a in diff.values){
 		if(a<min.XX|a>max.XX){
-			warning("The estimated difference may suffer from extrapolation bias.")
+			stop("Elements in \"diff.values\" should be larger than the minimum of moderator and less than the maximum of it.")
 		}
 	}
   }
@@ -1340,7 +1340,7 @@ if(TRUE){## bandwidth selection
   suppressMessages(
   graph <- plot.interflex(out = output, CI = CI, xlab = xlab, ylab = ylab,
                       Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, order = order,
-                      subtitles = subtitles,
+                      subtitles = subtitles,diff.values = diff.values,
                       show.subtitles = show.subtitles,
                       main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,interval = interval,color=color,
                       file = file, theme.bw = theme.bw, show.grid = show.grid,ncols = ncols,pool=pool,jitter=jitter,

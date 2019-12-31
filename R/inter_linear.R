@@ -284,6 +284,14 @@ inter.linear<-function(data,
 	if(length(diff.values)!=2){
 		stop("\"diff.values\" must be of length 2.")
 	}
+	
+	min.XX <- min(data[,X])
+	max.XX <- max(data[,X])
+	for(a in diff.values){
+		if(a<min.XX|a>max.XX){
+			stop("Elements in \"diff.values\" should be larger than the minimum of moderator and less than the maximum of it.")
+		}
+	}
   }
 }
 
@@ -1543,7 +1551,7 @@ inter.linear<-function(data,
     class(output) <- "interflex"
     suppressMessages(
     graph <- plot.interflex(out = output, CI = CI, xlab = xlab, ylab = ylab, color = color, order = order,
-                        subtitles = subtitles,
+                        subtitles = subtitles,diff.values = diff.values,
                         show.subtitles = show.subtitles,
                         Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
                         main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,interval = interval,pool=pool,

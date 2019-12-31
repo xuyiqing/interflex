@@ -4,6 +4,7 @@ plot.interflex <- function(
   subtitles = NULL,
   show.subtitles = NULL,
   CI = NULL,
+  diff.values = NULL,
   Xdistr = "histogram",
   main = NULL,
   Ylabel = NULL,
@@ -170,10 +171,7 @@ plot.interflex <- function(
         stop("\"subtitle\" had a wrong length.")
       }
     }
-    
   }
-  
-
   
   if (is.null(xlim)==FALSE) {
     if (is.numeric(xlim)==FALSE) {
@@ -263,6 +261,36 @@ plot.interflex <- function(
   }
   treat_sc <- max(1,ncols-1)
   
+  if(is.null(diff.values)==FALSE){
+	if(is.numeric(diff.values)==FALSE){
+		stop("\"diff.values\" is not numeric.")
+	}
+	if(length(diff.values)!=2){
+		stop("\"diff.values\" must be of length 2.")
+	}
+	
+	if(treat.type=='discrete' & type=='binning'){
+		tempxx <- out$est.lin[[other_treat[1]]][,'X.lvls']
+	}
+	if(treat.type=='discrete' & type=='kernel'){
+		tempxx <- out$est[[other_treat[1]]][,'X']
+	}
+	if(treat.type=='continuous' & type=='binning'){
+		tempxx <- out$est.lin[,'X.lvls']
+	}
+	if(treat.type=='continuous' & type=='kernel'){
+		tempxx <- out$est[,'X']
+	}
+	min.XX <- min(tempxx)
+	max.XX <- max(tempxx)
+	for(a in diff.values){
+		if(a<min.XX|a>max.XX){
+			stop("Elements in \"diff.values\" should be larger than the minimum of moderator and less than the maximum of it.")
+		}
+	}
+  }
+  
+
   #########################################
   
   if (type == "binning") {
@@ -327,7 +355,6 @@ plot.interflex <- function(
         maxdiff<-(max(yrange)-min(yrange))
         pos<-max(yrange)-maxdiff/20
       }
-      
     }
   } 
   
@@ -497,6 +524,8 @@ plot.interflex <- function(
   } # end of plotting X distribution  
   
   
+
+
   # kernel estimates
   if (type == "kernel") { 
     if(treat.type=='continuous'){
@@ -505,7 +534,48 @@ plot.interflex <- function(
     ## confidence interval
     if (CI == TRUE) {
       p1 <- p1 + geom_ribbon(data=est, aes(x=X,ymin=CI_lower,ymax=CI_upper),alpha=0.2)
-    } 
+    }
+	if(is.null(diff.values)==FALSE){
+		for(target.value in diff.values){
+			Xnew<-abs(est[,'X']-target.value)
+			d1<-min(Xnew)     
+			label1<-which.min(Xnew)
+			Xnew[label1]<-Inf
+			d2<-min(Xnew)     
+			label2<-which.min(Xnew)
+			if(d1==0){
+				est.mark <- est[label1,"ME"]
+				if(CI==TRUE){
+					lb.mark <- est[label1,"CI_lower"]
+					ub.mark <- est[label1,"CI_upper"]
+				}
+			}  
+			else if(d2==0){
+				est.mark <- est[label2,"ME"]
+				if(CI==TRUE){
+					lb.mark <- est[label2,"CI_lower"]
+					ub.mark <- est[label2,"CI_upper"]
+				}
+			} 
+			else{ ## weighted average
+				est.mark1 <- est[label1,"ME"]
+				est.mark2 <- est[label2,"ME"]
+				est.mark <- ((est.mark1 * d2 + est.mark2 * d1)/(d1 + d2))
+				if(CI==TRUE){
+					lb.mark1 <- est[label1,"CI_lower"]
+					ub.mark1 <- est[label1,"CI_upper"]
+					lb.mark2 <- est[label2,"CI_lower"]
+					ub.mark2 <- est[label2,"CI_upper"]
+					lb.mark <- ((lb.mark1 * d2 + lb.mark2 * d1)/(d1 + d2))
+					ub.mark <- ((ub.mark1 * d2 + ub.mark2 * d1)/(d1 + d2))
+				}
+			}
+			p1 <- p1 + annotate("point",x=target.value,y=est.mark,size=1,colour='red')
+			if(CI==TRUE){
+				p1 <- p1+ annotate("errorbar",x=target.value,ymin=lb.mark,ymax=ub.mark,colour='red',size=0.5,width= (max(tempxx)-min(tempxx))/30)
+			}
+			}
+		}
     }
     if(treat.type=='discrete'){
       for(char in other_treat) {
@@ -516,8 +586,48 @@ plot.interflex <- function(
           p1 <- p1 + geom_ribbon(data=tempest, aes(x=X,ymin=CI_lower,ymax=CI_upper),alpha=0.2)
         }
         ymin=min(yrange)-maxdiff/5
-        #p1 <- p1 + annotate(geom='text',x=median(tempest$X),y=ymin+maxdiff/20,label=char,colour='red',size=3/treat_sc)
-        #p1 <- p1 + annotate(geom='text',x=median(tempest$X),y=ymin-maxdiff/20,label=base,colour='blue',size=5/treat_sc)
+		
+		if(is.null(diff.values)==FALSE){
+			for(target.value in diff.values){
+				Xnew<-abs(tempest[,'X']-target.value)
+				d1<-min(Xnew)     
+				label1<-which.min(Xnew)
+				Xnew[label1]<-Inf
+				d2<-min(Xnew)     
+				label2<-which.min(Xnew)
+				if(d1==0){
+					est.mark <- tempest[label1,"ME"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label1,"CI_lower"]
+						ub.mark <- tempest[label1,"CI_upper"]
+					}
+				}  
+				else if(d2==0){
+					est.mark <- tempest[label2,"ME"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label2,"CI_lower"]
+						ub.mark <- tempest[label2,"CI_upper"]
+					}
+				} 
+				else{ ## weighted average
+					est.mark1 <- tempest[label1,"ME"]
+					est.mark2 <- tempest[label2,"ME"]
+					est.mark <- ((est.mark1 * d2 + est.mark2 * d1)/(d1 + d2))
+					if(CI==TRUE){
+						lb.mark1 <- tempest[label1,"CI_lower"]
+						ub.mark1 <- tempest[label1,"CI_upper"]
+						lb.mark2 <- tempest[label2,"CI_lower"]
+						ub.mark2 <- tempest[label2,"CI_upper"]
+						lb.mark <- ((lb.mark1 * d2 + lb.mark2 * d1)/(d1 + d2))
+						ub.mark <- ((ub.mark1 * d2 + ub.mark2 * d1)/(d1 + d2))
+					}
+				}
+				p1 <- p1 + annotate("point",x=target.value,y=est.mark,size=1,colour='red')
+				if(CI==TRUE){
+					p1 <- p1+ annotate("errorbar",x=target.value,ymin=lb.mark,ymax=ub.mark,colour='red',size=0.5,width= (max(tempxx)-min(tempxx))/30)
+				}
+			}
+		}
         p.group[[char]] <- p1
       }
   } # end of kernel-specific part
@@ -624,7 +734,8 @@ plot.interflex <- function(
       }
     }
     }
-    else if(nbins==1){
+    
+	if(nbins==1){
       if(treat.type == 'continuous') {
         ## linear plot 
         p1<-p1 + geom_line(data=est.lin,aes(X.lvls,marg))
@@ -632,7 +743,48 @@ plot.interflex <- function(
 		if(CI==TRUE){
 		 p1 <- p1+geom_ribbon(data=est.lin, aes(x=X.lvls,ymin=lb,ymax=ub),alpha=0.2)
 		}
-
+		tempest <- est.lin
+		if(is.null(diff.values)==FALSE){
+			for(target.value in diff.values){
+				Xnew<-abs(tempest[,'X.lvls']-target.value)
+				d1<-min(Xnew)     
+				label1<-which.min(Xnew)
+				Xnew[label1]<-Inf
+				d2<-min(Xnew)     
+				label2<-which.min(Xnew)
+				if(d1==0){
+					est.mark <- tempest[label1,"marg"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label1,"lb"]
+						ub.mark <- tempest[label1,"ub"]
+					}
+				}  
+				else if(d2==0){
+					est.mark <- tempest[label2,"marg"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label2,"lb"]
+						ub.mark <- tempest[label2,"ub"]
+					}
+				} 
+				else{ ## weighted average
+					est.mark1 <- tempest[label1,"marg"]
+					est.mark2 <- tempest[label2,"marg"]
+					est.mark <- ((est.mark1 * d2 + est.mark2 * d1)/(d1 + d2))
+					if(CI==TRUE){
+						lb.mark1 <- tempest[label1,"lb"]
+						ub.mark1 <- tempest[label1,"ub"]
+						lb.mark2 <- tempest[label2,"lb"]
+						ub.mark2 <- tempest[label2,"ub"]
+						lb.mark <- ((lb.mark1 * d2 + lb.mark2 * d1)/(d1 + d2))
+						ub.mark <- ((ub.mark1 * d2 + ub.mark2 * d1)/(d1 + d2))
+					}
+				}
+				p1 <- p1 + annotate("point",x=target.value,y=est.mark,size=1,colour='red')
+				if(CI==TRUE){
+					p1 <- p1+ annotate("errorbar",x=target.value,ymin=lb.mark,ymax=ub.mark,colour='red',size=0.5,width= (max(tempxx)-min(tempxx))/30)
+				}
+			}
+		}
       }
       
       if (treat.type == 'discrete'){
@@ -647,9 +799,50 @@ plot.interflex <- function(
             p1 <- p1+geom_ribbon(data=est.lin[[char]], aes(x=X.lvls,ymin=lb,ymax=ub),alpha=0.2)
           }
           ymin=min(yrange)-maxdiff/5
-          #p1 <- p1 + annotate(geom='text',x=median(X.lvls),y=ymin+maxdiff/20,label=char,colour='red',size=5/treat_sc)
-          #p1 <- p1 + annotate(geom='text',x=median(X.lvls),y=ymin-maxdiff/20,label=base,colour='blue',size=5/treat_sc)
-          p.group[[char]] <- p1
+		  tempest <- est.lin[[char]]
+		  if(is.null(diff.values)==FALSE){
+			for(target.value in diff.values){
+				Xnew<-abs(tempest[,'X.lvls']-target.value)
+				d1<-min(Xnew)     
+				label1<-which.min(Xnew)
+				Xnew[label1]<-Inf
+				d2<-min(Xnew)     
+				label2<-which.min(Xnew)
+				if(d1==0){
+					est.mark <- tempest[label1,"marg"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label1,"lb"]
+						ub.mark <- tempest[label1,"ub"]
+					}
+				}  
+				else if(d2==0){
+					est.mark <- tempest[label2,"marg"]
+					if(CI==TRUE){
+						lb.mark <- tempest[label2,"lb"]
+						ub.mark <- tempest[label2,"ub"]
+					}
+				} 
+				else{ ## weighted average
+					est.mark1 <- tempest[label1,"marg"]
+					est.mark2 <- tempest[label2,"marg"]
+					est.mark <- ((est.mark1 * d2 + est.mark2 * d1)/(d1 + d2))
+					if(CI==TRUE){
+						lb.mark1 <- tempest[label1,"lb"]
+						ub.mark1 <- tempest[label1,"ub"]
+						lb.mark2 <- tempest[label2,"lb"]
+						ub.mark2 <- tempest[label2,"ub"]
+						lb.mark <- ((lb.mark1 * d2 + lb.mark2 * d1)/(d1 + d2))
+						ub.mark <- ((ub.mark1 * d2 + ub.mark2 * d1)/(d1 + d2))
+					}
+				}
+				p1 <- p1 + annotate("point",x=target.value,y=est.mark,size=1,colour='red')
+				if(CI==TRUE){
+					p1 <- p1+ annotate("errorbar",x=target.value,ymin=lb.mark,ymax=ub.mark,colour='red',size=0.5,width= (max(tempxx)-min(tempxx))/30)
+				}
+			}
+		}
+			
+        p.group[[char]] <- p1
         }
       }
     }
@@ -716,7 +909,7 @@ plot.interflex <- function(
   
   ## save to file
   if (is.null(file)==FALSE) {
-    ggsave(file, plot = p1)         
+    ggsave(file, plot = p1,scale=1.2)         
   } 
   ######################################################
   
@@ -826,7 +1019,7 @@ plot.interflex <- function(
     
   ## save to file
     if (is.null(file)==FALSE) {
-      ggsave(file, graph,scale = 1.5)         
+      ggsave(file, graph,scale = 1.2)         
     } 
 	graph <- as.ggplot(graph)
   }

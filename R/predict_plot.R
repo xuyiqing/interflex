@@ -4,6 +4,7 @@ predict.interflex <- function(
   subtitles = NULL,
   show.subtitles = NULL,
   #plot
+  Xdistr = "histogram", #can be "histogram","hist","density","none"
   CI = NULL,
   pool = FALSE,
   main = NULL,
@@ -52,6 +53,15 @@ predict.interflex <- function(
 	}
   }
   
+  if (!Xdistr %in% c("hist","histogram","density","none")){
+    stop("\"Xdistr\" must be \"histogram\", \"density\", or \"none\".")
+  }
+  if (is.null(Xdistr) == TRUE) {
+    Xdistr <- "density"
+  } else if (!Xdistr %in% c("density","histogram","hist","none")) {
+    Xdistr <- "density"
+  }
+  
   if(is.null(Xlabel)==T){
     X <- out$X
   } else{X <- Xlabel}
@@ -65,6 +75,10 @@ predict.interflex <- function(
   labelname <- out$labelname
   D.ref <- out$D.ref
   est_predict <- out$est.predict
+  de.tr <- out$de.tr
+  de <- out$de
+  hist.out <- out$hist.out
+  count.tr <- out$count.tr
   
   if(is.null(order)==FALSE){
 	order <- as.character(order)
@@ -240,9 +254,9 @@ predict.interflex <- function(
   
     ## title
   if (is.null(cex.sub)==TRUE) {
-    cex.sub <- 12
+    cex.sub <- 10
   } else {
-    cex.sub <- 12 * cex.sub
+    cex.sub <- 10 * cex.sub
   }
   
   ## xlim and ylim
@@ -261,6 +275,25 @@ predict.interflex <- function(
   if(is.null(color)==FALSE){
 	platte <- c(color,platte)
   }
+  
+  
+  ## yrange
+  yrange <- c()
+
+  for(char in all_treat){
+	est_predict.char.temp <- est_predict[[char]]
+		if(CI==TRUE){
+			yrange <- c(yrange,est_predict.char.temp[,'CI_lower'],est_predict.char.temp[,'CI_upper'])
+		}
+		if(CI==FALSE){
+			yrange <- c(yrange,est_predict.char.temp[,'EY'])
+		}
+  }
+  if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/8)}
+  maxdiff<-(max(yrange)-min(yrange))
+  pos<-max(yrange)-maxdiff/20
+
+  
 
 if(pool==F){
   plot_list <- list()
@@ -272,42 +305,77 @@ if(pool==F){
     }
 	if (show.grid == FALSE) {
 		p <- p + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-	  }
+	}
     p <- p + geom_line(data=est_predict[[char]],aes(x=X,y=EY),size=1/ntreat,color=platte[k])
     if(CI==T){
       p <- p + geom_ribbon(data=est_predict[[char]],aes(x=X,ymin=CI_lower,ymax=CI_upper),
                            alpha=0.3,fill=platte[k])
     }
 	
-
     if(treat.type=='discrete'){
 	  if(show.subtitle==TRUE){
-	  
 	  if(is.null(subtitle)==TRUE){
-		p <- p + labs(subtitle = paste0("Group:",char)) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,
-	                                                                                 lineheight=.8))
+		p <- p + labs(subtitle = paste0("Group:",char)) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,lineheight=.8))
 	  }
 	  
 	  if(is.null(subtitle)==FALSE){
-		p <- p + labs(subtitle = subtitle[k]) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,
-	                                                                                 lineheight=.8))
+		p <- p + labs(subtitle = subtitle[k]) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,lineheight=.8))
+	  }
 	  }
 	  
+	  if (Xdistr == "density"){
+	  deX.ymin <- min(yrange)-maxdiff/5
+      deX.tr <- data.frame(x = de.tr[[char]]$x,
+                           y = de.tr[[char]]$y/max(de.tr[[char]]$y) * maxdiff/5 + min(yrange) - maxdiff/5)
+      p <- p + geom_ribbon(data = deX.tr, aes(x = x, ymax = y, ymin = deX.ymin),
+                      fill = platte[k], alpha = 0.2)
+	  }
+	  
+	  if(Xdistr %in% c("histogram","hist")){
+		n.hist<-length(hist.out$mids)
+		dist<-hist.out$mids[2]-hist.out$mids[1]
+		hist.max<-max(hist.out$counts)
+		hist.treat<-data.frame(ymin=min(yrange)-maxdiff/5,
+                          #ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
+                          xmin=hist.out$mids-dist/2,
+                          xmax=hist.out$mids+dist/2,
+                          count1=count.tr[[char]]/hist.max*maxdiff/5+min(yrange)-maxdiff/5) 
+        
+        p <- p + geom_rect(data=hist.treat,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=count1),
+                    fill=platte[k],colour='gray50',alpha=0.3,size=0.3)
 	  }
     }
 	
     if(treat.type=='continuous'){
 	if(show.subtitle==TRUE){
 	if(is.null(subtitle)==TRUE){
-      p <- p + labs(subtitle = paste0("Group:",labelname[k])) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,
-                                                                              lineheight=.8))
+      p <- p + labs(subtitle = paste0("Group:",labelname[k])) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,lineheight=.8))
 	}
 	if(is.null(subtitle)==FALSE){
-		p <- p + labs(subtitle = subtitle[k]) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,
-	                                                                                 lineheight=.8))
+		p <- p + labs(subtitle = subtitle[k]) + theme(plot.subtitle = element_text(hjust = 0.5, size=cex.sub,lineheight=.8))
 	}
-      #p <- p + scale_fill_discrete(labels=labelname)
     }
+	
+	if (Xdistr == "density"){
+	  deX.ymin <- min(yrange)-maxdiff/5
+      deX.tr <- data.frame(x = de$x,
+                           y = de$y/max(de$y) * maxdiff/5 + min(yrange) - maxdiff/5)
+      p <- p + geom_ribbon(data = deX.tr, aes(x = x, ymax = y, ymin = deX.ymin),
+                      fill = 'gray50', alpha = 0.2)
+	}
+	
+	if(Xdistr %in% c("histogram","hist")){
+	  n.hist<-length(hist.out$mids)
+      dist<-hist.out$mids[2]-hist.out$mids[1]
+      hist.max<-max(hist.out$counts)            
+      histX<-data.frame(ymin=rep(min(yrange)-maxdiff/5,n.hist),
+                        ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
+                        xmin=hist.out$mids-dist/2,
+                        xmax=hist.out$mids+dist/2)
+      
+      p <- p + geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+                           colour='gray50',fill = 'gray50',alpha=0.3,size=0.5)
+	}
 	}
     k <- k+1
     plot_list[[char]] <- p
@@ -333,11 +401,8 @@ if(pool==T){
   }
   if (show.grid == FALSE) {
 		p <- p + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-	}
+  }
 	
-  
-  
-  
   if(treat.type=='discrete'){
 	#print(all_treat)
 	tograph$Treatment <- factor(tograph$Treatment, levels = all_treat)
@@ -362,9 +427,6 @@ if(pool==T){
   }
   
 
-  
-
-  
   if(CI==T){
     p <- p + geom_ribbon(data=tograph,aes(x=X,ymin=CI_lower,ymax=CI_upper,fill=Treatment),
                          alpha=0.2,show.legend = T,size=0)
@@ -389,6 +451,76 @@ if(pool==T){
   if(is.null(legend.title)==F){
     p <- p + labs(fill = legend.title,color = legend.title)
   }
+  
+  
+  
+  if (Xdistr == "density" & treat.type=='discrete') { # density plot
+
+    deX.ymin <- min(yrange)-maxdiff/5
+
+    k <- 1
+    char0 <- all_treat[1]
+    start_level <- rep(deX.ymin,length(de.tr[[char0]]$x))
+    for(char in all_treat){
+      
+      dex.tr.plot <- data.frame(x = de.tr[[char]]$x,
+                           start_level = start_level,
+                           end_level = de.tr[[char]]$y/max(de.tr[[char0]]$y)*maxdiff/10+start_level)
+      
+      p <- p + geom_ribbon(data = dex.tr.plot, aes(x = x, ymax = end_level, ymin = start_level), color=platte[k],
+                           alpha = 0.0,fill = platte[k],size=0.3)
+
+      k <- k+1
+    }
+    p <- p +geom_line(data = dex.tr.plot, aes(x = x, y = min(yrange)-maxdiff/5), color='gray50',size=0.3)
+ }
+ 
+  if (Xdistr == "density" & treat.type=='continuous') { 
+	deX.ymin <- min(yrange)-maxdiff/5
+    deX.tr <- data.frame(x = de$x,
+                         y = de$y/max(de$y) * maxdiff/5 + min(yrange) - maxdiff/5)
+    p <- p + geom_ribbon(data = deX.tr, aes(x = x, ymax = y, ymin = deX.ymin),
+                         fill = 'gray50', alpha = 0.2)
+ }
+ 
+ 
+   if (Xdistr %in% c("histogram","hist") & treat.type=='discrete') { # density plot
+
+    deX.ymin <- min(yrange)-maxdiff/5
+
+    n.hist<-length(hist.out$mids)
+    dist<-hist.out$mids[2]-hist.out$mids[1]
+    hist.max<-max(hist.out$counts)
+    k <- 1
+    start_level <- min(yrange)-maxdiff/5
+    for (char in all_treat){
+        hist.treat<-data.frame(ymin=start_level,
+                               ymax=count.tr[[char]]/hist.max*maxdiff/5+start_level,
+                               xmin=hist.out$mids-dist/2,
+                               xmax=hist.out$mids+dist/2)
+        
+        start_level <- count.tr[[char]]/hist.max*maxdiff/5+start_level
+        
+        p <- p + geom_rect(data=hist.treat,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),fill=platte[k],color='gray50',
+                             alpha=0.3,size=0.2)
+        k <- k + 1
+        }
+	}
+	
+	if (Xdistr %in% c("histogram","hist") & treat.type=='continuous') {
+		n.hist<-length(hist.out$mids)
+		dist<-hist.out$mids[2]-hist.out$mids[1]
+		hist.max<-max(hist.out$counts)            
+		histX<-data.frame(ymin=rep(min(yrange)-maxdiff/5,n.hist),
+                        ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
+                        xmin=hist.out$mids-dist/2,
+                        xmax=hist.out$mids+dist/2)
+      
+		p <- p + geom_rect(data=histX,aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+                           colour='gray50',fill = 'gray50',alpha=0.3,size=0.5)
+	
+	
+	}
   
   plot_list <- p
 }
@@ -477,12 +609,16 @@ if(pool==T){
     }
     if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
       p1<-p1+coord_cartesian(xlim = xlim)
-    } 
+    }
+	
+	p1 <- p1 + theme(legend.title = element_text(colour="black", size=cex.sub),
+					 legend.text = element_text(color = "black", size = cex.sub*0.95))
+	
     graph <- p1
   }
   
   if (is.null(file)==FALSE) {
-    ggsave(file, graph,scale =1.5)         
+    ggsave(file, graph,scale =1.2)         
   }
   requireNamespace("ggplotify")
   graph <- as.ggplot(graph)
