@@ -650,6 +650,16 @@ inter.plot.pool <- function( # only for discrete treatments
 	p0 <- p0 + theme(legend.title = element_text(colour="black", size=cex.sub),
 					 legend.text = element_text(color = "black", size = cex.sub*0.95))
 	
+	p0 <- p0 + xlab(xlab) + ylab(ylab) + 
+    theme(axis.text = element_text(size=cex.axis), axis.title = element_text(size=cex.lab))
+	
+	if (is.null(main)==FALSE) {
+    p0 <- p0 + ggtitle(main) +
+      theme(plot.title = element_text(hjust = 0.5, size=cex.main,
+                                      lineheight=.8, face="bold"))
+	}
+	
+	
 	p0 <- ggplot_gtable(ggplot_build(p0))
 	pp <-c(subset(p0$layout, name == "panel", se=t:r))
 	
