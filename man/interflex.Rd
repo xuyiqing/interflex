@@ -9,7 +9,7 @@
       CI = TRUE, conf.level = 0.95, nbins = 3, cutoffs = NULL, 
       vartype = "robust", time = NULL, 
       pairwise = TRUE, wald = TRUE, bin.labs = TRUE, 
-      CV.method = 'simple', kfold = 10, grid = 30, 
+      CV.method = NULL, kfold = 10, grid = 30, 
       neval = 50, nboots = 200, parallel = TRUE,
       cores = 4, seed = 02139, bw = NULL, bw.adaptive = TRUE, 
       quantile.eval = FALSE, metric = "MSPE", figure = TRUE, 
