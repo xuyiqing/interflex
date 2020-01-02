@@ -65,6 +65,7 @@ plot.interflex <- function(
 	order = order,
 	subtitle = subtitle,
 	CI = CI,
+	diff.values = diff.values,
 	Xdistr = Xdistr,
 	main = main,
 	Ylabel = Ylabel,
