@@ -640,10 +640,12 @@ inter.plot.pool <- function( # only for discrete treatments
   if(TRUE){
 	p1_table <- ggplot_gtable(ggplot_build(p1))
 
-	data.touse3 <- data.frame(X=rep(1,length(all_treat)),D=all_treat)
+	data.touse3 <- data.frame(X=rep(1,length(all_treat)),ymin=-1,ymax=1,D=all_treat)
 	data.touse3$D <- factor(data.touse3$D,levels = all_treat)
-	p0 <- ggplot(data=data.touse3, aes(x=X,fill=D)) + geom_histogram(binwidth=.5,alpha=0.3)
-	p0 <-  p0 + scale_fill_manual(values = c(base.color,platte[1:length(other_treat)]),labels = as.character(subtitle.all))
+	p0 <- ggplot() + geom_ribbon(data=data.touse3, aes(x=X,ymin=ymin,ymax=ymax,fill=D),
+								 alpha=0.3)
+	p0 <-  p0 + scale_fill_manual(values = c(base.color,platte[1:length(other_treat)]),
+								  labels = as.character(subtitle.all))
     if(is.null(legend.title)==F){
 		p0 <- p0 + labs(fill = legend.title,color = legend.title)
     }else{p0 <- p0 + labs(fill = "Treatment",color = "Treatment")}
@@ -658,6 +660,29 @@ inter.plot.pool <- function( # only for discrete treatments
       theme(plot.title = element_text(hjust = 0.5, size=cex.main,
                                       lineheight=.8, face="bold"))
 	}
+	
+	## xlim and ylim
+	 if(T){
+	   if (is.null(ylim)==FALSE) {
+			ylim2 = c(ylim[1]-(ylim[2]-ylim[1])*0.25/6, ylim[2]+(ylim[2]-ylim[1])*0.4/6)
+		}
+		if (is.null(xlim)==FALSE & is.null(ylim)==FALSE) {
+			p0<-p0+coord_cartesian(xlim = xlim, ylim = ylim2)
+		}
+		if (is.null(xlim)==TRUE & is.null(ylim)==FALSE) {
+			p0<-p0+coord_cartesian(ylim = ylim2)
+		}
+		if (is.null(xlim)==FALSE & is.null(ylim)==TRUE) {
+			p0<-p0+coord_cartesian(xlim = xlim)
+		}
+		y.limits <- layer_scales(p1)$y$range$range
+		x.limits <- layer_scales(p1)$x$range$range
+		ymaxmax <- y.limits[2]
+		yminmin <- y.limits[1]
+		xmaxmax <- x.limits[2]
+		xminmin <- x.limits[1]
+		p0 <- p0+ylim(c(yminmin,ymaxmax))+xlim(c(xminmin,xmaxmax))
+     }
 	
 	
 	p0 <- ggplot_gtable(ggplot_build(p0))
