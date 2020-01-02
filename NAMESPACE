@@ -9,7 +9,7 @@ importFrom("stats", "as.formula", "density", "dnorm", "lm", "median",
              "var", "vcov","coef", "relevel", "rnorm","pnorm")
 importFrom("ggplot2","geom_errorbar", "geom_hline", "labs" ,"geom_line", "geom_point", "geom_rect","geom_ribbon", "geom_smooth", 
 			"geom_vline", "ggplot", "ggtitle", "theme", "aes","element_text", "annotate", "xlab", "ylab", "aes_string", 
-			"coord_cartesian", "facet_wrap", "facet_grid","theme_bw","element_blank","ggsave","layer_scales","ylim",
+			"coord_cartesian", "facet_wrap", "facet_grid","theme_bw","element_blank","ggsave","layer_scales","ylim","xlim",
 			"scale_color_manual","scale_fill_manual","ggplot_build","ggplot_gtable","geom_histogram","geom_text")
 importFrom("mgcv","vis.gam","gam")
 importFrom("sandwich","sandwich","estfun","bread")
