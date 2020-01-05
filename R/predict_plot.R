@@ -80,15 +80,17 @@ predict.interflex <- function(
   hist.out <- out$hist.out
   count.tr <- out$count.tr
   
-  if(is.null(order)==FALSE){
-	order <- as.character(order)
-  }
+
   
   show.subtitle <- show.subtitles
   subtitle <- subtitles
   
   if(treat.type=='discrete') {
     #all_treat <- sort(all_treat[which(all_treat!=base)])
+	if(is.null(order)==FALSE){
+		order <- as.character(order)
+	}
+
     if(is.null(order)==F){
     if(length(order)!=length(all_treat)){
       stop("\"order\" should contain all kinds of treatments.")
