@@ -3,6 +3,7 @@
 \alias{coefs.new}
 \alias{crossvalidate.new}
 \alias{inter.plot.pool}
+\alias{interflex.default}
 \alias{fastplm}
 \alias{fastplm_predict}
 \alias{interflex_fastplm}

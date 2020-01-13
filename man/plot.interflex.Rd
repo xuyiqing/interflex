@@ -2,16 +2,16 @@
 \alias{plot.interflex}
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting marginal effect estimates after either the binning estimator or the kernel estimator is applied}
-\usage{\method{plot}{interflex}(out, order = NULL, subtitles = NULL, show.subtitles = NULL,
+\usage{\method{plot}{interflex}(x, order = NULL, subtitles = NULL, show.subtitles = NULL,
   CI = NULL, diff.values = NULL, Xdistr = "histogram", main = NULL, 
   Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, 
   xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
   cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
   bin.labs = TRUE, interval = NULL, file = NULL, ncols = NULL, pool = FALSE, 
-  legend.title = NULL, color = NULL, jitter = FALSE)
+  legend.title = NULL, color = NULL, jitter = FALSE, \dots)
 }
 \arguments{
-  \item{out}{an \bold{interflex} object.}
+  \item{x}{an \bold{interflex} object.}
   \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing marginal effects. It should contain all kinds of treatment arms except for the base group.}
   \item{subtitles}{a vector of strings that determines the subtitles of subplots. Its length should be equal to the number of categories of treatment arms minus one. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
@@ -40,6 +40,7 @@
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
   \item{color}{a vector of colors that determines the color of lines when \bold{pool} is TRUE.}
   \item{jitter}{a logical flag specifying whether to jitter error-bars to avoid overlapping. The default is FALSE.}
+  \item{\dots}{other argv.}
 }
 \details{
   \bold{plot.interflex} draws a margining effect plot based on a \bold{interflex} object after either \bold{inter.binning} or \bold{inter.kernel} is applied. It allows users to flexibly change the look of a plot without re-estimating the model, hence saving time. 

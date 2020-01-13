@@ -21,7 +21,6 @@ coefs.new <- function(data,bw,Y,X,D,
     Xdensity <- density(data[,X])
   }
   
-  
   #if treat is discrete
   if (treat.type=='discrete') {
     if(length(unique(data[,D]))>5) {
@@ -265,9 +264,7 @@ coefs.new <- function(data,bw,Y,X,D,
         estcoef[which(is.nan(estcoef))] <- 0
         result[i,] <- c(X.eval[i],0,estcoef)
 		}
-		
       }
-	  
       result <- data.frame(result)
     }
   } 

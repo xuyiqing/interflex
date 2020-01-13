@@ -2,15 +2,15 @@
 \alias{predict.interflex}
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting expected outcomes given fixed values of the treatment and moderator after either the linear, binning or the kernel estimator is applied.}
-\usage{\method{predict}{interflex}(out, order = NULL, subtitles = NULL, show.subtitles = NULL, 
+\usage{\method{predict}{interflex}(object, order = NULL, subtitles = NULL, show.subtitles = NULL, 
   Xdistr = "histogram", CI = NULL, pool = FALSE,main = NULL, Ylabel = NULL, 
   Xlabel = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, 
   theme.bw = FALSE, show.grid = TRUE, cex.main = NULL, cex.sub = NULL, 
   cex.lab = NULL, cex.axis = NULL, color = NULL, file = NULL,interval = NULL, 
-  legend.title = NULL, ncols = NULL)
+  legend.title = NULL, ncols = NULL, \dots)
 }
 \arguments{
-  \item{out}{an \bold{interflex} object (\bold{predict==TRUE}).}
+  \item{object}{an \bold{interflex} object (\bold{predict==TRUE}).}
   \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing expected values. It should contain all kinds of treatment arms.}
   \item{subtitles}{a vector of strings that determines the subtitles of subplots when \bold{pool} is FALSE, or determines the label in the legend when \bold{pool} is TRUE. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
@@ -35,6 +35,7 @@
   \item{interval}{draw two vertical lines to demonstrate the interval used in replicated papers.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
   \item{ncols}{a integral value that controls the number of columns in the plot if \bold{pool} is FALSE.}
+  \item{\dots}{other argv.}
 }
 \details{
   \bold{predict.interflex} visualize expected outcomes given fixed values of the treatment and moderator after either the linear, binning or the kernel estimator is applied.  It allows users to flexibly change the look of a plot without re-estimating the model, hence saving time. 

@@ -73,6 +73,87 @@ interflex <- function(data,
 						 
 						 #difference
 						 diff.values = NULL
+)  {
+    UseMethod("interflex")
+}
+
+
+
+interflex.default <- function(data,
+						 Y, D, X,  
+						 estimator,
+						 treat.type = NULL, #discrete or continuous
+						 base = NULL,
+						 Z = NULL,
+						 weights = NULL, # weighting variable
+						 FE = NULL,
+						 cl = NULL, ## cluster
+						 full.moderate = TRUE, ## fully moderated model
+						 na.rm = FALSE,
+						 Xunif = FALSE, ## transform moderate into a uniform distribution
+						 CI = TRUE, ## confidence intervals
+						 conf.level = 0.95,
+						 
+						 #binning
+						 nbins = 3,  # No. of X bins
+                         cutoffs = NULL,
+                         vartype = "robust", # variance type
+                         time = NULL, # time variable for pcse
+                         pairwise = TRUE, # pcse option
+                         wald = TRUE,	
+						 bin.labs = TRUE, 
+						 
+						 #kernel
+						 CV.method = NULL,
+                         kfold = 10,
+						 grid = 30, # either a number of a sequence of numbers
+                         neval = 50,
+                         nboots = 200,
+                         parallel = TRUE,
+                         cores = 4,
+                         seed = 02139,
+						 bw = NULL,
+						 bw.adaptive = TRUE, # adaptive bandwidth
+						 quantile.eval = FALSE,
+						 metric = "MSPE",
+						 
+						 # plot
+                         figure = TRUE,
+						 order = NULL,
+						 subtitles = NULL,
+						 show.subtitles = NULL,
+                         Xdistr = "histogram",
+                         main = NULL,
+                         Ylabel = NULL,
+                         Dlabel = NULL,
+                         Xlabel = NULL,
+                         xlab = NULL,
+                         ylab = NULL,
+                         xlim = NULL,
+                         ylim = NULL,                         
+                         theme.bw = FALSE,
+                         interval = NULL,
+                         show.grid = TRUE,
+                         cex.main = NULL,
+						 cex.sub = NULL,
+                         cex.lab = NULL,
+                         cex.axis = NULL,
+                         file = NULL,
+                         ncols = NULL,
+						 
+						 # pool plot
+						 pool = FALSE,
+						 color = NULL,
+						 legend.title = NULL,
+						 jitter = FALSE,
+						 
+						 
+						 #predict
+						 predict = FALSE,
+						 D.ref = NULL,
+						 
+						 #difference
+						 diff.values = NULL
 ){
 	if (!estimator %in% c("linear","binning","kernel") ){
     stop("\"estimator\" must be one of the following: \"linear\",\"binning\",\"kernel\".")
