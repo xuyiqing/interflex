@@ -62,13 +62,14 @@
   \item{pool}{a logical flag specifying whether to integrate marginal effects or expected values of Y for each treatment arm in one plot.}
   \item{color}{a vector of colors that determines the color of lines when drawing the pool plot.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
-  \item{diff.values}{a two-element numeric vector. The difference between treatment effects at corresponding values of the moderator will be estimated.}
+  \item{diff.values}{a three-element numeric vector. The difference between treatment effects at corresponding values of the moderator will be estimated. If not specified, the 0.25,0.5,0.75 quantiles of the moderator will be chosen.}
 }
 \details{
   \bold{inter.linear} implements the classic linear estimator. 
 }
 \value{
-  \item{est.lin}{stores the linear marginal effect estimates}
+  \item{est.lin}{stores the linear marginal effect estimates.}
+  \item{est.matrix}{stores the variance-covariance matrix of the series of point estimates.}
   \item{tests}{stores the results of various statistical tests. See below}
   \item{tests$X.LKurtosis}{the L-kurtosis measure of the moderator}
   \item{graph}{stores the graphic output, if \bold{pool} is TRUE, it is a ggplot object, otherwise it is a Grid object.}

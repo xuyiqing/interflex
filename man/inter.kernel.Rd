@@ -74,7 +74,7 @@
   \item{pool}{a logical flag specifying whether to integrate marginal effects or expected values of Y for each treatment arm in one plot.}
   \item{color}{a vector of colors that determines the color of lines when drawing the pool plot.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
-  \item{diff.values}{a two-element numeric vector. The difference between treatment effects at corresponding values of the moderator will be estimated.}
+  \item{diff.values}{a three-element numeric vector. The difference between treatment effects at corresponding values of the moderator will be estimated. If not specified, the 0.25,0.5,0.75 quantiles of the moderator will be chosen.}
 }
 \details{
   \bold{inter.kernel} implements a kernel smoothing estimator of the marginal effect, which is an application of semi-parametric smooth varying-coefficient models. This approach is more complicated than the simple binning estimator, but provides a generalization that allows researchers to flexibly estimate the functional form of the marginal effect of D on Y across the values of X by estimating a series of local effects with a Gaussian kernel
@@ -92,6 +92,7 @@
 \value{
   \item{bw}{specified or cross-validated bandwidth.}
   \item{est}{marginal effects estimates (and confidence intervals if \bold{CI = TRUE})}
+  \item{est.matrix}{stores the variance-covariance matrix of the series of point estimates if \bold{CI = TRUE}.}
   \item{CV.out}{results from cross-validation if \bold{bw} is not specified.}
   \item{graph}{stores the graphic output, a ggplot object.}
   \item{est.predict}{stores the expected value of Y conditional on X, D and the mean of all covariates if \bold{predict = TRUE}.}
