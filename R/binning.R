@@ -1277,6 +1277,7 @@ if(dim(bootout)[2]==0){
  if(treat.type=='discrete'){
 	est.lin <- list()
 	est.bin <- list()
+	est.matrix <- list()
 	for(char in other_treat){
 		marg <- output[,paste0("ME.",char)]
 		marg.ci <- t(apply(marg.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
@@ -1287,6 +1288,7 @@ if(dim(bootout)[2]==0){
 		tempest <- data.frame(X.lvls,marg,se,lb,ub)
 		tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
 		est.lin[[other_treat.origin[char]]] <- tempest
+		est.matrix[[other_treat.origin[char]]] <- cov(t(marg.list[[char]]))
 		
 		
 		bin.coef <- output[,paste0("BinCoef.",char)][1:nbins]
@@ -1308,16 +1310,18 @@ if(dim(bootout)[2]==0){
 	ub <- marg.ci[,2]
 	tempest <- data.frame(X.lvls,marg,se,lb,ub)
 	est.lin <- tempest
-	if(nbins>1){
-		bin.coef <- output[,"BinCoef"][1:nbins]
-		bin.coef.ci <- t(apply(coef.con, 1, quantile, CI.lvl, na.rm=TRUE))
-		bin.coef.se <- apply(coef.con,1,sd, na.rm=TRUE)
-		bin.coef.lb <- bin.coef.ci[,1]
-		bin.coef.ub <- bin.coef.ci[,2]
-		tempbin <- data.frame(x0,coef=bin.coef,se=bin.coef.se,CI_lower=bin.coef.lb,CI_upper=bin.coef.ub)
-		rownames(tempbin) <- gp.lab
-		est.bin <- tempbin
-	}
+	est.matrix <- cov(t(marg.con))
+	
+	bin.coef <- output[,"BinCoef"][1:nbins]
+	bin.coef.ci <- t(apply(coef.con, 1, quantile, CI.lvl, na.rm=TRUE))
+	bin.coef.se <- apply(coef.con,1,sd, na.rm=TRUE)
+	bin.coef.lb <- bin.coef.ci[,1]
+	bin.coef.ub <- bin.coef.ci[,2]
+	tempbin <- data.frame(x0,coef=bin.coef,se=bin.coef.se,CI_lower=bin.coef.lb,CI_upper=bin.coef.ub)
+	rownames(tempbin) <- gp.lab
+	est.bin <- tempbin
+		
+	
  }
  
  	if(predict==TRUE){
@@ -1534,14 +1538,23 @@ if(vartype!='bootstrap'){
     ##make 95% confidence bands. 
     lb<-marg-crit*se
     ub<-marg+crit*se
-    est.lin<-data.frame(X.lvls, marg, lb, ub)
+    est.lin<-data.frame(X.lvls, marg,se, lb, ub)
+	
+	# var-cov matrix
+	gen_matrix <- function(colvec,x0){
+		output <- var.D + (x0+colvec)*cov.DX + x0*colvec*var.DX
+		return(output)
+	}
+	cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
+	est.matrix <- cov_matrix
   }
   
   if (treat.type=='discrete'){
     df <- mod.naive$df.residual
     crit<-abs(qt(.025, df=df))
     est.lin<-list()
-    
+    est.matrix <- list()
+	
     for(char in other_treat) {
 	  marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
 	  marg[which(is.na(marg))] <- 0
@@ -1551,6 +1564,14 @@ if(vartype!='bootstrap'){
       tempest <- data.frame(X.lvls,marg,se,lb,ub)
       tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
       est.lin[[other_treat.origin[char]]] <- tempest
+	  
+	  # var-cov matrix
+	  gen_matrix <- function(colvec,x0){
+		output <- var_list[[char]] + (x0+colvec)*cov_list[[char]] + x0*colvec*varinter_list[[char]]
+		return(output)
+	  }
+	  cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
+	  est.matrix[[other_treat.origin[char]]] <- cov_matrix
     }
   }
 
@@ -2574,6 +2595,7 @@ if(TRUE){## Storage
     type = "binning",
     nbins = nbins,
     est.lin = est.lin,
+	est.matrix = est.matrix,
     est.bin = est.bin,
     treat.type = treat.type,
     treatlevels = all_treat.origin,
@@ -2596,6 +2618,7 @@ if(TRUE){## Storage
       type = "binning",
       nbins = nbins,
       est.lin = est.lin,
+	  est.matrix = est.matrix,
       est.bin = est.bin,
       treat.type = treat.type,
       treatlevels= NULL,

@@ -395,8 +395,8 @@ inter.linear<-function(data,
 	if(is.numeric(diff.values)==FALSE){
 		stop("\"diff.values\" is not numeric.")
 	}
-	if(length(diff.values)!=2){
-		stop("\"diff.values\" must be of length 2.")
+	if(length(diff.values)!=3){
+		stop("\"diff.values\" must be of length 3.")
 	}
 	min.XX <- min(data[,X])
 	max.XX <- max(data[,X])
@@ -626,6 +626,13 @@ inter.linear<-function(data,
 	est.pred.linear <- NULL
   }
   
+  if(is.null(diff.values)==TRUE){
+	diff.values.plot <- NULL
+	diff.values <- quantile(data[,X],probs = c(0.25,0.5,0.75))
+	difference.name <- c("50%-25%","75%-50%","75%-25%")
+  }else{diff.values.plot<-diff.values
+	difference.name <- c("2nd-1st","3rd-2nd","3rd-1st")
+  }
   
   }
 
@@ -750,8 +757,13 @@ inter.linear<-function(data,
   }
   
   	if(is.null(diff.values)==FALSE){
-		x.diff <- diff.values[2]-diff.values[1]
+		x.diff1 <- diff.values[2]-diff.values[1]
+		x.diff2 <- diff.values[3]-diff.values[2]
+		x.diff3 <- diff.values[3]-diff.values[1]
 		if(treat.type=='continuous'){
+		diff.table.start <- matrix(0,nrow=0,ncol=6)
+		colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+		for(x.diff in c(x.diff1,x.diff2,x.diff3)){
 			difference <- coef.DX*x.diff
 			difference.sd <- abs(x.diff)*sqrt(var.DX)
 			difference.z <- difference/difference.sd
@@ -759,28 +771,36 @@ inter.linear<-function(data,
 			difference.lbound <- difference-1.96*difference.sd
 			difference.ubound <- difference+1.96*difference.sd
 			diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
-			names(diff.table) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+			diff.table.start <- rbind(diff.table.start,diff.table)
+		}
+		rownames(diff.table.start) <- difference.name
+		diff.table <- diff.table.start
 		}
 		
 		if(treat.type=='discrete'){
 			diff.table.list <- list()
 			for(char in other_treat){
-				difference <- coef_inter_list[[char]]*x.diff
-				difference.sd <- abs(x.diff)*sqrt(varinter_list[[char]])
-				difference.z <- difference/difference.sd
-				difference.pvalue2sided=2*pnorm(-abs(difference.z))
-				difference.lbound <- difference-1.96*difference.sd
-				difference.ubound <- difference+1.96*difference.sd
-				diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
-				names(diff.table) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
-				diff.table.list[[other_treat.origin[char]]] <- diff.table
+				diff.table.start <- matrix(0,nrow=0,ncol=6)
+				colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+				for(x.diff in c(x.diff1,x.diff2,x.diff3)){
+					difference <- coef_inter_list[[char]]*x.diff
+					difference.sd <- abs(x.diff)*sqrt(varinter_list[[char]])
+					difference.z <- difference/difference.sd
+					difference.pvalue2sided=2*pnorm(-abs(difference.z))
+					difference.lbound <- difference-1.96*difference.sd
+					difference.ubound <- difference+1.96*difference.sd
+					diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
+					diff.table.start <- rbind(diff.table.start,diff.table)
+				}
+				rownames(diff.table.start) <- difference.name
+				diff.table.list[[other_treat.origin[char]]] <- diff.table.start
 			}
 			diff.table <- diff.table.list
 		}
 	} else{diff.table <- NULL}
 	
 	
-  
+
   
   if (treat.type=='continuous'){
     marg<-coef.D + coef.DX*X.lvls
@@ -793,14 +813,23 @@ inter.linear<-function(data,
     ##make 95% confidence bands. 
     lb<-marg-crit*se
     ub<-marg+crit*se
-    est.lin<-data.frame(X.lvls, marg, lb, ub)
+    est.lin<-data.frame(X.lvls, marg,se, lb, ub)
+	
+	# var-cov matrix
+	gen_matrix <- function(colvec,x0){
+		output <- var.D + (x0+colvec)*cov.DX + x0*colvec*var.DX
+		return(output)
+	}
+	cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
+	est.matrix <- cov_matrix
   }
   
   if (treat.type=='discrete'){
     df <- mod.naive$df.residual
     crit<-abs(qt(.025, df=df))
     est.lin<-list()
-    
+    est.matrix<-list()
+	
     for(char in other_treat) {
 	  marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
 	  marg[which(is.na(marg))] <- 0
@@ -810,6 +839,15 @@ inter.linear<-function(data,
       tempest <- data.frame(X.lvls,marg,se,lb,ub)
       tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
       est.lin[[other_treat.origin[char]]] <- tempest
+	  
+	  # var-cov matrix
+	  gen_matrix <- function(colvec,x0){
+		output <- var_list[[char]] + (x0+colvec)*cov_list[[char]] + x0*colvec*varinter_list[[char]]
+		return(output)
+	  }
+	  cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
+	  est.matrix[[other_treat.origin[char]]] <- cov_matrix
+	  
     }
   }
 
@@ -1128,10 +1166,7 @@ inter.linear<-function(data,
 									FE <- NULL
 									}
 									  
-									  
-									  
-									  
-									  
+
 									  data_touse <- data
 									  if(is.null(weights)==FALSE){
 											weight_touse <- as.matrix(data[,weights])
@@ -1416,9 +1451,16 @@ inter.linear<-function(data,
 		}
 	}
 	
+
 	if(is.null(diff.values)==FALSE){
-		x.diff <- diff.values[2]-diff.values[1]
+		x.diff1 <- diff.values[2]-diff.values[1]
+		x.diff2 <- diff.values[3]-diff.values[2]
+		x.diff3 <- diff.values[3]-diff.values[1]
+		
 		if(treat.type=='continuous'){
+		diff.table.start <- matrix(0,nrow=0,ncol=6)
+		colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+		for(x.diff in c(x.diff1,x.diff2,x.diff3)){
 			difference <- coef.inter.T*x.diff
 			difference.sd <- abs(x.diff)*sqrt(var(coef.inter))
 			difference.z <- difference/difference.sd
@@ -1427,23 +1469,32 @@ inter.linear<-function(data,
 			difference.lbound <- difference_interval[1]
 			difference.ubound <- difference_interval[2]
 			diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
-			names(diff.table) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+			diff.table.start <- rbind(diff.table.start,diff.table)
+		
+		}
+			rownames(diff.table.start) <- difference.name
+			diff.table <- diff.table.start
 		}
 		
 		if(treat.type=='discrete'){
 			diff.table.list <- list()
 			for(char in other_treat){
-				difference <- coef.inter.T[[char]]*x.diff
-				difference.sd <- abs(x.diff)*sqrt(var(coef.inter.list[[char]]))
-				difference.z <- difference/difference.sd
-				difference.pvalue2sided <- 2*pnorm(-abs(difference.z))
+				diff.table.start <- matrix(0,nrow=0,ncol=6)
+				colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+				for(x.diff in c(x.diff1,x.diff2,x.diff3)){
+					difference <- coef.inter.T[[char]]*x.diff
+					difference.sd <- abs(x.diff)*sqrt(var(coef.inter.list[[char]]))
+					difference.z <- difference/difference.sd
+					difference.pvalue2sided <- 2*pnorm(-abs(difference.z))
 				
-				difference_interval<- quantile(coef.inter.list[[char]],c(0.025,0.975))*x.diff
-				difference.lbound <- difference_interval[1]
-				difference.ubound <- difference_interval[2]
-				diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
-				names(diff.table) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
-				diff.table.list[[other_treat.origin[char]]] <- diff.table
+					difference_interval<- quantile(coef.inter.list[[char]],c(0.025,0.975))*x.diff
+					difference.lbound <- difference_interval[1]
+					difference.ubound <- difference_interval[2]
+					diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
+					diff.table.start <- rbind(diff.table.start,diff.table)
+				}
+				rownames(diff.table.start) <- difference.name
+				diff.table.list[[other_treat.origin[char]]] <- diff.table.start
 			}
 			diff.table <- diff.table.list
 		}
@@ -1452,6 +1503,7 @@ inter.linear<-function(data,
 	CI.lvl <- c((1-0.95)/2, (1-(1-0.95)/2))
 	if(treat.type=='discrete'){
 		est.lin <- list()
+		est.matrix <- list()
 		for(char in other_treat){
 			marg <- output[,paste0("ME.",char)]
 			marg.ci <- t(apply(marg.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
@@ -1461,6 +1513,7 @@ inter.linear<-function(data,
 			tempest <- data.frame(X.lvls,marg,se,lb,ub)
 			tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
 			est.lin[[other_treat.origin[char]]] <- tempest
+			est.matrix[[other_treat.origin[char]]] <- cov(t(marg.list[[char]]))
 		}
 	}
  
@@ -1472,6 +1525,7 @@ inter.linear<-function(data,
 		ub <- marg.ci[,2]
 		tempest <- data.frame(X.lvls,marg,se,lb,ub)
 		est.lin <- tempest
+		est.matrix <- cov(t(marg.con))
 	}
 	
 	
@@ -1583,6 +1637,7 @@ inter.linear<-function(data,
 	output<-list(
     type = "linear",
     est.lin = est.lin,
+	est.matrix = est.matrix,
     treat.type = treat.type,
     treatlevels = all_treat.origin,
 	order = order,
@@ -1604,6 +1659,7 @@ inter.linear<-function(data,
     output<-list(
       type = "linear",
       est.lin = est.lin,
+	  est.matrix = est.matrix,
       treat.type = treat.type,
       treatlevels= NULL,
 	  order = NULL,
@@ -1644,7 +1700,7 @@ inter.linear<-function(data,
     class(output) <- "interflex"
     suppressMessages(
     graph <- plot.interflex(x = output, CI = CI, xlab = xlab, ylab = ylab, color = color, order = order,
-                        subtitles = subtitles,diff.values = diff.values,
+                        subtitles = subtitles,diff.values = diff.values.plot,
                         show.subtitles = show.subtitles,
                         Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
                         main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,interval = interval,pool=pool,
@@ -1658,7 +1714,7 @@ inter.linear<-function(data,
   if(figure==TRUE & pool==TRUE & treat.type=='discrete'){
     suppressMessages(
     graph <- plot.interflex(x = output, CI = CI, xlab = xlab, ylab = ylab,order=order,subtitles = subtitles,show.subtitles = show.subtitles,
-                              Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
+                              Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, diff.values = diff.values.plot,
                               main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,interval = interval,pool=pool,color=color,
                               file = file, theme.bw = theme.bw, show.grid = show.grid,
                               cex.main = cex.main, cex.axis = cex.axis, cex.lab = cex.lab,legend.title =legend.title)

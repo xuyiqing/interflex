@@ -333,8 +333,8 @@ if(is.null(diff.values)==FALSE){
 	if(is.numeric(diff.values)==FALSE){
 		stop("\"diff.values\" is not numeric.")
 	}
-	if(length(diff.values)!=2){
-		stop("\"diff.values\" must be of length 2.")
+	if(length(diff.values)<2){
+		stop("\"diff.values\" must be of length 2 or more.")
 	}
 	if(treat.type=='discrete' & type=='binning'){
 		tempxx <- out$est.lin[[other_treat[1]]][,'X.lvls']
