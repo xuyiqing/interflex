@@ -1,8 +1,8 @@
 Package: interflex
 Type: Package
 Title: Multiplicative Interaction Models Diagnostics and Visualization
-Version: 1.1.0
-Date: 2019-11-20
+Version: 1.1.1
+Date: 2020-1-20
 Author: Jens Hainmueller, Jonathan Mummolo and Yiqing Xu
 Maintainer: Yiqing Xu <yiqingxu@stanford.edu>
 Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
@@ -11,8 +11,8 @@ License: MIT + file LICENSE
 Imports: Rcpp (>= 0.12.3), ggplot2 (>= 2.1.0), sandwich (>= 2.3-4),
         pcse (>= 1.9), lmtest (>= 0.9-34), Lmoments (>= 1.2-3),
         doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16),
-        lfe (>= 2.6-2291),gridExtra, grid, ggplotify, RColorBrewer,
-        caret,gtable
+        lfe (>= 2.6-2291), gridExtra, grid, ggplotify, RColorBrewer,
+        caret, gtable
 LinkingTo: Rcpp, RcppArmadillo
 NeedsCompilation: yes
 Packaged: 2019-12-20 14:26:54 UTC; cug

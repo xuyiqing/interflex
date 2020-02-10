@@ -112,29 +112,29 @@ inter.gam<-function(data,Y,D,X,
     warning("The treatment variable is dichotomous.")
   }
   
-  panel_vars <- c()
+  to_dummy_var <- c()
   for(a in Z){
 	if(is.factor(data[,a])==TRUE){
-		panel_vars <- c(panel_vars,a)
+		to_dummy_var <- c(to_dummy_var,a)
 	}	
   }
-  if(length(panel_vars)>0){
-	fnames <- paste("factor(", panel_vars, ")", sep = "")
+  if(length(to_dummy_var)>0){
+	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
 	contr.list <- list(contr.sum, contr.sum)
 	names(contr.list) <- fnames
-	panel_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
+	to_dummy_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
 	suppressWarnings(
-	panel_mat <- model.matrix(panel_form, data = data,
+	to_dummy_mat <- model.matrix(to_dummy_form, data = data,
                           contrasts.arg = contr.list)[, -1]
 	)
-	panel_mat <- as.matrix(panel_mat)
+	to_dummy_mat <- as.matrix(to_dummy_mat)
 	dummy_colnames <- c()
-	for(i in 1:dim(panel_mat)[2]){
+	for(i in 1:dim(to_dummy_mat)[2]){
 		dummy_colnames <- c(dummy_colnames,paste0("Dummy.Covariate.",i))
 	}
-	colnames(panel_mat) <- dummy_colnames
-	data <- cbind(data,panel_mat)
-	Z <- Z[!Z %in% panel_vars]
+	colnames(to_dummy_mat) <- dummy_colnames
+	data <- cbind(data,to_dummy_mat)
+	Z <- Z[!Z %in% to_dummy_var]
 	Z <- c(Z,dummy_colnames)
   }
   

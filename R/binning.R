@@ -587,29 +587,29 @@ if (is.null(ncols) == FALSE) {
 if(TRUE){ #Preprocess
   n<-dim(data)[1]
   #factor
-  panel_vars <- c()
+  to_dummy_var <- c()
   for(a in Z){
 	if(is.factor(data[,a])==TRUE){
-		panel_vars <- c(panel_vars,a)
+		to_dummy_var <- c(to_dummy_var,a)
 	}	
   }
-  if(length(panel_vars)>0){
-	fnames <- paste("factor(", panel_vars, ")", sep = "")
+  if(length(to_dummy_var)>0){
+	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
 	contr.list <- list(contr.sum, contr.sum)
 	names(contr.list) <- fnames
-	panel_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
+	to_dummy_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
 	suppressWarnings(
-	panel_mat <- model.matrix(panel_form, data = data,
+	to_dummy_mat <- model.matrix(to_dummy_form, data = data,
                           contrasts.arg = contr.list)[, -1]
 	)
-	panel_mat <- as.matrix(panel_mat)
+	to_dummy_mat <- as.matrix(to_dummy_mat)
 	dummy_colnames <- c()
-	for(i in 1:dim(panel_mat)[2]){
+	for(i in 1:dim(to_dummy_mat)[2]){
 		dummy_colnames <- c(dummy_colnames,paste0("Dummy.Covariate.",i))
 	}
-	colnames(panel_mat) <- dummy_colnames
-	data <- cbind(data,panel_mat)
-	Z <- Z[!Z %in% panel_vars]
+	colnames(to_dummy_mat) <- dummy_colnames
+	data <- cbind(data,to_dummy_mat)
+	Z <- Z[!Z %in% to_dummy_var]
 	Z <- c(Z,dummy_colnames)
   }
   
@@ -650,7 +650,8 @@ if(TRUE){ #Preprocess
   }
   
 ##  make a vector of the marginal effect of D on Y as X changes
-X.lvls<-as.numeric(quantile(data[,X], probs=seq(0,1,0.01)))
+##X.lvls<-as.numeric(quantile(data[,X], probs=seq(0,1,0.01)))
+X.lvls <- seq(min(data[,X]), max(data[,X]), length.out = 50)
  
 if(TRUE){ ## linear model formula
 	if (treat.type=="discrete"){
@@ -1112,7 +1113,7 @@ if(vartype=='bootstrap'){
 								return(Ey_all)
 								}		
 		}
-		X.pred <- seq(min(data[,X]),max(data[,X]),length.out=101)
+		X.pred <- seq(min(data[,X]),max(data[,X]),length.out=length(X.lvls))
 		predict_Ey <- gen_Ey(data=data.demean,Y=Y,D=D,X=X,FE=NULL,weights=weights,Z=Z,nbins=nbins,cuts.X=cuts.X,x0=x0)
 	}
 	
@@ -1336,7 +1337,7 @@ if(dim(bootout)[2]==0){
 			if(treat.type=='discrete'){
 				
 				est.predict.binning[[all_treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(all_treat.origin[char],101),
+                                           SE = se.fit ,Treatment=rep(all_treat.origin[char],length(X.lvls)),
                                            CI_lower=lb, CI_upper=ub
                                            )
 										   
@@ -1344,7 +1345,7 @@ if(dim(bootout)[2]==0){
 			
 			if(treat.type=='continuous'){
 				est.predict.binning[[char]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(char,101),
+                                           SE = se.fit ,Treatment=rep(char,length(X.lvls)),
                                            CI_lower=lb, CI_upper=ub
                                            )
 			}
@@ -2595,7 +2596,7 @@ if(TRUE){## Storage
     type = "binning",
     nbins = nbins,
     est.lin = est.lin,
-	est.matrix = est.matrix,
+	vcov.matrix = est.matrix,
     est.bin = est.bin,
     treat.type = treat.type,
     treatlevels = all_treat.origin,
@@ -2618,7 +2619,7 @@ if(TRUE){## Storage
       type = "binning",
       nbins = nbins,
       est.lin = est.lin,
-	  est.matrix = est.matrix,
+	  vcov.matrix = est.matrix,
       est.bin = est.bin,
       treat.type = treat.type,
       treatlevels= NULL,

@@ -92,7 +92,7 @@
 }
 \value{
   \item{est.lin}{stores the linear marginal effect estimates}
-  \item{est.matrix}{stores the variance-covariance matrix of the series of point estimates.}
+  \item{vcov.matrix}{stores the variance-covariance matrix of the series of point estimates.}
   \item{est.bin}{stores the binning estimates}
   \item{tests}{stores the results of various statistical tests. See below}
   \item{tests$bin.size}{the percentage of observations within each bin}
