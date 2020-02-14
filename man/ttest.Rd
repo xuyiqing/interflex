@@ -26,7 +26,7 @@
 \examples{
 library(interflex)
 data(interflex)
-out <- inter.binning(data = s1, Y = "Y", D = "D", X = "X", Z = "Z1")
+out <- inter.linear(data = s1, Y = "Y", D = "D", X = "X", Z = "Z1")
 ttest(out,diff.values=c(0.25,0.5,0.75),percentile=TRUE)
 }
 \keyword{graphics}

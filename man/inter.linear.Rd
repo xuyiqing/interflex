@@ -12,7 +12,8 @@
   xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, theme.bw = FALSE, 
   show.grid = TRUE, cex.main = NULL, cex.sub = NULL, cex.lab = NULL, 
   cex.axis = NULL, interval = NULL, file = NULL, ncols = NULL, 
-  pool = FALSE, color = NULL, legend.title = NULL, diff.values = NULL)
+  pool = FALSE, color = NULL, legend.title = NULL, diff.values = NULL,
+  percentile = FALSE)
 }
 \arguments{
   \item{data}{a data.frame that stores Y, D, X, and other variables.}
@@ -62,7 +63,8 @@
   \item{pool}{a logical flag specifying whether to integrate marginal effects or expected values of Y for each treatment arm in one plot.}
   \item{color}{a vector of colors that determines the color of lines when drawing the pool plot.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
-  \item{diff.values}{a three-element numeric vector. The difference between treatment effects at corresponding values of the moderator will be estimated. If not specified, the 0.25,0.5,0.75 quantiles of the moderator will be chosen.}
+  \item{diff.values}{a numeric vector contain 2 or 3 elements which are between the minimum and the maximum of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
+  \item{percentile}{a logical flag indicating whether to take values of the moderator on a percentile scale.}
 }
 \details{
   \bold{inter.linear} implements the classic linear estimator. 

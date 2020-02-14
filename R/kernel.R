@@ -50,7 +50,8 @@ inter.kernel <- function(data,
                          pool = FALSE,
 						 color = NULL,
 						 legend.title = NULL,
-						 diff.values = NULL
+						 diff.values = NULL,
+						 percentile = FALSE
 ){
   
   x <- NULL
@@ -467,8 +468,8 @@ if(TRUE){ #INPUT CHECK
 	if(is.numeric(diff.values)==FALSE){
 		stop("\"diff.values\" is not numeric.")
 	}
-	if(length(diff.values)!=3){
-		stop("\"diff.values\" must be of length 3.")
+	if(length(diff.values)!=3 & length(diff.values)!=2){
+		stop("\"diff.values\" must be of length 3 or 2.")
 	}
 	min.XX <- min(data[,X])
 	max.XX <- max(data[,X])
@@ -478,6 +479,20 @@ if(TRUE){ #INPUT CHECK
 		}
 	}
   }
+  
+  ## percentile
+  if(is.logical(percentile) == FALSE & is.numeric(percentile)==FALSE) {
+		stop("\"percentile\" is not a logical flag.")
+  }
+  
+  if(percentile==TRUE){
+	for(a in diff.values){
+		if(a<0|a>1){
+			stop("Elements in \"diff.values\" should be between 0 and 1 when percentile==TRUE.")
+		}
+	}
+	}
+  
 }
   
 if(TRUE){ #TREAT CHECK
@@ -517,16 +532,15 @@ if(TRUE){ #TREAT CHECK
     
     if(is.null(base)==TRUE) {
       base=sort(unique(data[,D]))[1]
-      f=sprintf("Base group has not been specified, choose treat = %s as base group.\n",base)
+      f=sprintf("Baseline group not specified; choose treat = %s as the baseline group. \n",base)
       cat(f)
     }
     else {
       base <- as.character(base)
       if (!base %in% unique(data[,D])){
-        stop("\"base\" must be one kind of treatment")
+        stop("\"base\" must be one kind of treatments.")
       }
-      
-      f=sprintf("Base group: treat = %s \n",base)
+      f=sprintf("Baseline group: treat = %s \n",base)
       cat(f)
     }
     
@@ -725,14 +739,37 @@ if(TRUE){ # Preprocess
 	diff.values.plot <- NULL
 	diff.values <- quantile(data[,X],probs = c(0.25,0.5,0.75))
 	difference.name <- c("50% vs 25%","75% vs 50%","75% vs 25%")
-  }else{
+  }
+  else{
+	if(percentile==TRUE){
+		diff.pc <- diff.values
+		diff.values <- quantile(data[,X],probs=diff.values)
+	}
 	diff.values.plot<-diff.values
-	#difference.name <- c("2nd-1st","3rd-2nd","3rd-1st")
-	difference.name <- c(paste0(diff.values[2]," vs ",diff.values[1]),
-				   paste0(diff.values[3]," vs ",diff.values[2]),
-				   paste0(diff.values[3]," vs ",diff.values[1]))
+	
+	if(length(diff.values)==3){
+		if(percentile==FALSE){
+				difference.name <- c(paste0(diff.values[2]," vs ",diff.values[1]),
+							   paste0(diff.values[3]," vs ",diff.values[2]),
+							   paste0(diff.values[3]," vs ",diff.values[1]))
+		}
+		if(percentile==TRUE){
+				difference.name <- c(paste0(round(100*diff.pc[2],3),'%',' vs ',round(100*diff.pc[1],3),'%'),
+							   paste0(round(100*diff.pc[3],3),'%',' vs ',round(100*diff.pc[2],3),'%'),
+							   paste0(round(100*diff.pc[3],3),'%',' vs ',round(100*diff.pc[1],3),'%'))
+		}
+	}
+	if(length(diff.values)==2){
+		if(percentile==FALSE){
+				difference.name <- c(paste0(diff.values[2]," vs ",diff.values[1]))
+			}
+		if(percentile==TRUE){
+				difference.name <- c(paste0(round(100*diff.pc[2],3),'%',' vs ',round(100*diff.pc[1],3),'%'))
+			}
+	}
   }
   
+
   if(TRUE){ # kernel: preparation
 ## preparation for parallel computing
   if (parallel == TRUE & (CI == TRUE|is.null(bw))) {
@@ -930,7 +967,7 @@ if(is.null(diff.values)==FALSE){ #A function that gives the difference between t
 			difference2 <- est.TE(diff.values[3])-est.TE(diff.values[2])
 			difference3 <- est.TE(diff.values[3])-est.TE(diff.values[1])
 			difference <- rbind(difference1,difference2,difference3)
-			rownames(difference) <- difference.name
+			#rownames(difference) <- difference.name
 			colnames(difference) <- paste0("Delta.TE.",other_treat)
 			return(difference)
 	}
@@ -969,7 +1006,7 @@ if(is.null(diff.values)==FALSE){ #A function that gives the difference between t
 			difference3 <- est.TE(diff.values[3])-est.TE(diff.values[1])
 			difference <- rbind(difference1,difference2,difference3)
 			colnames(difference) <- "Delta.TE"
-			rownames(difference) <- difference.name
+			#rownames(difference) <- difference.name
 			return(difference)	
 			}
 	
@@ -1006,12 +1043,19 @@ if(TRUE){## Estimates
 	}
 	
 	if(is.null(diff.values)==FALSE){
-		difference.all <- gen_difference(data=data,diff.values=diff.values,coef=coef.all)
-		
+	
+		if(length(diff.values)==2){
+			diff.values.temp <- c(diff.values,diff.values[1])
+		}else{diff.values.temp <- diff.values}
+	
+		difference.all <- gen_difference(data=data,diff.values=diff.values.temp,coef=coef.all)
 		
 		diff.table.list <- list()
 			for(char in other_treat){
 				diff.table <- round(as.matrix(difference.all[,paste0("Delta.TE.",char)]),3)
+				if(length(diff.values)==2){
+					diff.table <- as.matrix(diff.table[1,])
+				}
 				colnames(diff.table) <- c("Difference")
 				rownames(diff.table) <- difference.name
 				diff.table.list[[other_treat.origin[char]]] <- diff.table
@@ -1031,8 +1075,16 @@ if(TRUE){## Estimates
 	  }
 	}
 	if(is.null(diff.values)==FALSE){
-		difference.all <- gen_difference(data=data,diff.values=diff.values,coef=coef.all)
+	
+		if(length(diff.values)==2){
+			diff.values.temp <- c(diff.values,diff.values[1])
+		}else{diff.values.temp <- diff.values}
+	
+		difference.all <- gen_difference(data=data,diff.values=diff.values.temp,coef=coef.all)
 		diff.table <- round(as.matrix(difference.all[,"Delta.TE"]),3)
+		if(length(diff.values)==2){
+					diff.table <- as.matrix(diff.table[1,])
+		}
 		colnames(diff.table) <- c("Difference")
 		rownames(diff.table) <- difference.name
 	}
@@ -1053,7 +1105,10 @@ if(TRUE){## Estimates
     }
 	
 	if(is.null(diff.values)==FALSE){
-		difference.all <- gen_difference(data=data,diff.values=diff.values,coef=coef.all)	
+		if(length(diff.values)==2){
+			diff.values.temp <- c(diff.values,diff.values[1])
+		}else{diff.values.temp <- diff.values}
+		difference.all <- gen_difference(data=data,diff.values=diff.values.temp,coef=coef.all)	
 	}
 	
 	
@@ -1097,8 +1152,14 @@ if(TRUE){## Estimates
 
 	  
 	  if(is.null(diff.values)==FALSE){
+		
+	
+		if(length(diff.values)==2){
+			diff.values.temp <- c(diff.values,diff.values[1])
+		}else{diff.values.temp <- diff.values}
+		
 		if(treat.type=='continuous'){
-			temp.difference <- gen_difference(data=s,diff.values=diff.values,coef=out.all)
+			temp.difference <- gen_difference(data=s,diff.values=diff.values.temp,coef=out.all)
 			output3 <- matrix(NA,neval,1)
 			output3[1:3,1] <- temp.difference[1:3,"Delta.TE"]
 			colnames(output3) <- 'coef.inter'
@@ -1107,7 +1168,7 @@ if(TRUE){## Estimates
 			all.colnames <- c(all.colnames,"coef.inter")
 		}
 		if(treat.type=='discrete'){
-			temp.difference <- gen_difference(data=s,diff.values=diff.values,coef=out.all)
+			temp.difference <- gen_difference(data=s,diff.values=diff.values.temp,coef=out.all)
 			output3 <- matrix(NA,neval,0)
 			colnames.output3 <- c()
 			for(char in other_treat){
@@ -1222,24 +1283,32 @@ if(TRUE){## Estimates
 		
 			diff.table.start <- matrix(0,nrow=0,ncol=6)
 			colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
-			for(j in 1:3){
-				difference <- difference.all[j,"Delta.TE"]
-				difference.sd <- sqrt(var(coef.inter[j,]))
-				difference.z <- difference/difference.sd
-				difference.pvalue2sided=2*pnorm(-abs(difference.z))
-				difference_interval<- quantile(coef.inter[j,],c(0.025,0.975))
-				difference.lbound <- difference_interval[1]
-				difference.ubound <- difference_interval[2]
-				diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
-				diff.table.start <- rbind(diff.table.start,diff.table)
+			
+			if(length(diff.values)==2){
+				cut.diff.temp <- 1
 			}
+			
+			if(length(diff.values)==3){
+				cut.diff.temp <- 3
+			}
+			
+			for(j in 1:cut.diff.temp){
+					difference <- difference.all[j,"Delta.TE"]
+					difference.sd <- sqrt(var(coef.inter[j,]))
+					difference.z <- difference/difference.sd
+					difference.pvalue2sided=2*pnorm(-abs(difference.z))
+					difference_interval<- quantile(coef.inter[j,],c(0.025,0.975))
+					difference.lbound <- difference_interval[1]
+					difference.ubound <- difference_interval[2]
+					diff.table <- round(c(difference,difference.sd,difference.z,difference.pvalue2sided,difference.lbound,difference.ubound),3)
+					diff.table.start <- rbind(diff.table.start,diff.table)
+			}
+			
 			rownames(diff.table.start) <- difference.name
 			diff.table <- diff.table.start
 
 			}
 		
-
-	
 		ci<-t(apply(marg.con, 1, quantile, CI.lvl))
 		est<-data.frame(cbind("X" = X.eval, "ME" = coef,
                           "SE"=apply(marg.con,1,sd),
@@ -1337,12 +1406,18 @@ if(TRUE){## Estimates
 	  
 	  if(is.null(diff.values)==FALSE){
 		diff.table.list <- list()
+		if(length(diff.values)==2){
+			cut.diff.temp <- 1
+		}
+		if(length(diff.values)==3){
+			cut.diff.temp <- 3
+		}
 		for(char in other_treat){
 			
 			diff.table.start <- matrix(0,nrow=0,ncol=6)
 			colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
 			
-			for(j in 1:3){
+			for(j in 1:cut.diff.temp){
 				difference <- difference.all[j,paste0("Delta.TE.",char)]
 				difference.sd <- sqrt(var(coef.inter.list[[char]][j,]))
 				difference.z <- difference/difference.sd

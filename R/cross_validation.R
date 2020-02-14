@@ -19,7 +19,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 
   if(CV.method=='simple'){
 	kfold <- min(n,kfold)
-    cat("kfold =",kfold)
+    cat("#folds =",kfold)
     cat("\n")
     fold <- c(0:(n-1))%%kfold + 1
     fold<-sample(fold, n, replace = FALSE)
@@ -32,7 +32,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
     m <- length(clusters)
     kfold <- min(m,kfold)
 	cat("Use clustered cross validation.\n")
-    cat("kfold =",kfold)
+    cat("#folds =",kfold)
 	cat("\n")
     id.list<-split(1:n,data[,cl])
     cl.fold <- c(0:(m-1))%%kfold + 1
@@ -47,7 +47,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 	requireNamespace("caret")
 	fold <- createFolds(factor(data[,D]), k = kfold, list = FALSE)
 	cat("Use stratified cross validation.\n")
-	cat("kfold =",kfold)
+	cat("#folds =",kfold)
 	cat("\n")
   }
   

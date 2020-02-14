@@ -468,15 +468,15 @@ if(TRUE){ # treat.type Check
     
     if(is.null(base)==TRUE) {
       base=sort(unique(data[,D]))[1]
-      f=sprintf("Base group has not been specified, choose treat = %s as base group. \n",base)
+      f=sprintf("Baseline group not specified; choose treat = %s as the baseline group. \n",base)
       cat(f)
     }
     else {
       base <- as.character(base)
       if (!base %in% unique(data[,D])){
-        stop("\"base\" must be one kind of treatment")
+        stop("\"base\" must be one kind of treatments.")
       }
-      f=sprintf("Base group: treat = %s \n",base)
+      f=sprintf("Baseline group: treat = %s \n",base)
       cat(f)
     }
     

@@ -21,7 +21,8 @@
       cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
       file = NULL, ncols = NULL, pool = FALSE, color = NULL, 
       legend.title = NULL, jitter = FALSE,
-      predict = FALSE, D.ref = NULL, diff.values = NULL)
+      predict = FALSE, D.ref = NULL, diff.values = NULL,
+	  percentile = FALSE)
 }
 \arguments{
   \item{data}{a data.frame that stores Y, D, and X.}
@@ -91,7 +92,8 @@
   \item{jitter}{a logical flag specifying whether to jitter error-bars to avoid overlapping. The default is FALSE.}
   \item{predict}{a logical flag that specifies whether to estimate the expected value of Y conditional on X, D and the mean of all covariates. The default is FALSE. If it is set to TRUE, it will take a bit more time to estimate and save expected values of Y. Users can later use the command plot(predict=TRUE,...) to visualize the plots.}
   \item{D.ref}{a vector of numbers that specifies the reference values of D which the expected values of Y will be conditional on when \bold{treat.type} is "continuous". If it is not specified, the 0.25, 0.5, and 0.75 quantiles of D will be chosen.}
-  \item{diff.values}{a two-element numeric vector. The difference between treatment effects at corresponding values of the moderator will be estimated.}
+  \item{diff.values}{a numeric vector contain 2 or 3 elements which are between the minimum and the maximum of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
+  \item{percentile}{a logical flag indicating whether to take values of the moderator on a percentile scale.}
 }
 \details{ 
   \bold{interflex} is an umbrella function that allow users to call inter.kernel and inter.binning more conveniently.

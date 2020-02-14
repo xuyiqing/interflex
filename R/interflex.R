@@ -72,7 +72,8 @@ interflex <- function(data,
 						 D.ref = NULL,
 						 
 						 #difference
-						 diff.values = NULL
+						 diff.values = NULL,
+						 percentile = FALSE
 )  {
     UseMethod("interflex")
 }
@@ -153,7 +154,8 @@ interflex.default <- function(data,
 						 D.ref = NULL,
 						 
 						 #difference
-						 diff.values = NULL
+						 diff.values = NULL,
+						 percentile = FALSE
 ){
 	if (!estimator %in% c("linear","binning","kernel") ){
     stop("\"estimator\" must be one of the following: \"linear\",\"binning\",\"kernel\".")
@@ -208,7 +210,8 @@ interflex.default <- function(data,
 							color = color,
                             pool = pool,
 							legend.title = legend.title,
-							diff.values = diff.values)
+							diff.values = diff.values,
+							percentile = percentile)
 	
 	}
 	if(estimator=='binning'){
@@ -323,7 +326,8 @@ interflex.default <- function(data,
 						 predict = predict,
 						 D.ref = D.ref,
 						 legend.title = legend.title,
-						 diff.values = diff.values
+						 diff.values = diff.values,
+						 percentile = percentile
 						 )
 	}
 	return(out)

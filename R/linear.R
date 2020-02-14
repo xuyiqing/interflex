@@ -46,7 +46,8 @@ inter.linear<-function(data,
                             pool = FALSE,
 							color = NULL,
 							legend.title = NULL,
-							diff.values = NULL
+							diff.values = NULL,
+							percentile = FALSE
 ){
   x <- NULL
   y <- NULL
@@ -395,7 +396,7 @@ inter.linear<-function(data,
 	if(is.numeric(diff.values)==FALSE){
 		stop("\"diff.values\" is not numeric.")
 	}
-	if(length(diff.values)!=3){
+	if(length(diff.values)!=3 & length(diff.values)!=2){
 		stop("\"diff.values\" must be of length 3.")
 	}
 	min.XX <- min(data[,X])
@@ -406,6 +407,21 @@ inter.linear<-function(data,
 		}
 	}
   }
+  
+  ## percentile
+  if(is.logical(percentile) == FALSE & is.numeric(percentile)==FALSE) {
+		stop("\"percentile\" is not a logical flag.")
+  }
+  
+  if(percentile==TRUE){
+		for(a in diff.values){
+			if(a<0|a>1){
+				stop("Elements in \"diff.values\" should be between 0 and 1 when percentile==TRUE.")
+			}
+		}
+  }
+  
+  
 }
 
   if(TRUE){ #TREAT.TYPE
@@ -445,15 +461,15 @@ inter.linear<-function(data,
     
     if(is.null(base)==TRUE) {
       base=sort(unique(data[,D]))[1]
-      f=sprintf("Base group has not been specified, choose treat = %s as base group. \n",base)
+      f=sprintf("Baseline group not specified; choose treat = %s as the baseline group. \n",base)
       cat(f)
     }
     else {
       base <- as.character(base)
       if (!base %in% unique(data[,D])){
-        stop("\"base\" must be one kind of treatment")
+        stop("\"base\" must be one kind of treatments.")
       }
-      f=sprintf("Base group: treat = %s \n",base)
+      f=sprintf("Baseline group: treat = %s \n",base)
       cat(f)
     }
     
@@ -630,16 +646,38 @@ inter.linear<-function(data,
 	diff.values.plot <- NULL
 	diff.values <- quantile(data[,X],probs = c(0.25,0.5,0.75))
 	difference.name <- c("50% vs 25%","75% vs 50%","75% vs 25%")
-  }else{
+  }
+  else{
+	if(percentile==TRUE){
+		diff.pc <- diff.values
+		diff.values <- quantile(data[,X],probs=diff.values)
+	}
 	diff.values.plot<-diff.values
-	#difference.name <- c("2nd-1st","3rd-2nd","3rd-1st")
-	difference.name <- c(paste0(diff.values[2]," vs ",diff.values[1]),
-				   paste0(diff.values[3]," vs ",diff.values[2]),
-				   paste0(diff.values[3]," vs ",diff.values[1]))
+	
+	if(length(diff.values)==3){
+		if(percentile==FALSE){
+				difference.name <- c(paste0(diff.values[2]," vs ",diff.values[1]),
+							   paste0(diff.values[3]," vs ",diff.values[2]),
+							   paste0(diff.values[3]," vs ",diff.values[1]))
+		}
+		if(percentile==TRUE){
+				difference.name <- c(paste0(round(100*diff.pc[2],3),'%',' vs ',round(100*diff.pc[1],3),'%'),
+							   paste0(round(100*diff.pc[3],3),'%',' vs ',round(100*diff.pc[2],3),'%'),
+							   paste0(round(100*diff.pc[3],3),'%',' vs ',round(100*diff.pc[1],3),'%'))
+		}
+	}
+	if(length(diff.values)==2){
+		if(percentile==FALSE){
+				difference.name <- c(paste0(diff.values[2]," vs ",diff.values[1]))
+			}
+		if(percentile==TRUE){
+				difference.name <- c(paste0(round(100*diff.pc[2],3),'%',' vs ',round(100*diff.pc[1],3),'%'))
+			}
+	}
+  }
   }
   
-  }
-
+  
   cat("Use a linear interaction model\n")
   
   if(TRUE){ #LINEAR MODEL FORMULA
@@ -762,13 +800,18 @@ inter.linear<-function(data,
   }
   
   	if(is.null(diff.values)==FALSE){
-		x.diff1 <- diff.values[2]-diff.values[1]
-		x.diff2 <- diff.values[3]-diff.values[2]
-		x.diff3 <- diff.values[3]-diff.values[1]
+	
+		if(length(diff.values)==2){
+			x.diff.all <- diff.values[2]-diff.values[1]
+		}
+		if(length(diff.values)==3){
+			x.diff.all <- c(diff.values[2]-diff.values[1],diff.values[3]-diff.values[2],diff.values[3]-diff.values[1])
+		}
+
 		if(treat.type=='continuous'){
 		diff.table.start <- matrix(0,nrow=0,ncol=6)
 		colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
-		for(x.diff in c(x.diff1,x.diff2,x.diff3)){
+		for(x.diff in x.diff.all){
 			difference <- coef.DX*x.diff
 			difference.sd <- abs(x.diff)*sqrt(var.DX)
 			difference.z <- difference/difference.sd
@@ -787,7 +830,7 @@ inter.linear<-function(data,
 			for(char in other_treat){
 				diff.table.start <- matrix(0,nrow=0,ncol=6)
 				colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
-				for(x.diff in c(x.diff1,x.diff2,x.diff3)){
+				for(x.diff in x.diff.all){
 					difference <- coef_inter_list[[char]]*x.diff
 					difference.sd <- abs(x.diff)*sqrt(varinter_list[[char]])
 					difference.z <- difference/difference.sd
@@ -1458,14 +1501,18 @@ inter.linear<-function(data,
 	
 
 	if(is.null(diff.values)==FALSE){
-		x.diff1 <- diff.values[2]-diff.values[1]
-		x.diff2 <- diff.values[3]-diff.values[2]
-		x.diff3 <- diff.values[3]-diff.values[1]
+		if(length(diff.values)==2){
+			x.diff.all <- diff.values[2]-diff.values[1]
+		}
+		
+		if(length(diff.values)==3){
+			x.diff.all <- c(diff.values[2]-diff.values[1],diff.values[3]-diff.values[2],diff.values[3]-diff.values[1])
+		}
 		
 		if(treat.type=='continuous'){
 		diff.table.start <- matrix(0,nrow=0,ncol=6)
 		colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
-		for(x.diff in c(x.diff1,x.diff2,x.diff3)){
+		for(x.diff in x.diff.all){
 			difference <- coef.inter.T*x.diff
 			difference.sd <- abs(x.diff)*sqrt(var(coef.inter))
 			difference.z <- difference/difference.sd
@@ -1486,7 +1533,7 @@ inter.linear<-function(data,
 			for(char in other_treat){
 				diff.table.start <- matrix(0,nrow=0,ncol=6)
 				colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
-				for(x.diff in c(x.diff1,x.diff2,x.diff3)){
+				for(x.diff in x.diff.all){
 					difference <- coef.inter.T[[char]]*x.diff
 					difference.sd <- abs(x.diff)*sqrt(var(coef.inter.list[[char]]))
 					difference.z <- difference/difference.sd

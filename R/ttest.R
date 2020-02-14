@@ -56,21 +56,21 @@ ttest <- function(
 		}
 	}
 	
-	if(type=='linear'){
-		type <- 'binning'
+	if(type=='binning'){
+		stop("ttest() can only work after linear or kernel estimations.")
 	}
 	
 	if(treat.type=='discrete'){
 		other_treat <- sort(all_treat[which(all_treat!=base)])
 	}
 	
-	if(treat.type=='discrete' & type=='binning'){
+	if(treat.type=='discrete' & type=='linear'){
 		tempxx <- out$est.lin[[other_treat[1]]][,'X.lvls']
 	}
 	if(treat.type=='discrete' & type=='kernel'){
 		tempxx <- out$est[[other_treat[1]]][,'X']
 	}
-	if(treat.type=='continuous' & type=='binning'){
+	if(treat.type=='continuous' & type=='linear'){
 		tempxx <- out$est.lin[,'X.lvls']
 	}
 	if(treat.type=='continuous' & type=='kernel'){
@@ -90,7 +90,7 @@ ttest <- function(
 		}
 	}
 	
-	if(type=='binning'|type=='linear'){
+	if(type=='linear'){
 		est <- out$est.lin
 	}
 	if(type=='kernel'){
