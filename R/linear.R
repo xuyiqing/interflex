@@ -810,7 +810,7 @@ inter.linear<-function(data,
 
 		if(treat.type=='continuous'){
 		diff.table.start <- matrix(0,nrow=0,ncol=6)
-		colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+		colnames(diff.table.start) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 		for(x.diff in x.diff.all){
 			difference <- coef.DX*x.diff
 			difference.sd <- abs(x.diff)*sqrt(var.DX)
@@ -822,6 +822,10 @@ inter.linear<-function(data,
 			diff.table.start <- rbind(diff.table.start,diff.table)
 		}
 		rownames(diff.table.start) <- difference.name
+		diff.table.start <- as.data.frame(diff.table.start)
+		for(col.name.table in colnames(diff.table.start)){
+			diff.table.start[,col.name.table] <- sprintf("%.3f", diff.table.start[,col.name.table])
+		}
 		diff.table <- diff.table.start
 		}
 		
@@ -829,7 +833,7 @@ inter.linear<-function(data,
 			diff.table.list <- list()
 			for(char in other_treat){
 				diff.table.start <- matrix(0,nrow=0,ncol=6)
-				colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+				colnames(diff.table.start) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 				for(x.diff in x.diff.all){
 					difference <- coef_inter_list[[char]]*x.diff
 					difference.sd <- abs(x.diff)*sqrt(varinter_list[[char]])
@@ -841,6 +845,10 @@ inter.linear<-function(data,
 					diff.table.start <- rbind(diff.table.start,diff.table)
 				}
 				rownames(diff.table.start) <- difference.name
+				diff.table.start <- as.data.frame(diff.table.start)
+				for(col.name.table in colnames(diff.table.start)){
+					diff.table.start[,col.name.table] <- sprintf("%.3f", diff.table.start[,col.name.table])
+				}
 				diff.table.list[[other_treat.origin[char]]] <- diff.table.start
 			}
 			diff.table <- diff.table.list
@@ -1511,7 +1519,7 @@ inter.linear<-function(data,
 		
 		if(treat.type=='continuous'){
 		diff.table.start <- matrix(0,nrow=0,ncol=6)
-		colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+		colnames(diff.table.start) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 		for(x.diff in x.diff.all){
 			difference <- coef.inter.T*x.diff
 			difference.sd <- abs(x.diff)*sqrt(var(coef.inter))
@@ -1525,6 +1533,10 @@ inter.linear<-function(data,
 		
 		}
 			rownames(diff.table.start) <- difference.name
+			diff.table.start <- as.data.frame(diff.table.start)
+			for(col.name.table in colnames(diff.table.start)){
+				diff.table.start[,col.name.table] <- sprintf("%.3f", diff.table.start[,col.name.table])
+			}
 			diff.table <- diff.table.start
 		}
 		
@@ -1532,7 +1544,7 @@ inter.linear<-function(data,
 			diff.table.list <- list()
 			for(char in other_treat){
 				diff.table.start <- matrix(0,nrow=0,ncol=6)
-				colnames(diff.table.start) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+				colnames(diff.table.start) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 				for(x.diff in x.diff.all){
 					difference <- coef.inter.T[[char]]*x.diff
 					difference.sd <- abs(x.diff)*sqrt(var(coef.inter.list[[char]]))
@@ -1546,6 +1558,10 @@ inter.linear<-function(data,
 					diff.table.start <- rbind(diff.table.start,diff.table)
 				}
 				rownames(diff.table.start) <- difference.name
+				diff.table.start <- as.data.frame(diff.table.start)
+				for(col.name.table in colnames(diff.table.start)){
+					diff.table.start[,col.name.table] <- sprintf("%.3f", diff.table.start[,col.name.table])
+				}
 				diff.table.list[[other_treat.origin[char]]] <- diff.table.start
 			}
 			diff.table <- diff.table.list

@@ -48,11 +48,11 @@ ttest <- function(
 	type <- out$type
 	base <- out$base
 	treat.type <- out$treat.type
-	all_treat <- out$treatlevels
+	all.treat <- out$treatlevels
 	
 	if(type=='kernel'){
 		if(out$CI==FALSE){
-			stop("Covariance matrix was not estimated.")
+			stop("ttest() can't work without vcov matrix.")
 		}
 	}
 	
@@ -61,27 +61,27 @@ ttest <- function(
 	}
 	
 	if(treat.type=='discrete'){
-		other_treat <- sort(all_treat[which(all_treat!=base)])
+		other.treat <- sort(all.treat[which(all.treat!=base)])
 	}
 	
 	if(treat.type=='discrete' & type=='linear'){
-		tempxx <- out$est.lin[[other_treat[1]]][,'X.lvls']
+		data.x <- out$est.lin[[other.treat[1]]][,'X.lvls']
 	}
 	if(treat.type=='discrete' & type=='kernel'){
-		tempxx <- out$est[[other_treat[1]]][,'X']
+		data.x <- out$est[[other.treat[1]]][,'X']
 	}
 	if(treat.type=='continuous' & type=='linear'){
-		tempxx <- out$est.lin[,'X.lvls']
+		data.x <- out$est.lin[,'X.lvls']
 	}
 	if(treat.type=='continuous' & type=='kernel'){
-		tempxx <- out$est[,'X']
+		data.x <- out$est[,'X']
 	}
-	min.XX <- min(tempxx)
-	max.XX <- max(tempxx)
+	min.XX <- min(data.x)
+	max.XX <- max(data.x)
 	
 	if(percentile==TRUE){
 		diff.pc <- diff.values
-		diff.values <- quantile(tempxx,probs=diff.values)
+		diff.values <- quantile(data.x,probs=diff.values)
 	}
 	
 	for(a in diff.values){
@@ -132,13 +132,14 @@ ttest <- function(
 			pvalue2sided <- 2*pnorm(-abs(z.value))
 			lbound <- diff-1.96*se.diff
 			ubound <- diff+1.96*se.diff
-			diff.table <- round(c(diff,se.diff,z.value,pvalue2sided,lbound,ubound),3)
+			diff.table <- c(diff,se.diff,z.value,pvalue2sided,lbound,ubound)
+			diff.table <- sprintf("%.3f", diff.table)
 			return(diff.table)
 	}
 	
 	if(treat.type=='continuous'){
-			x1 <- rep(tempxx,length(tempxx))
-			x2 <- rep(tempxx,each=length(tempxx))
+			x1 <- rep(data.x,length(data.x))
+			x2 <- rep(data.x,each=length(data.x))
 			cov_base <- c(vcov.matrix)
 			
 			data_touse <- cbind.data.frame(x1=x1,x2=x2,y=cov_base)
@@ -148,7 +149,7 @@ ttest <- function(
 			model_use2 <- gam(ME~s(X,k = k),data=data_touse2)
 			
 			diff.table <- matrix(0,nrow=0,ncol=6)
-			colnames(diff.table) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+			colnames(diff.table) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 			
 			if(length(diff.values)==3){
 				diff.table <- rbind(diff.table,get_stat(diff.values[1],diff.values[2]))
@@ -161,14 +162,14 @@ ttest <- function(
 				diff.table <- rbind(diff.table,get_stat(diff.values[1],diff.values[2]))
 				rownames(diff.table) <- diff.name
 			}
+			diff.table <- as.data.frame(diff.table)	
 	}
-	
 	if(treat.type=='discrete'){
-		x1 <- rep(tempxx,length(tempxx))
-		x2 <- rep(tempxx,each=length(tempxx))
+		x1 <- rep(data.x,length(data.x))
+		x2 <- rep(data.x,each=length(data.x))
 		diff.table.list <- list()
 		
-		for(char in other_treat){
+		for(char in other.treat){
 			cov_base <- c(vcov.matrix[[char]])
 			
 			data_touse <- cbind.data.frame(x1=x1,x2=x2,y=cov_base)
@@ -178,7 +179,7 @@ ttest <- function(
 			model_use2 <- gam(ME~s(X,k = k),data=data_touse2)
 			
 			diff.table <- matrix(0,nrow=0,ncol=6)
-			colnames(diff.table) <- c("Difference","se","Z-Score","P-value","CI-lower(95%)","CI-upper(95%)")
+			colnames(diff.table) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 			
 			if(length(diff.values)==3){
 				diff.table <- rbind(diff.table,get_stat(diff.values[1],diff.values[2]))
@@ -191,12 +192,10 @@ ttest <- function(
 				diff.table <- rbind(diff.table,get_stat(diff.values[1],diff.values[2]))
 				rownames(diff.table) <- diff.name
 			}
-			
+			diff.table <- as.data.frame(diff.table)
 			diff.table.list[[char]] <- diff.table		
 		}
-		
 		diff.table <- diff.table.list
 	}
-	
 	return(diff.table)
 }
