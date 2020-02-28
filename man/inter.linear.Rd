@@ -59,11 +59,11 @@
   \item{cex.axis}{a numeric value that controls the font size of the axis numbers.}
   \item{interval}{draw two vertical lines to demonstrate the interval used in replicated papers.}
   \item{file}{a string that specifies the filename in which the plot is saved.}
-  \item{ncols}{a integral value that controls the number of columns in the plot if \bold{pool} is FALSE.}
+  \item{ncols}{an integral that controls the number of columns in the plot if \bold{pool} is FALSE.}
   \item{pool}{a logical flag specifying whether to integrate marginal effects or expected values of Y for each treatment arm in one plot.}
   \item{color}{a vector of colors that determines the color of lines when drawing the pool plot.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
-  \item{diff.values}{a numeric vector contain 2 or 3 elements which are between the minimum and the maximum of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
+  \item{diff.values}{a numeric vector contain 2 or 3 elements which are within the range of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
   \item{percentile}{a logical flag indicating whether to take values of the moderator on a percentile scale.}
 }
 \details{

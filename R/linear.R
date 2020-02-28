@@ -424,11 +424,8 @@ inter.linear<-function(data,
   
 }
 
-  if(TRUE){ #TREAT.TYPE
-  
-  show.subtitle <- show.subtitles
-  subtitle <- subtitles
-  
+  if(TRUE){ #TREAT SETTING
+    
   if(is.null(treat.type)==TRUE){
     if(is.numeric(data[,D])==TRUE){
       if(length(unique(data[,D]))>5){
@@ -474,10 +471,10 @@ inter.linear<-function(data,
     }
     
 	## in case there are special characters in D
-    all_treat=sort(unique(data[,D]))
-	names(all_treat) <- paste("Group",c(1:length(all_treat)),sep  = '.')
-    other_treat <- all_treat[which(all_treat!=base)]
-    other_treat <- sort(other_treat)
+    all.treat=sort(unique(data[,D]))
+	names(all.treat) <- paste("Group",c(1:length(all.treat)),sep  = '.')
+    other.treat <- all.treat[which(all.treat!=base)]
+    other.treat <- sort(other.treat)
     
     if(is.null(order)==FALSE){
 	  order <- as.character(order)
@@ -486,43 +483,43 @@ inter.linear<-function(data,
         stop("\"order\" should not contain repeated values.")
       }
 	  
-      if(length(order)!=length(other_treat)){
+      if(length(order)!=length(other.treat)){
         stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
 	  }
 
-      if(sum(!is.element(order,other_treat))!=0 | sum(!is.element(other_treat,order))!=0){
+      if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
         stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
 	  }
-      other_treat <- order
+      other.treat <- order
 	  colnames.p <- c()
-	  for(char in other_treat){
-		colnames.p <- c(colnames.p,names(all_treat[which(all_treat==char)]))
+	  for(char in other.treat){
+		colnames.p <- c(colnames.p,names(all.treat[which(all.treat==char)]))
 	  }
-	  names(other_treat) <- colnames.p
+	  names(other.treat) <- colnames.p
 	}
 	
-	all_treat.origin <- all_treat
-	other_treat.origin <- other_treat
+	all.treat.origin <- all.treat
+	other.treat.origin <- other.treat
 	base.origin <- base
-	for(char in names(all_treat)){
-		data[which(data[,D]==all_treat[char]),D] <- char
+	for(char in names(all.treat)){
+		data[which(data[,D]==all.treat[char]),D] <- char
 	}
 
-	all_treat <- names(all_treat.origin)
-	other_treat <- names(other_treat.origin)
-	base <- names(all_treat.origin[which(all_treat.origin==base.origin)])
-	names(all_treat) <- all_treat.origin
-	names(other_treat) <- other_treat.origin
+	all.treat <- names(all.treat.origin)
+	other.treat <- names(other.treat.origin)
+	base <- names(all.treat.origin[which(all.treat.origin==base.origin)])
+	names(all.treat) <- all.treat.origin
+	names(other.treat) <- other.treat.origin
 	
 
 	
-    if(is.null(subtitle)==FALSE){
-      if(length(subtitle)!=length(other_treat)){
+    if(is.null(subtitles)==FALSE){
+      if(length(subtitles)!=length(other.treat)){
         stop("The number of elements in \"subtitles\" should be m-1(m is the number of different treatment arms).")
       }
     }
 	
-    if (is.logical(show.subtitle) ==FALSE & is.numeric(show.subtitle)==FALSE & is.null(show.subtitle)==FALSE) {
+    if (is.logical(show.subtitles) ==FALSE & is.numeric(show.subtitles)==FALSE & is.null(show.subtitles)==FALSE) {
       stop("\"show.subtitles\" is not a logical flag.")
     } 
   }
@@ -533,13 +530,13 @@ inter.linear<-function(data,
     }
 	if(is.null(D.ref)==TRUE){
     D.sample <- quantile(data[,D],probs = c(0.25,0.5,0.75),na.rm=T)
-	all_treat <- names(D.sample)
+	all.treat <- names(D.sample)
     ntreat <- length(D.sample)
     labelname <- c()
     for (targetD in D.sample){
       labelname <- c(labelname,paste0("D=",round(targetD,2)))
     }
-    labelname <- paste0(labelname,' (',all_treat,')')
+    labelname <- paste0(labelname,' (',all.treat,')')
 	} else{
 	if (is.numeric(D.ref)==FALSE) {
       stop("\"D.ref\" is not a numeric variable")
@@ -550,7 +547,7 @@ inter.linear<-function(data,
       labelname <- c(labelname,paste0("D=",round(targetD,2)))
     }
 	names(D.sample) <- labelname
-	all_treat <- labelname
+	all.treat <- labelname
     ntreat <- length(D.sample)
 	}
   }
@@ -576,12 +573,16 @@ inter.linear<-function(data,
 }
 
   if(TRUE){ #PREPROCESS
+  
   #factor cov
   to_dummy_var <- c()
   for(a in Z){
 	if(is.factor(data[,a])==TRUE){
 		to_dummy_var <- c(to_dummy_var,a)
 	}	
+	if(is.character(data[,a])==TRUE){
+		stop("\"Z\" should be numeric or factorial.")
+	}
   }
   if(length(to_dummy_var)>0){
 	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
@@ -677,7 +678,6 @@ inter.linear<-function(data,
   }
   }
   
-  
   cat("Use a linear interaction model\n")
   
   if(TRUE){ #LINEAR MODEL FORMULA
@@ -696,10 +696,10 @@ inter.linear<-function(data,
 	}
 	if (is.null(FE)==FALSE) {
 		mod.f <- paste0(mod.f, "|",paste0(FE, collapse = "+"))
-    if (vartype=="cluster") {
-      mod.f <- paste0(mod.f, "| 0 |",paste0(cl,collapse = "+"))
-    }
-  }
+		if (vartype=="cluster") {
+			mod.f <- paste0(mod.f, "| 0 |",paste0(cl,collapse = "+"))
+		}
+	}
 	mod.f <- as.formula(mod.f)
   }
 
@@ -707,7 +707,7 @@ inter.linear<-function(data,
 	# if vartype!='bootstrap'
 	## estimate coefficients -> estimate covariance matrix 
 	## -> (predict==T) estimate expected value of Y 
-	## -> (predict==T) if there exists fixed effects, first demean Y with fixed effects when making prediction 
+	## -> (predict==T) if there exists fixed effects, first demean Y with fixed effects when making prediction, consistent with the kernel model
 	## a naive fit
 	if (is.null(FE)==TRUE) { #OLS
 		if (is.null(weights)==TRUE) {
@@ -727,15 +727,15 @@ inter.linear<-function(data,
 	coefs<-summary(mod.naive)$coefficients[,1]
 	coefs[which(is.na(coefs))] <- 0
 	if(treat.type=='continuous'){
-	coef.D<-coefs[D]
-	coef.X<-coefs[X]
-	coef.DX<-coefs[paste(D,X,sep=":")] #interaction
+		coef.D<-coefs[D]
+		coef.X<-coefs[X]
+		coef.DX<-coefs[paste(D,X,sep=":")] #interaction
 	}
   
 	if(treat.type=='discrete'){
 		coef_list <- list()
 		coef_inter_list <- list()
-		for(char in other_treat){
+		for(char in other.treat){
 			coef_list[[char]] <- coefs[paste0(D,char)]
 			coef_inter_list[[char]] <- coefs[paste(paste0(D,char),X,sep=":")]
 		}
@@ -784,14 +784,14 @@ inter.linear<-function(data,
 	varinter_list <- list()
 	cov_list <- list()
     if (vartype=="pcse") {
-      for(char in other_treat){
+      for(char in other.treat){
 		var_list[[char]] <- v[paste0(D,char),paste0(D,char)]
 		varinter_list[[char]] <- v[paste(paste0(D,char),X,sep="."),paste(paste0(D,char),X,sep=".")]
 		cov_list[[char]] <- v[paste0(D,char),paste(paste0(D,char),X,sep=".")]
       }
     } 
     else {
-      for(char in other_treat){
+      for(char in other.treat){
 		var_list[[char]] <- v[paste0(D,char),paste0(D,char)]
 		varinter_list[[char]] <- v[paste(paste0(D,char),X,sep=":"),paste(paste0(D,char),X,sep=":")]
 		cov_list[[char]] <- v[paste0(D,char),paste(paste0(D,char),X,sep=":")]
@@ -831,7 +831,7 @@ inter.linear<-function(data,
 		
 		if(treat.type=='discrete'){
 			diff.table.list <- list()
-			for(char in other_treat){
+			for(char in other.treat){
 				diff.table.start <- matrix(0,nrow=0,ncol=6)
 				colnames(diff.table.start) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 				for(x.diff in x.diff.all){
@@ -849,7 +849,7 @@ inter.linear<-function(data,
 				for(col.name.table in colnames(diff.table.start)){
 					diff.table.start[,col.name.table] <- sprintf("%.3f", diff.table.start[,col.name.table])
 				}
-				diff.table.list[[other_treat.origin[char]]] <- diff.table.start
+				diff.table.list[[other.treat.origin[char]]] <- diff.table.start
 			}
 			diff.table <- diff.table.list
 		}
@@ -886,15 +886,15 @@ inter.linear<-function(data,
     est.lin<-list()
     est.matrix<-list()
 	
-    for(char in other_treat) {
+    for(char in other.treat) {
 	  marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
 	  marg[which(is.na(marg))] <- 0
       se <- sqrt(var_list[[char]] + X.lvls^2*varinter_list[[char]]+2*X.lvls*cov_list[[char]])
       lb <- marg-crit*se
       ub <- marg+crit*se
       tempest <- data.frame(X.lvls,marg,se,lb,ub)
-      tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
-      est.lin[[other_treat.origin[char]]] <- tempest
+      tempest[,'Treatment']<- rep(other.treat.origin[char],dim(tempest)[1])
+      est.lin[[other.treat.origin[char]]] <- tempest
 	  
 	  # var-cov matrix
 	  gen_matrix <- function(colvec,x0){
@@ -902,7 +902,7 @@ inter.linear<-function(data,
 		return(output)
 	  }
 	  cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
-	  est.matrix[[other_treat.origin[char]]] <- cov_matrix
+	  est.matrix[[other.treat.origin[char]]] <- cov_matrix
 	  
     }
   }
@@ -926,12 +926,12 @@ inter.linear<-function(data,
 		predict_colname <- c(Y,X)
 		formula <- paste0(Y,"~",X)
 		if(treat.type=='discrete'){
-			for(char in other_treat){
+			for(char in other.treat){
 				data_predict <- cbind(data_predict,as.numeric(data[,D]==char))
 				predict_colname <- c(predict_colname,paste0("D.",char))
 				formula <- paste0(formula,"+",paste0("D.",char))
 			}
-			for(char in other_treat){
+			for(char in other.treat){
 				data_predict <- cbind(data_predict,as.numeric(data[,D]==char)*data[,X])
 				predict_colname <- c(predict_colname,paste0("DX.",char))
 				formula <- paste0(formula,"+",paste0("DX.",char))
@@ -998,13 +998,13 @@ inter.linear<-function(data,
 		X.pred <- seq(min(data[,X]),max(data[,X]),length.out=length(X.lvls))
 		est.predict.linear <- list()
 		
-		for(char in all_treat){
+		for(char in all.treat){
 			newdata <- X.pred
 			if(treat.type=='discrete'){
-				for(char0 in other_treat){
+				for(char0 in other.treat){
 					newdata <- cbind(newdata,as.numeric(char0==char))
 				}
-				for(char0 in other_treat){
+				for(char0 in other.treat){
 					newdata <- cbind(newdata,as.numeric(char0==char)*X.pred)
 				}
 			}
@@ -1035,8 +1035,8 @@ inter.linear<-function(data,
 			lb<-fit-crit*se.fit
 			ub<-fit+crit*se.fit
 			if(treat.type=='discrete'){
-				est.predict.linear[[all_treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=all_treat.origin[char],
+				est.predict.linear[[all.treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
+                                           SE = se.fit ,Treatment=all.treat.origin[char],
                                            CI_lower=lb, CI_upper=ub
                                            )
 			}
@@ -1049,7 +1049,7 @@ inter.linear<-function(data,
 		}
 		data <- data.old
 		FE <- FE.old
-}
+	}
 }
 
   if(vartype=='bootstrap'){
@@ -1091,7 +1091,7 @@ inter.linear<-function(data,
 			coef_list <- list()
 			coef_inter_list <- list()
 			marg_list <- list()
-			for(char in other_treat){
+			for(char in other.treat){
 				coef_list[[char]] <- coefs[paste0(D,char)]
 				coef_inter_list[[char]] <- coefs[paste(paste0(D,char),X,sep=":")]
 				temp_marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
@@ -1107,10 +1107,10 @@ inter.linear<-function(data,
 			colnames(output) <- c('ME')
 		}
 		if(treat.type=='discrete'){
-			output <- matrix(NA,nrow=length(X.lvls),ncol=length(other_treat))
+			output <- matrix(NA,nrow=length(X.lvls),ncol=length(other.treat))
 			k <- 1
 			output_colname <- c()
-			for(char in other_treat){
+			for(char in other.treat){
 				output[,k] <- marg_list[[char]]
 				output_colname <- c(output_colname,paste0("ME.",char))
 				k <- k + 1
@@ -1202,11 +1202,11 @@ inter.linear<-function(data,
 		}
 		
 		if(treat.type=='discrete'){
-			ntreat <- length(all_treat)
+			ntreat <- length(all.treat)
 			gen_Ey_linear <- function(data,Y,D,X,FE,weights,Z=NULL,X.pred){
 									  n<-dim(data)[1]
-									  all_treat.new <- sort(unique(data[,D]))
-									  if(length(all_treat.new)<ntreat){ # in case some kinds of treatments are not in bootstrap samples
+									  all.treat.new <- sort(unique(data[,D]))
+									  if(length(all.treat.new)<ntreat){ # in case some kinds of treatments are not in bootstrap samples
 											return(matrix(NA,nrow=npred,ncol=0))
 									  }
 									  
@@ -1239,12 +1239,12 @@ inter.linear<-function(data,
 										colnames <- c(colnames,char)
 										formula <- paste(formula,char,sep = "+")
 									  }
-									  for(char in other_treat){
+									  for(char in other.treat){
 										data1 <- cbind(data1,as.numeric(data_touse[,D]==char))
 										colnames <- c(colnames,paste0("D.",char))
 										formula <- paste(formula,paste0("D.",char),sep = "+")
 									  }
-									  for(char in other_treat){
+									  for(char in other.treat){
 										data1 <- cbind(data1,data_touse[,X]*as.numeric(data_touse[,D]==char))
 										colnames <- c(colnames,paste0("DX.",char))
 										formula <- paste(formula,paste0("DX.",char),sep = "+")
@@ -1278,9 +1278,9 @@ inter.linear<-function(data,
       
 									  Ey_all <- matrix(NA,nrow=npred,ncol=0)
       
-									  for(target_treat in all_treat){
+									  for(target_treat in all.treat){
 										data_predict <- data_predict_start
-										for (char in other_treat){
+										for (char in other.treat){
 											if(char==target_treat){
 												data_predict <- cbind(data_predict,rep(1,npred))
 											}
@@ -1288,7 +1288,7 @@ inter.linear<-function(data,
 												data_predict <- cbind(data_predict,rep(0,npred))
 											}
 										}
-									  for (char in other_treat){
+									  for (char in other.treat){
 										if(char==target_treat){
 											data_predict <- cbind(data_predict,rep(1,npred)*x_predict)
 										}
@@ -1299,7 +1299,7 @@ inter.linear<-function(data,
 									  output <- as.double(data_predict%*%naive.coef)
 								      Ey_all <- cbind(Ey_all,output)
 									  }
-									  colnames(Ey_all) <- all_treat
+									  colnames(Ey_all) <- all.treat
 									  return(Ey_all)
 									  }
 		}
@@ -1362,7 +1362,7 @@ inter.linear<-function(data,
 		
 			output3 <- matrix(NA,length(X.lvls),0)
 			colnames.output3 <- c()
-			for(char in other_treat){
+			for(char in other.treat){
 				newcoef <- matrix(output.coef[[char]],length(X.lvls),1)
 				output3 <- cbind(output3,newcoef)
 				colnames.output3 <- c(colnames.output3,paste0('coef.inter.',char))
@@ -1414,23 +1414,23 @@ inter.linear<-function(data,
 		marg.list <- list()
 		pred.list <- list()
 		coef.inter.list <- list()
-		for(char in other_treat){
+		for(char in other.treat){
 			marg.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
 			coef.inter.list[[char]] <- c()
 		}
-		for(char in all_treat){
+		for(char in all.treat){
 			pred.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
 		}
 		
 		if(predict==TRUE){
 			if(is.null(diff.values)==FALSE){
-				kcol <- 2*length(other_treat)+length(all_treat)
-			} else{kcol <- length(other_treat)+length(all_treat)}
+				kcol <- 2*length(other.treat)+length(all.treat)
+			} else{kcol <- length(other.treat)+length(all.treat)}
 		}
 		if(predict==FALSE){
 			if(is.null(diff.values)==FALSE){
-				kcol <- 2*length(other_treat)
-			} else{kcol <- length(other_treat)}
+				kcol <- 2*length(other.treat)
+			} else{kcol <- length(other.treat)}
 		}
 		
 		trueboot <- dim(bootout)[2]/kcol
@@ -1438,7 +1438,7 @@ inter.linear<-function(data,
 			start <- kcol*k+1
 			end <- kcol*(k+1)
 			bootout_seg <- as.matrix(bootout[,start:end])
-			for(char in other_treat){
+			for(char in other.treat){
 				tempmarg <- marg.list[[char]]
 				if(dim(bootout_seg)[2]>1){
 				tempmarg <- cbind(tempmarg,bootout_seg[,paste0("ME.",char)])
@@ -1446,20 +1446,19 @@ inter.linear<-function(data,
 				marg.list[[char]] <- tempmarg 
 			}
 			if(predict==TRUE){
-				for(char in all_treat){
+				for(char in all.treat){
 					temppred <- pred.list[[char]]
 					temppred <- cbind(temppred,bootout_seg[,paste0("pred.",char)])
 					pred.list[[char]] <- temppred
 				}
 			}
 			if(is.null(diff.values)==FALSE){
-				for(char in other_treat){
+				for(char in other.treat){
 					temp.coef.inter <- coef.inter.list[[char]]
 					temp.coef.inter <- c(temp.coef.inter,mean(bootout_seg[,paste0('coef.inter.',char)]))
 					coef.inter.list[[char]] <- temp.coef.inter 
 				}
 			}
-			
 		}
 	}
 	
@@ -1467,14 +1466,14 @@ inter.linear<-function(data,
 		marg.con <- matrix(NA,nrow=length(X.lvls),ncol=0)
 		pred.list <- list()
 		coef.inter <- c()
-		for(char in all_treat){
+		for(char in all.treat){
 			pred.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
 		}
 		
 		if(predict==TRUE){
 			if(is.null(diff.values)==FALSE){
-				kcol <- 2+length(all_treat)
-			} else{kcol <- 1+length(all_treat)}	
+				kcol <- 2+length(all.treat)
+			} else{kcol <- 1+length(all.treat)}	
 		}
 		if(predict==FALSE){
 			if(is.null(diff.values)==FALSE){
@@ -1494,7 +1493,7 @@ inter.linear<-function(data,
 			} else{marg.con <- cbind(marg.con,bootout_seg)}
 			
 			if(predict==TRUE){
-				for(char in all_treat){
+				for(char in all.treat){
 					temppred <- pred.list[[char]]
 					temppred <- cbind(temppred,bootout_seg[,paste0("pred.",char)])
 					pred.list[[char]] <- temppred
@@ -1542,7 +1541,7 @@ inter.linear<-function(data,
 		
 		if(treat.type=='discrete'){
 			diff.table.list <- list()
-			for(char in other_treat){
+			for(char in other.treat){
 				diff.table.start <- matrix(0,nrow=0,ncol=6)
 				colnames(diff.table.start) <- c("Diff", "Std.Err.", "z-score", "p-value", "CI_lower(95%)", "CI_upper(95%)")
 				for(x.diff in x.diff.all){
@@ -1562,7 +1561,7 @@ inter.linear<-function(data,
 				for(col.name.table in colnames(diff.table.start)){
 					diff.table.start[,col.name.table] <- sprintf("%.3f", diff.table.start[,col.name.table])
 				}
-				diff.table.list[[other_treat.origin[char]]] <- diff.table.start
+				diff.table.list[[other.treat.origin[char]]] <- diff.table.start
 			}
 			diff.table <- diff.table.list
 		}
@@ -1572,16 +1571,16 @@ inter.linear<-function(data,
 	if(treat.type=='discrete'){
 		est.lin <- list()
 		est.matrix <- list()
-		for(char in other_treat){
+		for(char in other.treat){
 			marg <- output[,paste0("ME.",char)]
 			marg.ci <- t(apply(marg.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
 			se <- apply(marg.list[[char]],1,sd,na.rm=TRUE)
 			lb <- marg.ci[,1]
 			ub <- marg.ci[,2]
 			tempest <- data.frame(X.lvls,marg,se,lb,ub)
-			tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
-			est.lin[[other_treat.origin[char]]] <- tempest
-			est.matrix[[other_treat.origin[char]]] <- cov(t(marg.list[[char]]))
+			tempest[,'Treatment']<- rep(other.treat.origin[char],dim(tempest)[1])
+			est.lin[[other.treat.origin[char]]] <- tempest
+			est.matrix[[other.treat.origin[char]]] <- cov(t(marg.list[[char]]))
 		}
 	}
  
@@ -1599,7 +1598,7 @@ inter.linear<-function(data,
 	
 	if(predict==TRUE){
 	est.predict.linear <- list()
-		for(char in all_treat){
+		for(char in all.treat){
 			fit <- EY_output[,char]
 			pred.ci <- t(apply(pred.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
 			se.fit <- apply(pred.list[[char]],1,sd,na.rm=TRUE)
@@ -1608,8 +1607,8 @@ inter.linear<-function(data,
 			
 			if(treat.type=='discrete'){
 				
-				est.predict.linear[[all_treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(all_treat.origin[char],length(X.lvls)),
+				est.predict.linear[[all.treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
+                                           SE = se.fit ,Treatment=rep(all.treat.origin[char],length(X.lvls)),
                                            CI_lower=lb, CI_upper=ub
                                            )
 										   
@@ -1635,7 +1634,7 @@ inter.linear<-function(data,
     }
     
     treat_den <- list()
-    for (char in all_treat) {
+    for (char in all.treat) {
       de.name <- paste0("den.",char)
       if (is.null(weights)==TRUE) {
         de.tr <- density(data[data[,D]==char,X])
@@ -1644,7 +1643,7 @@ inter.linear<-function(data,
         suppressWarnings(de.tr <- density(data[data[,D]==char,X],
                                           weights=dataweights[data[,D]==char]))
       }
-      treat_den[[all_treat.origin[char]]] <- de.tr
+      treat_den[[all.treat.origin[char]]] <- de.tr
     }
     
     # histogram
@@ -1658,7 +1657,7 @@ inter.linear<-function(data,
 
     # count the number of treated
     treat_hist <- list()
-    for (char in all_treat) {
+    for (char in all.treat) {
       count1<-rep(0,n.hist)
       treat_index<-which(data[,D]==char)
       for (i in 1:n.hist) {
@@ -1668,7 +1667,7 @@ inter.linear<-function(data,
       count1[n.hist]<-sum(data[treat_index,X]>=hist.out$breaks[n.hist] &
                             data[treat_index,X]<=hist.out$breaks[n.hist+1])
       
-      treat_hist[[all_treat.origin[char]]] <- count1
+      treat_hist[[all.treat.origin[char]]] <- count1
     }    
   }  
   
@@ -1707,7 +1706,7 @@ inter.linear<-function(data,
     est.lin = est.lin,
 	vcov.matrix = est.matrix,
     treat.type = treat.type,
-    treatlevels = all_treat.origin,
+    treatlevels = all.treat.origin,
 	order = order,
     base = base.origin,
     Xlabel = Xlabel,
@@ -1752,10 +1751,10 @@ inter.linear<-function(data,
 		D.ref <- NULL
 	}
 	if(treat.type=='continuous'){
-		all_treat.origin <- names(D.sample)
+		all.treat.origin <- names(D.sample)
 	}
   
-   output <- c(output,list(est.predict = est.predict.linear,labelname = labelname,all.treat = all_treat.origin,
+   output <- c(output,list(est.predict = est.predict.linear,labelname = labelname,all.treat = all.treat.origin,
 						   X=X,Y=Y,D=D,D.ref=D.ref))
   }
   

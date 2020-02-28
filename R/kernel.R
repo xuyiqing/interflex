@@ -649,7 +649,10 @@ if(TRUE){ # Preprocess
   for(a in Z){
 	if(is.factor(data[,a])==TRUE){
 		to_dummy_var <- c(to_dummy_var,a)
-	}	
+	}
+	if(is.character(data[,a])==TRUE){
+		stop("\"Z\" should be numeric or factorial.")
+	}
   }
   if(length(to_dummy_var)>0){
 	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
@@ -1050,7 +1053,7 @@ if(TRUE){## Estimates
 		}
     }
   } 
-  else { ## bootstrap
+	else { ## bootstrap
     
     if(treat.type=='discrete'){
       coef.all <- coefs.new(data = data, bw = bw, Y = Y, X = X, D = D, Z = Z, treat.type = 'discrete',base=base,
@@ -1078,6 +1081,8 @@ if(TRUE){## Estimates
     }
 	
     oneboot.new <- function() {
+		
+	  ## sample
       if (is.null(cl)==TRUE) {
         smp<-sample(1:n,n,replace=TRUE)
       } else { ## block bootstrap
@@ -1086,6 +1091,7 @@ if(TRUE){## Estimates
       }   
       s<-data[smp,]
       
+	  ## if some kinds of treatment are not included
       if(treat.type=='discrete'){
         if(length(unique(s[,D]))<length(unique(data[,D]))){
           return(matrix(NA,length(X.eval),0))
@@ -1093,7 +1099,6 @@ if(TRUE){## Estimates
       }
       
 	  all.colnames <- c()
-	  
       if(treat.type=='discrete'){
         out.all <- coefs.new(data = s, bw = bw, Y = Y, X = X, D = D, Z = Z, treat.type = 'discrete', base=base,
 							 FE = FE, bw.adaptive=bw.adaptive, X.eval = X.eval, weights = weights)

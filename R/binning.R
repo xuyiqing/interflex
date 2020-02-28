@@ -430,12 +430,11 @@ if(TRUE){ #INPUT CHECK
   
 }
 
-if(TRUE){ # treat.type Check
-	## treat.type check
-  show.subtitle <- show.subtitles
-  subtitle <- subtitles
-	
-	
+if(TRUE){ # TREAT SETTING
+  show.subtitles <- show.subtitles
+  subtitles <- subtitles
+  
+  ## treat.type check
   if(is.null(treat.type)==T){
     if(is.numeric(data[,D])==T){
       if(length(unique(data[,D]))>5){
@@ -481,10 +480,10 @@ if(TRUE){ # treat.type Check
     }
     
 	## in case there are special characters in D
-    all_treat=sort(unique(data[,D]))
-	names(all_treat) <- paste("Group",c(1:length(all_treat)),sep  = '.')
-    other_treat <- all_treat[which(all_treat!=base)]
-    other_treat <- sort(other_treat)
+    all.treat=sort(unique(data[,D]))
+	names(all.treat) <- paste("Group",c(1:length(all.treat)),sep  = '.')
+    other.treat <- all.treat[which(all.treat!=base)]
+    other.treat <- sort(other.treat)
     
     if(is.null(order)==F){
 	  order <- as.character(order)
@@ -493,43 +492,41 @@ if(TRUE){ # treat.type Check
         stop("\"order\" should not contain repeated values.")
       }
 	  
-      if(length(order)!=length(other_treat)){
+      if(length(order)!=length(other.treat)){
         stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
       }
 
-      if(sum(!is.element(order,other_treat))!=0 | sum(!is.element(other_treat,order))!=0){
+      if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
         stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
 	  }
-      other_treat <- order
+      other.treat <- order
 	  colnames.p <- c()
-	  for(char in other_treat){
-		colnames.p <- c(colnames.p,names(all_treat[which(all_treat==char)]))
+	  for(char in other.treat){
+		colnames.p <- c(colnames.p,names(all.treat[which(all.treat==char)]))
 	  }
-	  names(other_treat) <- colnames.p
+	  names(other.treat) <- colnames.p
 	}
 	
-	all_treat.origin <- all_treat
-	other_treat.origin <- other_treat
+	all.treat.origin <- all.treat
+	other.treat.origin <- other.treat
 	base.origin <- base
-	for(char in names(all_treat)){
-		data[which(data[,D]==all_treat[char]),D] <- char
+	for(char in names(all.treat)){
+		data[which(data[,D]==all.treat[char]),D] <- char
 	}
 
-	all_treat <- names(all_treat.origin)
-	other_treat <- names(other_treat.origin)
-	base <- names(all_treat.origin[which(all_treat.origin==base.origin)])
-	names(all_treat) <- all_treat.origin
-	names(other_treat) <- other_treat.origin
-	
+	all.treat <- names(all.treat.origin)
+	other.treat <- names(other.treat.origin)
+	base <- names(all.treat.origin[which(all.treat.origin==base.origin)])
+	names(all.treat) <- all.treat.origin
+	names(other.treat) <- other.treat.origin
 
-	
-    if(is.null(subtitle)==F){
-      if(length(subtitle)!=length(other_treat)){
+    if(is.null(subtitles)==F){
+      if(length(subtitles)!=length(other.treat)){
         stop("The number of elements in \"subtitles\" should be m-1(m is the number of different treatment arms).")
       }
     }
 	
-    if (is.logical(show.subtitle) == F & is.numeric(show.subtitle)==F & is.null(show.subtitle)==F) {
+    if (is.logical(show.subtitles) == F & is.numeric(show.subtitles)==F & is.null(show.subtitles)==F) {
       stop("\"show.subtitles\" is not a logical flag.")
     } 
   }
@@ -541,13 +538,13 @@ if(TRUE){ # treat.type Check
 	
 	if(is.null(D.ref)==TRUE){
     D.sample <- quantile(data[,D],probs = c(0.25,0.5,0.75),na.rm=T)
-	all_treat <- names(D.sample)
-    ntreat <- length(D.sample)
+	all.treat <- names(D.sample)
+    num.treat <- length(D.sample)
     labelname <- c()
     for (targetD in D.sample){
       labelname <- c(labelname,paste0("D=",round(targetD,2)))
     }
-    labelname <- paste0(labelname,' (',all_treat,')')
+    labelname <- paste0(labelname,' (',all.treat,')')
 	} else{
 	if (is.numeric(D.ref)==F) {
       stop("\"D.ref\" is not a numeric variable")
@@ -558,11 +555,11 @@ if(TRUE){ # treat.type Check
       labelname <- c(labelname,paste0("D=",round(targetD,2)))
     }
 	names(D.sample) <- labelname
-	all_treat <- labelname
-    ntreat <- length(D.sample)
+	all.treat <- labelname
+    num.treat <- length(D.sample)
 	}
 }
-## treat.type checks END
+## TREAT SETTING END
   
 ## number of columns in plots
 if (is.null(ncols) == FALSE) {
@@ -586,12 +583,15 @@ if (is.null(ncols) == FALSE) {
   
 if(TRUE){ #Preprocess
   n<-dim(data)[1]
-  #factor
+  #convert factor covariates to dummy variables
   to_dummy_var <- c()
   for(a in Z){
 	if(is.factor(data[,a])==TRUE){
 		to_dummy_var <- c(to_dummy_var,a)
 	}	
+	if(is.character(data[,a])==TRUE){
+		stop("\"Z\" should be numeric or factorial.")
+	}
   }
   if(length(to_dummy_var)>0){
 	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
@@ -742,7 +742,7 @@ if(vartype=='bootstrap'){
 			coef_list <- list()
 			coef_inter_list <- list()
 			marg_list <- list()
-			for(char in other_treat){
+			for(char in other.treat){
 				coef_list[[char]] <- coefs[paste0(D,char)]
 				coef_inter_list[[char]] <- coefs[paste(paste0(D,char),X,sep=":")]
 				temp_marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
@@ -807,7 +807,7 @@ if(vartype=='bootstrap'){
 				G[which(groupX==i),i] <- 1
 				GX[,i] <- G[,i]*(data[,X]-x0[i])
 			}
-			for (char in other_treat) {
+			for (char in other.treat) {
 				DG_name <- paste0("DG.",char)
 				DGX_name <- paste0("DGX.",char)
 				DG_matrix <- DGX_matrix <- matrix(0,n,nbins)
@@ -822,7 +822,7 @@ if(vartype=='bootstrap'){
 		for (i in 1:nbins)  {
 			Gs<-c(Gs,paste0("G[,",i,"]"))
 			GXs<-c(GXs,paste0("GX[,",i,"]"))
-		for (char in other_treat) {
+		for (char in other.treat) {
 			DGs<-c(DGs,paste0("DG.",char,"[,",i,"]"))
 			DGXs<-c(DGXs,paste0("DGX.",char,"[,",i,"]"))
 		}
@@ -853,7 +853,7 @@ if(vartype=='bootstrap'){
 		}
 		df <- mod.X$df
 		Xcoefs_list <- list()
-		for (char in other_treat) {
+		for (char in other.treat) {
 			DGs <- c()
 			for (i in 1:nbins) {
 				DGs<-c(DGs,paste0("DG.",char,"[, ",i,"]"))
@@ -868,10 +868,10 @@ if(vartype=='bootstrap'){
 			Xcoefs_list[[char]] <- tempcoef
 		}
 		
-		output <- matrix(NA,nrow=length(X.lvls),ncol=length(other_treat)*2)
+		output <- matrix(NA,nrow=length(X.lvls),ncol=length(other.treat)*2)
 		k <- 1
 		output_colname <- c()
-		for(char in other_treat){
+		for(char in other.treat){
 			output[,k] <- marg_list[[char]]
 			output_colname <- c(output_colname,paste0("ME.",char))
 			k <- k + 1
@@ -1016,8 +1016,8 @@ if(vartype=='bootstrap'){
 									return(matrix(NA,nrow=length(X.pred),ncol=0))
 								}
   
-								all_treat.new <- sort(unique(data[,D]))
-								if(length(all_treat.new)<length(all_treat)){ # in case some kinds of treatments are not in bootstrap samples
+								all.treat.new <- sort(unique(data[,D]))
+								if(length(all.treat.new)<length(all.treat)){ # in case some kinds of treatments are not in bootstrap samples
 									return(matrix(NA,nrow=length(X.pred),ncol=0))
 								}
     
@@ -1038,7 +1038,7 @@ if(vartype=='bootstrap'){
 								}
     
 								for (i in 1:nbins){
-									for(char in other_treat){
+									for(char in other.treat){
 										data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char))
 										colnames <- c(colnames,paste0("G.",i,".D.",char))
 										formula <- paste(formula,paste0("G.",i,".D.",char),sep="+")
@@ -1052,7 +1052,7 @@ if(vartype=='bootstrap'){
 								}
     
 								for (i in 1:nbins){
-									for(char in other_treat){
+									for(char in other.treat){
 										data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char)*(data_touse[,X]-x0[i]))
 										colnames <- c(colnames,paste0("G.",i,".D.",char,".X"))
 										formula <- paste(formula,paste0("G.",i,".D.",char,".X"),sep="+")
@@ -1088,13 +1088,13 @@ if(vartype=='bootstrap'){
 								groupX_predict<-cut(x_predict,breaks=cuts.X, labels = FALSE)
 								groupX_predict[which(x_predict==min(x_predict))] <- 1
     
-								for(target_treat in all_treat){
+								for(target_treat in all.treat){
 									data_predict <- data_predict_start
 									for(i in 1:nbins){
 										data_predict <- cbind(data_predict,as.numeric(groupX_predict==i))
 									}
 									for(i in 1:nbins){
-										for(char in other_treat){
+										for(char in other.treat){
 											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat))
 										}
 									}
@@ -1102,14 +1102,14 @@ if(vartype=='bootstrap'){
 										data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*(x_predict-x0[i]))
 									}
 									for(i in 1:nbins){
-										for(char in other_treat){
+										for(char in other.treat){
 											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat)*(x_predict-x0[i]))
 										}
 									}
 									output <- as.double(data_predict%*%binning_coef)
 									Ey_all <- cbind(Ey_all,output)
 								}
-								colnames(Ey_all) <- all_treat
+								colnames(Ey_all) <- all.treat
 								return(Ey_all)
 								}		
 		}
@@ -1198,18 +1198,18 @@ if(dim(bootout)[2]==0){
 	bincoef.list <- list()
 	bin.var.list <- list()
 	pred.list <- list()
-	for(char in other_treat){
+	for(char in other.treat){
 		marg.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
 		bincoef.list[[char]] <- matrix(NA,nrow=nbins,ncol=0)
 	}
-	for(char in all_treat){
+	for(char in all.treat){
 			pred.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
 	}
 	if(predict==TRUE){
-			kcol <- 2*length(other_treat)+length(all_treat)
+			kcol <- 2*length(other.treat)+length(all.treat)
 	}
 	if(predict==FALSE){
-			kcol <- 2*length(other_treat)
+			kcol <- 2*length(other.treat)
 	}
 	trueboot <- dim(bootout)[2]/kcol
 	for(k in 0:(trueboot-1)){
@@ -1217,7 +1217,7 @@ if(dim(bootout)[2]==0){
 		end <- kcol*(k+1)
 		bootout_seg <- bootout[,start:end]
 		
-		for(char in other_treat){
+		for(char in other.treat){
 			tempmarg <- marg.list[[char]]
 			tempmarg <- cbind(tempmarg,bootout_seg[,paste0("ME.",char)])
 			marg.list[[char]] <- tempmarg 
@@ -1227,14 +1227,14 @@ if(dim(bootout)[2]==0){
 		}
 		
 		if(predict==TRUE){
-			for(char in all_treat){
+			for(char in all.treat){
 					temppred <- pred.list[[char]]
 					temppred <- cbind(temppred,bootout_seg[,paste0("pred.",char)])
 					pred.list[[char]] <- temppred
 				}
 		}
 	}	
-	for(char in other_treat){
+	for(char in other.treat){
 		bin.var.list[[char]] <- var(t(bincoef.list[[char]]),na.rm=TRUE)
 	}	
  }
@@ -1244,11 +1244,11 @@ if(dim(bootout)[2]==0){
 	marg.con <- matrix(NA,nrow=length(X.lvls),ncol=0)
 	coef.con <- matrix(NA,nrow=nbins,ncol=0)
 	pred.list <- list()
-	for(char in all_treat){
+	for(char in all.treat){
 			pred.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
 	}
 	if(predict==TRUE){
-			kcol <- 2+length(all_treat)
+			kcol <- 2+length(all.treat)
 	}
 	if(predict==FALSE){
 			kcol <- 2
@@ -1264,7 +1264,7 @@ if(dim(bootout)[2]==0){
 		coef.con <- cbind(coef.con,bootout_seg[,"BinCoef"][1:nbins])
 	
 		if(predict==TRUE){
-			for(char in all_treat){
+			for(char in all.treat){
 				temppred <- pred.list[[char]]
 				temppred <- cbind(temppred,bootout_seg[,paste0("pred.",char)])
 				pred.list[[char]] <- temppred
@@ -1279,7 +1279,7 @@ if(dim(bootout)[2]==0){
 	est.lin <- list()
 	est.bin <- list()
 	est.matrix <- list()
-	for(char in other_treat){
+	for(char in other.treat){
 		marg <- output[,paste0("ME.",char)]
 		marg.ci <- t(apply(marg.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
 		
@@ -1287,10 +1287,9 @@ if(dim(bootout)[2]==0){
 		lb <- marg.ci[,1]
 		ub <- marg.ci[,2]
 		tempest <- data.frame(X.lvls,marg,se,lb,ub)
-		tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
-		est.lin[[other_treat.origin[char]]] <- tempest
-		est.matrix[[other_treat.origin[char]]] <- cov(t(marg.list[[char]]))
-		
+		tempest[,'Treatment']<- rep(other.treat.origin[char],dim(tempest)[1])
+		est.lin[[other.treat.origin[char]]] <- tempest
+		est.matrix[[other.treat.origin[char]]] <- cov(t(marg.list[[char]]))
 		
 		bin.coef <- output[,paste0("BinCoef.",char)][1:nbins]
 		bin.coef.ci <- t(apply(bincoef.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
@@ -1299,7 +1298,7 @@ if(dim(bootout)[2]==0){
 		bin.coef.ub <- bin.coef.ci[,2]
 		tempbin <- data.frame(x0,coef=bin.coef,se=bin.coef.se,CI_lower=bin.coef.lb,CI_upper=bin.coef.ub)
 		rownames(tempbin) <- gp.lab
-		est.bin[[other_treat.origin[char]]] <- tempbin
+		est.bin[[other.treat.origin[char]]] <- tempbin
 	}
  }
  
@@ -1321,13 +1320,11 @@ if(dim(bootout)[2]==0){
 	tempbin <- data.frame(x0,coef=bin.coef,se=bin.coef.se,CI_lower=bin.coef.lb,CI_upper=bin.coef.ub)
 	rownames(tempbin) <- gp.lab
 	est.bin <- tempbin
-		
-	
  }
  
  	if(predict==TRUE){
 	est.predict.binning <- list()
-		for(char in all_treat){
+		for(char in all.treat){
 			fit <- predict_Ey[,char]
 			pred.ci <- t(apply(pred.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
 			se.fit <- apply(pred.list[[char]],1,sd,na.rm=TRUE)
@@ -1335,12 +1332,10 @@ if(dim(bootout)[2]==0){
 			ub <- pred.ci[,2]
 			
 			if(treat.type=='discrete'){
-				
-				est.predict.binning[[all_treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(all_treat.origin[char],length(X.lvls)),
+				est.predict.binning[[all.treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
+                                           SE = se.fit ,Treatment=rep(all.treat.origin[char],length(X.lvls)),
                                            CI_lower=lb, CI_upper=ub
-                                           )
-										   
+                                           )						   
 			}						   
 			
 			if(treat.type=='continuous'){
@@ -1350,7 +1345,6 @@ if(dim(bootout)[2]==0){
                                            )
 			}
 			}
-	
 	}
  
  ################### testing  ###############################
@@ -1367,16 +1361,13 @@ if(dim(bootout)[2]==0){
 		correctOrder<-ifelse(as.numeric((bin.coef[1]-bin.coef[2])*(bin.coef[2]-bin.coef[3]))>0,TRUE,FALSE) 
 	}
 
-	#print(X.v)
 	## p values
 	pvalue <- function(i,j){
 		stat <- (bin.coef[i]-bin.coef[j])/sqrt(bin.var[i,i]+bin.var[j,j]-2*bin.var[i,j])
 		p <- (1-pt(abs(stat),df.X))*2
 		return(p)
 	}
-  
 	p.twosided<-NULL
-  
 	if (nbins==3) {
 		p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digits=4)
 		names(p.twosided)<-c("p.1v2","p.2v3","p.1v3")
@@ -1390,24 +1381,20 @@ if(dim(bootout)[2]==0){
   }
 }
 
-if(treat.type=="discrete" & nbins > 1){
-  	
-    group.Xcoefs <- list()
+   if(treat.type=="discrete" & nbins > 1){
+	group.Xcoefs <- list()
     group.p.twosided <- list()
     correctOrder.group <- list()
     
-    for(char in other_treat) {
-      
-	  Xcoefs <- est.bin[[other_treat.origin[char]]][,"coef"]
+    for(char in other.treat) {
+	  Xcoefs <- est.bin[[other.treat.origin[char]]][,"coef"]
       X.v <- bin.var.list[[char]]
-      	  
       #correct order
       correctorder<-NULL
       if(nbins==3){
         correctOrder<-ifelse(as.numeric((Xcoefs[1]-Xcoefs[2])*(Xcoefs[2]-Xcoefs[3]))>0,TRUE,FALSE) 
-        correctOrder.group[[other_treat.origin[char]]] <- correctOrder
+        correctOrder.group[[other.treat.origin[char]]] <- correctOrder
       }
-
       pvalue<-function(i,j){
         stat<-(Xcoefs[i]-Xcoefs[j])/sqrt(X.v[i,i]+X.v[j,j]-2*X.v[i,j])
         p<-(1-pt(abs(stat),df.X))*2
@@ -1425,9 +1412,8 @@ if(treat.type=="discrete" & nbins > 1){
       } else if (nbins==4) {
         names(Xcoefs)<-c("X_low","X_med1","X_med2","X_high")
       }
-      
-      group.Xcoefs[[other_treat.origin[char]]] <- Xcoefs
-      group.p.twosided[[other_treat.origin[char]]] <- p.twosided
+      group.Xcoefs[[other.treat.origin[char]]] <- Xcoefs
+      group.p.twosided[[other.treat.origin[char]]] <- p.twosided
     }
 	}
 	p.wald <- NULL
@@ -1464,7 +1450,7 @@ if(vartype!='bootstrap'){
   if(treat.type=='discrete'){
     coef_list <- list()
 	coef_inter_list <- list()
-    for(char in other_treat){
+    for(char in other.treat){
 	  coef_list[[char]] <- coefs[paste0(D,char)]
 	  coef_inter_list[[char]] <- coefs[paste(paste0(D,char),X,sep=":")]
     }
@@ -1512,14 +1498,14 @@ if(vartype!='bootstrap'){
 	varinter_list <- list()
 	cov_list <- list()
     if (vartype=="pcse") {
-      for(char in other_treat){
+      for(char in other.treat){
 		var_list[[char]] <- v[paste0(D,char),paste0(D,char)]
 		varinter_list[[char]] <- v[paste(paste0(D,char),X,sep="."),paste(paste0(D,char),X,sep=".")]
 		cov_list[[char]] <- v[paste0(D,char),paste(paste0(D,char),X,sep=".")]
       }
     } 
     else {
-      for(char in other_treat){
+      for(char in other.treat){
 		var_list[[char]] <- v[paste0(D,char),paste0(D,char)]
 		varinter_list[[char]] <- v[paste(paste0(D,char),X,sep=":"),paste(paste0(D,char),X,sep=":")]
 		cov_list[[char]] <- v[paste0(D,char),paste(paste0(D,char),X,sep=":")]
@@ -1556,15 +1542,15 @@ if(vartype!='bootstrap'){
     est.lin<-list()
     est.matrix <- list()
 	
-    for(char in other_treat) {
+    for(char in other.treat) {
 	  marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
 	  marg[which(is.na(marg))] <- 0
       se <- sqrt(var_list[[char]] + X.lvls^2*varinter_list[[char]]+2*X.lvls*cov_list[[char]])
       lb <- marg-crit*se
       ub <- marg+crit*se
       tempest <- data.frame(X.lvls,marg,se,lb,ub)
-      tempest[,'Treatment']<- rep(other_treat.origin[char],dim(tempest)[1])
-      est.lin[[other_treat.origin[char]]] <- tempest
+      tempest[,'Treatment']<- rep(other.treat.origin[char],dim(tempest)[1])
+      est.lin[[other.treat.origin[char]]] <- tempest
 	  
 	  # var-cov matrix
 	  gen_matrix <- function(colvec,x0){
@@ -1572,7 +1558,7 @@ if(vartype!='bootstrap'){
 		return(output)
 	  }
 	  cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
-	  est.matrix[[other_treat.origin[char]]] <- cov_matrix
+	  est.matrix[[other.treat.origin[char]]] <- cov_matrix
     }
   }
 
@@ -1697,7 +1683,7 @@ if(vartype!='bootstrap'){
       GX[,i] <- G[,i]*(data[,X]-x0[i])
     }
     
-    for (char in other_treat) {
+    for (char in other.treat) {
       DG_name <- paste0("DG.",char)
       DGX_name <- paste0("DGX.",char)
       DG_matrix <- DGX_matrix <- matrix(0,n,nbins)
@@ -1713,7 +1699,7 @@ if(vartype!='bootstrap'){
     for (i in 1:nbins)  {
       Gs<-c(Gs,paste0("G[,",i,"]"))
       GXs<-c(GXs,paste0("GX[,",i,"]"))
-      for (char in other_treat) {
+      for (char in other.treat) {
         DGs<-c(DGs,paste0("DG.",char,"[,",i,"]"))
         DGXs<-c(DGXs,paste0("DGX.",char,"[,",i,"]"))
       }
@@ -1781,7 +1767,7 @@ if(vartype!='bootstrap'){
     df.X <- mod.X$df.residual
     crit.X <- abs(qt(.025,df=df.X))
     
-    for (char in other_treat) {
+    for (char in other.treat) {
       DGs <- c()
       for (i in 1:nbins) {
         DGs<-c(DGs,paste0("DG.",char,"[, ",i,"]"))
@@ -1812,7 +1798,7 @@ if(vartype!='bootstrap'){
       est_bin <- data.frame(x0,Xcoefs,X.se,lb.X,ub.X)
       colnames(est_bin) <- c("x0", "coef", "se", "CI_lower", "CI_upper")
       rownames(est_bin) <- gp.lab
-      est.bin[[other_treat.origin[char]]] <- est_bin
+      est.bin[[other.treat.origin[char]]] <- est_bin
     }
   }
 
@@ -1937,7 +1923,7 @@ if(vartype!='bootstrap'){
 		groupX_predict[which(x_predict==min(x_predict))]<-1
 		
 		
-		for(char in all_treat){
+		for(char in all.treat){
 			target.D <- D.sample[char]
 			data_predict <- data_predict_start
 			for(i in 1:nbins){
@@ -1952,7 +1938,6 @@ if(vartype!='bootstrap'){
 			for(i in 1:nbins){
 				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*target.D*(x_predict-x0[i]))
 			}
-			
 			
 			m.mat <- as.matrix(data_predict)
 			fit <- as.vector(m.mat %*% binning_coef)
@@ -1995,7 +1980,7 @@ if(vartype!='bootstrap'){
 		}
     
 		for (i in 1:nbins){
-				for(char in other_treat){
+				for(char in other.treat){
 						data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char))
 						colnames <- c(colnames,paste0("G.",i,".D.",char))
 						formula <- paste(formula,paste0("G.",i,".D.",char),sep="+")
@@ -2009,7 +1994,7 @@ if(vartype!='bootstrap'){
 			}
     
 		for (i in 1:nbins){
-				for(char in other_treat){
+				for(char in other.treat){
 						data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char)*(data_touse[,X]-x0[i]))
 						colnames <- c(colnames,paste0("G.",i,".D.",char,".X"))
 						formula <- paste(formula,paste0("G.",i,".D.",char,".X"),sep="+")
@@ -2076,13 +2061,13 @@ if(vartype!='bootstrap'){
 		groupX_predict<-cut(x_predict,breaks=cuts.X, labels = FALSE)
 		groupX_predict[which(x_predict==min(x_predict))] <- 1
     
-		for(target_treat in all_treat){
+		for(target_treat in all.treat){
 			data_predict <- data_predict_start
 			for(i in 1:nbins){
 				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i))
 			}
 			for(i in 1:nbins){
-				for(char in other_treat){
+				for(char in other.treat){
 						data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat))
 					}
 			}
@@ -2090,7 +2075,7 @@ if(vartype!='bootstrap'){
 				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*(x_predict-x0[i]))
 			}
 			for(i in 1:nbins){
-				for(char in other_treat){
+				for(char in other.treat){
 					data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat)*(x_predict-x0[i]))
 					}
 			}
@@ -2103,8 +2088,8 @@ if(vartype!='bootstrap'){
 			crit<-abs(qt(CI.lvl[1], df=df2))
 			lb<-fit-crit*se.fit
 			ub<-fit+crit*se.fit
-			est.predict.binning[[all_treat.origin[target_treat]]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(all_treat.origin[target_treat],length(x_predict)),
+			est.predict.binning[[all.treat.origin[target_treat]]] <- cbind.data.frame(X = X.pred, EY = fit, 
+                                           SE = se.fit ,Treatment=rep(all.treat.origin[target_treat],length(x_predict)),
                                            CI_lower=lb, CI_upper=ub
                                            )
 			}
@@ -2115,9 +2100,6 @@ if(vartype!='bootstrap'){
   
   
   ################### testing  ###############################
-  
-
-
   
   ## variance of treatment in each group 
   if(treat.type=="continuous" & nbins>1){
@@ -2162,7 +2144,7 @@ if(vartype!='bootstrap'){
     group.p.twosided <- list()
     correctOrder.group <- list()
     
-    for(char in other_treat) {
+    for(char in other.treat) {
       
       DGs <- c()
       for (i in 1:nbins) {
@@ -2191,7 +2173,7 @@ if(vartype!='bootstrap'){
       correctorder<-NULL
       if(nbins==3){
         correctOrder<-ifelse(as.numeric((Xcoefs[1]-Xcoefs[2])*(Xcoefs[2]-Xcoefs[3]))>0,TRUE,FALSE) 
-        correctOrder.group[[other_treat.origin[char]]] <- correctOrder
+        correctOrder.group[[other.treat.origin[char]]] <- correctOrder
       }
 
       pvalue<-function(i,j){
@@ -2212,15 +2194,12 @@ if(vartype!='bootstrap'){
         names(Xcoefs)<-c("X_low","X_med1","X_med2","X_high")
       }
       
-      group.Xcoefs[[other_treat.origin[char]]] <- Xcoefs
-      group.p.twosided[[other_treat.origin[char]]] <- p.twosided
+      group.Xcoefs[[other.treat.origin[char]]] <- Xcoefs
+      group.p.twosided[[other.treat.origin[char]]] <- p.twosided
       
     }
 	}
     
-
-  
-  
   ##############  Wald Test #####################
   
   if (wald == TRUE & treat.type=='continuous') { 
@@ -2329,8 +2308,7 @@ if(vartype!='bootstrap'){
     }
  }
   
-  
- if(wald==TRUE & treat.type=='discrete') { #discrete wald test
+  if(wald==TRUE & treat.type=='discrete') { #discrete wald test
     formula0 <- paste(Y,"~",D,"+",X,"+",D,"*",X)
     G<-GX<-matrix(0,n,nbins-1)
     
@@ -2346,7 +2324,7 @@ if(vartype!='bootstrap'){
     colnames(G) <- Gs
     colnames(GX) <- GXs
     
-    for (char in other_treat) {
+    for (char in other.treat) {
       
       DG_name <- paste0("DG.",char)
       DGX_name <- paste0("DGX.",char)
@@ -2365,15 +2343,14 @@ if(vartype!='bootstrap'){
       assign(DGX_name,DGX_matrix)
     }
     
-    
     data.aug <- cbind.data.frame(data, G, GX)
     
-    for (char in other_treat) {
+    for (char in other.treat) {
       DG_name <- paste0("DG.",char)
       data.aug <- cbind.data.frame(data.aug, get(DG_name)) 
     }
     
-    for (char in other_treat) {
+    for (char in other.treat) {
       DGX_name <- paste0("DGX.",char)
       data.aug <- cbind.data.frame(data.aug, get(DGX_name)) 
     }
@@ -2382,20 +2359,18 @@ if(vartype!='bootstrap'){
     for (i in 1:(nbins-1))  {
       Gs<-c(Gs,paste0("G.",i))
       GXs<-c(GXs,paste0("GX.",i))
-      for (char in other_treat) {
+      for (char in other.treat) {
         DGs<-c(DGs,paste0("DG.",char,".",i))
         DGXs<-c(DGXs,paste0("DGX.",char,".",i))
       }
     }
-    
-    
     
     formula1<-paste(formula0,
                     "+",paste(Gs,collapse=" + "),
                     "+",paste(GXs,collapse=" + "),
                     "+",paste(DGs,collapse=" + "),
                     "+",paste(DGXs,collapse=" + "))
-    
+					
     if (is.null(Z)==FALSE) {
       formula0 <- paste0(formula0, "+",paste(Z,collapse=" + "))
       formula1 <- paste0(formula1, "+",paste(Z,collapse=" + "))
@@ -2467,11 +2442,8 @@ if(vartype!='bootstrap'){
       names(p.wald) <- NULL            
       p.wald <- round(p.wald,4)        
     }
-    
   }
-
   # end of Wald test
-  
 }  
     
 if(TRUE){## get densities and histogram
@@ -2484,7 +2456,7 @@ if(TRUE){## get densities and histogram
     }
     
     treat_den <- list()
-    for (char in all_treat) {
+    for (char in all.treat) {
       de.name <- paste0("den.",char)
       if (is.null(weights)==TRUE) {
         de.tr <- density(data[data[,D]==char,X])
@@ -2493,7 +2465,7 @@ if(TRUE){## get densities and histogram
         suppressWarnings(de.tr <- density(data[data[,D]==char,X],
                                           weights=dataweights[data[,D]==char]))
       }
-      treat_den[[all_treat.origin[char]]] <- de.tr
+      treat_den[[all.treat.origin[char]]] <- de.tr
     }
     
     # histogram
@@ -2507,7 +2479,7 @@ if(TRUE){## get densities and histogram
 
     # count the number of treated
     treat_hist <- list()
-    for (char in all_treat) {
+    for (char in all.treat) {
       count1<-rep(0,n.hist)
       treat_index<-which(data[,D]==char)
       for (i in 1:n.hist) {
@@ -2517,7 +2489,7 @@ if(TRUE){## get densities and histogram
       count1[n.hist]<-sum(data[treat_index,X]>=hist.out$breaks[n.hist] &
                             data[treat_index,X]<=hist.out$breaks[n.hist+1])
       
-      treat_hist[[all_treat.origin[char]]] <- count1
+      treat_hist[[all.treat.origin[char]]] <- count1
     }    
   }  
   
@@ -2599,7 +2571,7 @@ if(TRUE){## Storage
 	vcov.matrix = est.matrix,
     est.bin = est.bin,
     treat.type = treat.type,
-    treatlevels = all_treat.origin,
+    treatlevels = all.treat.origin,
 	order = order,
     base=base.origin,
     Xlabel = Xlabel,
@@ -2643,9 +2615,9 @@ if(TRUE){## Storage
 		D.ref <- NULL
 	}
 	if(treat.type=='continuous'){
-		all_treat.origin <- names(D.sample)
+		all.treat.origin <- names(D.sample)
 	}
-	output <- c(output,list(est.predict = est.predict.binning,labelname = labelname,all.treat = all_treat.origin,
+	output <- c(output,list(est.predict = est.predict.binning,labelname = labelname,all.treat = all.treat.origin,
 						    X=X,Y=Y,D=D,D.ref=D.ref))
   }
   

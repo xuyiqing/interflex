@@ -6,7 +6,7 @@
 }
 \arguments{
   \item{out}{an \bold{interflex} object.}
-  \item{diff.values}{a numeric vector contain 2 or 3 elements which are between the minimum and the maximum of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
+  \item{diff.values}{a numeric vector contain 2 or 3 elements which are within the range of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
   \item{percentile}{a logical flag indicating whether to take values of the moderator on a percentile scale.}
   \item{k}{an integer specifying the dimension(s) of the bases used to represent the smooth term, default to 15.}
 }

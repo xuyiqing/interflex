@@ -117,6 +117,9 @@ inter.gam<-function(data,Y,D,X,
 	if(is.factor(data[,a])==TRUE){
 		to_dummy_var <- c(to_dummy_var,a)
 	}	
+	if(is.character(data[,a])==TRUE){
+		stop("\"Z\" should be numeric or factorial.")
+	}
   }
   if(length(to_dummy_var)>0){
 	fnames <- paste("factor(", to_dummy_var, ")", sep = "")

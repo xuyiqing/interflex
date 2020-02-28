@@ -54,31 +54,29 @@ inter.raw<-function(
   }
   
   if(treat.type=='discrete'){
-	all_treat <- unique(data[,D])
+	all.treat <- unique(data[,D])
 	if(is.null(order)==FALSE){
 	  order <- as.character(order)
 	  if(length(order)!=length(unique(order))){
         stop("\"order\" should not contain repeated values.")
       }
-      if(length(order)!=length(all_treat)){
+      if(length(order)!=length(all.treat)){
         stop("\"order\" should contain all kinds of treatment arms.")
       }
 
-      if(sum(!is.element(order,all_treat))!=0 | sum(!is.element(all_treat,order))!=0){
+      if(sum(!is.element(order,all.treat))!=0 | sum(!is.element(all.treat,order))!=0){
         stop("\"order\" should contain all kinds of treatment arms.")
       }
-  } else {order <- sort(all_treat)}
+  } else {order <- sort(all.treat)}
   
   subtitle <- subtitles
   if(is.null(subtitle)==FALSE){
 	subtitle <- as.character(subtitle)
-	if(length(subtitle)!=length(all_treat)){
+	if(length(subtitle)!=length(all.treat)){
 		stop("The number of elements in \"subtitles\" should equal to the number of different treatment arms.")
 	}
   }
   }
-  
-  
   
   if (is.character(X) == FALSE) {
     stop("\"X\" is not a string.")
@@ -227,6 +225,9 @@ inter.raw<-function(
 	if(is.factor(data[,a])==TRUE){
 		to_dummy_var <- c(to_dummy_var,a)
 	}	
+	if(is.character(data[,a])==TRUE){
+		stop("\"Z\" should be numeric or factorial.")
+	}
   }
   if(length(to_dummy_var)>0){
 	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
@@ -288,29 +289,17 @@ inter.raw<-function(
       mod.demean<-felm(mod.f,data=data,weights=data[,weights])
     }
   }
-  
-  
-  
   data[,Y] <- mod.demean$residuals
-  
   
   ## plotting
   if (treat.type=="discrete") { ## discrte case
-    
-	
-	
     if(length(unique(data[,D]))>5) {
       warning("More than 5 kinds of treatments")
     }
-    
     if(length(unique(data[,D]))>20) {
       stop("Too many kinds of treatments, treatments may be continuous")
     }
-    
     all_treatment=as.character(unique(data[,D]))
-    ## plotting
-    
-
     
     data.aug<-data
     data.aug[,'treat'] <- paste("Treatment =",data[,D])
@@ -386,14 +375,7 @@ inter.raw<-function(
                          size=3,colour="grey50", na.rm = TRUE)
     p1 <- p1 + geom_point(aes_string(X,"med"),size=3,
                           shape=21,fill="white",colour="red", na.rm = TRUE)
-    
-    
     p1 <- p1 + facet_wrap(~treat, ncol=ncols) 
-	#p1 <- p1 + facet_grid(factor(treat,levels=order) ~ .)
-    #p1 <- p1 + facet_grid(treat ~.)                
-    
-    
-    
   } else { # continuous case
     
     if (is.numeric(data[,D])==F) {
@@ -419,19 +401,6 @@ inter.raw<-function(
     gp.lab = paste(Xlabel, ": ", levels(groupID2), sep="")
     gp.lab[1] <- paste(Xlabel, ": [", substring(levels(groupID2)[1],2), sep = "")
     nbins <- length(unique(groupID))
-    
-    ## if (nbins==2) {
-    ##     gp.lab<-c(paste(Xlabel,": low",sep=""),paste(Xlabel,": high",sep="")) 
-    ## } else if (nbins==3) {
-    ##     gp.lab<-c(paste(Xlabel,": low",sep=""),paste(Xlabel,": medium",sep=""),
-    ##               paste(Xlabel,": high",sep="")) 
-    ## } else {
-    ##     gp.lab<-c();
-    ##     for (i in 1:nbins) {
-    ##         gp.lab<-c(gp.lab,paste("Grp",i))
-    ##     }
-    ## }
-
     groupID <- factor(groupID, labels=gp.lab)
     data.aug <- data
     data.aug$groupID<-groupID

@@ -31,7 +31,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 	clusters<-unique(data[,cl])
     m <- length(clusters)
     kfold <- min(m,kfold)
-	cat("Use clustered cross validation.\n")
+	cat("Use clustered cross-validation.\n")
     cat("#folds =",kfold)
 	cat("\n")
     id.list<-split(1:n,data[,cl])
@@ -46,7 +46,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
   if(CV.method=='stratify'){
 	requireNamespace("caret")
 	fold <- createFolds(factor(data[,D]), k = kfold, list = FALSE)
-	cat("Use stratified cross validation.\n")
+	cat("Use stratified cross-validation.\n")
 	cat("#folds =",kfold)
 	cat("\n")
   }
@@ -55,11 +55,11 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
   
   if(TRUE){ ## TREAT.TYPE
 	if(treat.type=='discrete') {
-		all_treat <- unique(data[,D])
+		all.treat <- unique(data[,D])
 		if(is.null(base)==TRUE){
-			base <- all_treat[1]
+			base <- all.treat[1]
 		}
-    other_treat <- all_treat[which(all_treat!=base)]
+    other.treat <- all.treat[which(all.treat!=base)]
   }
   }
 
@@ -77,9 +77,9 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
       }
       
 	  # FIXED EFFECTS
-	  ## demean outcome(y) by fixed effects
+	  ## demean outcome(y) and estimate fixed effects
 	  ## save fixed effects in add_FE
-	  ## re-add fixed effects to predicted values
+	  ## add fixed effects to predicted values
       add_FE <- rep(0,dim(test)[1])
       if(is.null(FE)==FALSE){
 		train_y <- as.matrix(train[,Y])
@@ -103,15 +103,9 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 		add_FE <- matrix(0,nrow = dim(test)[1],ncol = length(FE))
 		colnames(add_FE) <- FE
 		for(fe in FE){
-			for(i in 1:dim(test)[1]){
-				fe_name <- paste0(fe,".",test[i,fe])
-				if(fe_name %in% rownames(FE_coef)){
-					add_FE[i,fe] <- FE_coef[fe_name,]
-				}
-				else{ ## use weighted mean(=0) of fixed effects
-					add_FE[i,fe] <- 0
-				}
-			}
+			add_FE[,fe] <- 0
+			fe_name <- paste0(fe,".",test[,fe])
+			add_FE[which(fe_name %in% rownames(FE_coef)),fe] <- FE_coef[fe_name[(which(fe_name %in% rownames(FE_coef)))],]
 		}
 		add_FE <- rowSums(add_FE) 
 		add_FE <- add_FE + fastplm_res$mu #intercept
@@ -120,7 +114,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 	  if(treat.type=='discrete'){
 		#generate dummy variable
 		test_d <- test[,c(Y,X)]
-		for (char in other_treat) {
+		for (char in other.treat) {
 			test_d[,paste0("D.",char)] <- as.numeric(test[,D]==char)
 		}
       
@@ -128,8 +122,8 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 		coef<-coefs.new(data=train,bw=bw,Y=Y,X=X,D=D,Z=Z,base=base,treat.type = 'discrete',
 						weights = weights, X.eval= X.eval,bw.adaptive = bw.adaptive)
 		coef[is.na(coef)] <- 0
-		nZ<-length(Z)
-		ntreat <- length(other_treat)
+		num.Z<-length(Z)
+		num.treat <- length(other.treat)
 		
 		esCoef<-function(x){ ##obtain the coefficients for x[i]
 			Xnew<-abs(X.eval-x)
@@ -140,28 +134,28 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 			label2<-which.min(Xnew)
 			if(d1==0){
 				if(is.null(Z)==T){
-					func <- coef[label1,c(2:(2+ntreat))] # X.eval (1), intercept (2), d (3), xx (4), d:xx (5), z
+					func <- coef[label1,c(2:(2+num.treat))] # X.eval (1), intercept (2), d (3), xx (4), d:xx (5), z
 				}
 				else{
-					func <- coef[label1,c(c(2:(2+ntreat)),c((4+2*ntreat):(3+2*ntreat+nZ)))] # X.eval (1), intercept (2), d (3), xx (4), d:xx (5), z  
+					func <- coef[label1,c(c(2:(2+num.treat)),c((4+2*num.treat):(3+2*num.treat+num.Z)))] # X.eval (1), intercept (2), d (3), xx (4), d:xx (5), z  
 				}
 			}	  
 			else if(d2==0){
 				if(is.null(Z)==T){
-					func <- coef[label2,c(2:(2+ntreat))] 
+					func <- coef[label2,c(2:(2+num.treat))] 
 				}
 				else{
-					func <- coef[label2,c(c(2:(2+ntreat)),c((4+2*ntreat):(3+2*ntreat+nZ)))] 
+					func <- coef[label2,c(c(2:(2+num.treat)),c((4+2*num.treat):(3+2*num.treat+num.Z)))] 
 				}
 			} 
 			else{ ## weighted average 
 				if(is.null(Z)==T){
-					func1 <- coef[label1,c(2:(2+ntreat))] 
-					func2 <- coef[label2,c(2:(2+ntreat))]
+					func1 <- coef[label1,c(2:(2+num.treat))] 
+					func2 <- coef[label2,c(2:(2+num.treat))]
 				}
 				else{
-					func1 <- coef[label1,c(c(2:(2+ntreat)),c((4+2*ntreat):(3+2*ntreat+nZ)))]
-					func2 <- coef[label2,c(c(2:(2+ntreat)),c((4+2*ntreat):(3+2*ntreat+nZ)))]
+					func1 <- coef[label1,c(c(2:(2+num.treat)),c((4+2*num.treat):(3+2*num.treat+num.Z)))]
+					func2 <- coef[label2,c(c(2:(2+num.treat)),c((4+2*num.treat):(3+2*num.treat+num.Z)))]
 				}
 					func <- (func1 * d2 + func2 * d1)/(d1 + d2) 
 			}
@@ -174,7 +168,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
 		test.Y <- test[,Y]
 		test.X <- as.data.frame(rep(1,dim(test)[1]))
       
-		for (char in other_treat) {
+		for (char in other.treat) {
 			test.X[,paste0("D.",char)] <- test_d[,paste0("D.",char)]
 		}
 		test.X <- cbind(test.X,as.data.frame(test[,Z]))

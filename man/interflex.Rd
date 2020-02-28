@@ -85,14 +85,14 @@
   \item{cex.lab}{a numeric value that controls the font size of the axis labels.}   
   \item{cex.axis}{a numeric value that controls the font size of the axis numbers.}
   \item{file}{a string that specifies the filename in which the plot is saved.}
-  \item{ncols}{a integral value that controls the number of columns in the plot if \bold{pool} is FALSE.}
+  \item{ncols}{an integral that controls the number of columns in the plot if \bold{pool} is FALSE.}
   \item{pool}{a logical flag specifying whether to draw marginal effects or expected values of Y for each treatment arm in a single plot. The default is FALSE.}
   \item{color}{a vector of colors that determines the color of lines when drawing the pool plot.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
   \item{jitter}{a logical flag specifying whether to jitter error-bars to avoid overlapping. The default is FALSE.}
   \item{predict}{a logical flag that specifies whether to estimate the expected value of Y conditional on X, D and the mean of all covariates. The default is FALSE. If it is set to TRUE, it will take a bit more time to estimate and save expected values of Y. Users can later use the command plot(predict=TRUE,...) to visualize the plots.}
   \item{D.ref}{a vector of numbers that specifies the reference values of D which the expected values of Y will be conditional on when \bold{treat.type} is "continuous". If it is not specified, the 0.25, 0.5, and 0.75 quantiles of D will be chosen.}
-  \item{diff.values}{a numeric vector contain 2 or 3 elements which are between the minimum and the maximum of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
+  \item{diff.values}{a numeric vector contain 2 or 3 elements which within the range of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
   \item{percentile}{a logical flag indicating whether to take values of the moderator on a percentile scale.}
 }
 \details{ 

@@ -363,8 +363,6 @@ if (is.null(main)==FALSE) {
   } else {
     cex.sub <- 10* cex.sub
   }
- 
- 
 
 }
 

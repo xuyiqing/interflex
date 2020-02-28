@@ -35,7 +35,7 @@
   \item{bin.labs}{a logical flag indicating whether to show a label for each bin in a binning plot; only meaningful when \bold{nbins} is 3 or 4. The default is TRUE.}
   \item{interval}{draw two vertical lines to demonstrate the interval used in replicated papers.}
   \item{file}{a string that specifies the filename in which the plot is saved.}
-  \item{ncols}{a integral value that controls the number of columns in the plot if \bold{pool} is FALSE.}
+  \item{ncols}{an integer that controls the number of columns in the plot if \bold{pool} is FALSE.}
   \item{pool}{a logical flag specifying whether to integrate marginal effects for each treatment arm in one plot.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
   \item{color}{a vector of colors that determines the color of lines when \bold{pool} is TRUE.}

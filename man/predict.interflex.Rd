@@ -34,7 +34,7 @@
   \item{file}{a string that specifies the filename in which the plot is saved.}
   \item{interval}{draw two vertical lines to demonstrate the interval used in replicated papers.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
-  \item{ncols}{a integral value that controls the number of columns in the plot if \bold{pool} is FALSE.}
+  \item{ncols}{na integral that controls the number of columns in the plot if \bold{pool} is FALSE.}
   \item{\dots}{other argv.}
 }
 \details{

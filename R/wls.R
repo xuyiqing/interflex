@@ -44,8 +44,8 @@ coefs.new <- function(data,bw,Y,X,D,
       }
     }
     
-    all_treat <- sort(unique(data[,D]))
-    other_treat <- sort(all_treat[which(all_treat!=base)])
+    all.treat <- sort(unique(data[,D]))
+    other.treat <- sort(all.treat[which(all.treat!=base)])
   }
   
   
@@ -73,15 +73,15 @@ coefs.new <- function(data,bw,Y,X,D,
   }
   
   if(treat.type=='discrete'){
-    treat_length <- length(other_treat)
+    treat_length <- length(other.treat)
     result <- matrix(NA,length(X.eval),(1+1+treat_length+1+treat_length+length(Z)))
     
     result_colnames <- c("x","Intercept")
-    for (char in other_treat) {
+    for (char in other.treat) {
       result_colnames <- c(result_colnames,paste0("D.",char))
     }
     result_colnames <- c(result_colnames,'deltax')
-    for (char in other_treat) {
+    for (char in other.treat) {
       result_colnames <- c(result_colnames,paste0("DX.",char))
     }
     for (cov in Z) {
@@ -103,11 +103,11 @@ coefs.new <- function(data,bw,Y,X,D,
     
     if(treat.type=='discrete') {
       formula <- paste(Y,"~",sep=" ")
-      for (char in other_treat) {
+      for (char in other.treat) {
         formula <- paste(formula,paste0("D.",char,"+"),sep=" ")
       }
       formula <- paste0(formula,"deltax")
-      for (char in other_treat) {
+      for (char in other.treat) {
         formula <- paste(formula,paste0("+ DX.",char),sep=" ")
       }
       if (is.null(Z)==FALSE) {
@@ -129,10 +129,9 @@ coefs.new <- function(data,bw,Y,X,D,
           w <- dnorm(data1[,'deltax']/bw.adapt) * weights
           data1$w <- dnorm(data1[,'deltax']/bw.adapt) * weights
         }else{
-        w <- dnorm(data1[,'deltax']/bw) * weights
-        data1$w <- dnorm(data1[,'deltax']/bw) * weights
+		  w <- dnorm(data1[,'deltax']/bw) * weights
+          data1$w <- dnorm(data1[,'deltax']/bw) * weights
         }
-        
         reg <- lm(formula, data=data1, weights = w)
         result <- c(x, reg$coef)
         result[which(is.na(result))] <- 0 
@@ -143,11 +142,11 @@ coefs.new <- function(data,bw,Y,X,D,
     if(treat.type=='discrete') {
       wls<-function(x, dat, weights){
         data1 <- dat
-        for (char in other_treat){
+        for (char in other.treat){
           data1[,paste0("D.",char)] <- as.numeric(data[,D]==char)
         }
         data1[,'deltax'] <- data1[,X]-x
-        for (char in other_treat){
+        for (char in other.treat){
           data1[,paste0("DX.",char)] <- data1[,paste0("D.",char)]*data1[,'deltax']
         }
         
@@ -174,11 +173,8 @@ coefs.new <- function(data,bw,Y,X,D,
       result[i,] <- wls(X.eval[i], dat, weights = weights)
     }
     result <- data.frame(result) 
-
   } 
-  
   else{
-    
     if(treat.type=='continuous'){
       dat <- data[, c(Y, D, X, Z)] 
       dat.FE <- as.matrix(data[,FE],drop = FALSE)
@@ -192,29 +188,28 @@ coefs.new <- function(data,bw,Y,X,D,
           bw.adapt <- bw*(1+log(max(Xdensity$y)/temp_density))
           w <- dnorm(xx/bw.adapt) * weights
         }else{
-          w<-dnorm(xx/bw) * weights
+          w<-dnorm(xx/bw)* weights
         }
 		
 		if(predict==TRUE){
 
         invisible(
-		capture.output(
-        fastplm_res <- fastplm(data = dat1, FE = dat.FE,
-                           weight = w, FEcoefs = 1),type='message'
-		)
-		)
-		estcoef <- fastplm_res$coefficients
-        estcoef[which(is.nan(estcoef))] <- 0
-        result[i,] <- c(X.eval[i],fastplm_res$mu,estcoef)
+			capture.output(
+				fastplm_res <- fastplm(data = dat1, FE = dat.FE,
+									   weight = w, FEcoefs = 1),type='message'
+				)
+			)
+			estcoef <- fastplm_res$coefficients
+			estcoef[which(is.nan(estcoef))] <- 0
+			result[i,] <- c(X.eval[i],fastplm_res$mu,estcoef)
 		}
 		if(predict==FALSE){
-		fastplm_res <- fastplm(data = dat1, FE = dat.FE,
+			fastplm_res <- fastplm(data = dat1, FE = dat.FE,
                            weight = w, FEcoefs = 0)
-		estcoef <- fastplm_res$coefficients
-        estcoef[which(is.nan(estcoef))] <- 0
-        result[i,] <- c(X.eval[i],0,estcoef)
+			estcoef <- fastplm_res$coefficients
+			estcoef[which(is.nan(estcoef))] <- 0
+			result[i,] <- c(X.eval[i],0,estcoef)
 		}
-		
       }
       result <- data.frame(result)
     }
@@ -226,13 +221,13 @@ coefs.new <- function(data,bw,Y,X,D,
         
         data1 <- as.data.frame(data[,Y])
         
-        for (char in other_treat){
+        for (char in other.treat){
           data1[,paste0("D.",char)] <- as.numeric(data[,D]==char)
         }
         
         data1[,'deltax'] <- xx
         
-        for (char in other_treat){
+        for (char in other.treat){
           data1[,paste0("DX.",char)] <- data1[,paste0("D.",char)]*data1[,'deltax']
         }
         data1 <- cbind(data1,data[,Z])
@@ -246,23 +241,23 @@ coefs.new <- function(data,bw,Y,X,D,
           w<-dnorm(xx/bw) * weights
         }
         if(predict==T){
-          #fastplm_res <- fastplm(data = dat1, FE = dat.FE,weight = w, FEcoefs = 1)
-        invisible(
-		capture.output(
-        fastplm_res <- fastplm(data = data1, FE = dat.FE,
-                           weight = w, FEcoefs = 1),type='message'
-		)
-		)
-		estcoef <- fastplm_res$coefficients
-        estcoef[which(is.nan(estcoef))] <- 0
-        result[i,] <- c(X.eval[i],fastplm_res$mu,estcoef)
+            #fastplm_res <- fastplm(data = dat1, FE = dat.FE,weight = w, FEcoefs = 1)
+			invisible(
+				capture.output(
+					fastplm_res <- fastplm(data = data1, FE = dat.FE,
+									   weight = w, FEcoefs = 1),type='message'
+				)
+			)
+			estcoef <- fastplm_res$coefficients
+			estcoef[which(is.nan(estcoef))] <- 0
+			result[i,] <- c(X.eval[i],fastplm_res$mu,estcoef)
 		}
 		if(predict==F){
-		fastplm_res <- fastplm(data = data1, FE = dat.FE,
-                           weight = w, FEcoefs = 0)
-		estcoef <- fastplm_res$coefficients
-        estcoef[which(is.nan(estcoef))] <- 0
-        result[i,] <- c(X.eval[i],0,estcoef)
+			fastplm_res <- fastplm(data = data1, FE = dat.FE,
+								   weight = w, FEcoefs = 0)
+			estcoef <- fastplm_res$coefficients
+			estcoef[which(is.nan(estcoef))] <- 0
+			result[i,] <- c(X.eval[i],0,estcoef)
 		}
       }
       result <- data.frame(result)
