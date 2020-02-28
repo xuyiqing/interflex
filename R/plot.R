@@ -258,32 +258,32 @@ if (is.null(main)==FALSE) {
   de <- out$de
   base <- out$base
   treat.type <- out$treat.type
-  all_treat <- out$treatlevels
+  all.treat <- out$treatlevels
   de.tr <- out$de.tr
   hist.out <- out$hist.out
   count.tr <- out$count.tr
   
 
 if(treat.type=='discrete') {
-    other_treat <- sort(all_treat[which(all_treat!=base)])
+    other.treat <- sort(all.treat[which(all.treat!=base)])
     if(is.null(order)==FALSE){
 	order <- as.character(order)
 	if(length(order)!=length(unique(order))){
         stop("\"order\" should not contain repeated values.")
     }
 	
-    if(length(order)!=length(other_treat)){
+    if(length(order)!=length(other.treat)){
       stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
     }
 
-    if(sum(!is.element(order,other_treat))!=0 | sum(!is.element(other_treat,order))!=0){
+    if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
       stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
     }
-    other_treat <- order
+    other.treat <- order
     }
 	
     if(is.null(show.subtitle)==TRUE){
-    if(length(other_treat)==1){
+    if(length(other.treat)==1){
       show.subtitle <- FALSE
     }
     else{
@@ -295,7 +295,7 @@ if(treat.type=='discrete') {
     }
     }
     if(is.null(subtitle)==FALSE){
-      if(length(subtitle)!=length(other_treat)){
+      if(length(subtitle)!=length(other.treat)){
         stop("The number of elements in \"subtitles\" should be m-1(m is the number of different treatment arms).")
       }
     }
@@ -314,7 +314,7 @@ if (is.null(ncols) == FALSE) {
     }
   } else{
 	if(treat.type=="discrete"){
-		ncols <- length(other_treat)
+		ncols <- length(other.treat)
 	}
 	if(treat.type=="continuous"){
 		ncols <- 1
@@ -337,10 +337,10 @@ if(is.null(diff.values)==FALSE){
 		stop("\"diff.values\" must be of length 2 or more.")
 	}
 	if(treat.type=='discrete' & type=='binning'){
-		tempxx <- out$est.lin[[other_treat[1]]][,'X.lvls']
+		tempxx <- out$est.lin[[other.treat[1]]][,'X.lvls']
 	}
 	if(treat.type=='discrete' & type=='kernel'){
-		tempxx <- out$est[[other_treat[1]]][,'X']
+		tempxx <- out$est[[other.treat[1]]][,'X']
 	}
 	if(treat.type=='continuous' & type=='binning'){
 		tempxx <- out$est.lin[,'X.lvls']
@@ -389,14 +389,14 @@ if(is.null(diff.values)==FALSE){
       est.bin3 <- list() ## missing part
       yrange <- c()
       
-      for(char in other_treat) {
+      for(char in other.treat) {
         est.bin2[[char]] <- est.bin[[char]][which(is.na(est.bin[[char]][,2])==FALSE),] 
         est.bin3[[char]] <- est.bin[[char]][which(is.na(est.bin[[char]][,2])==TRUE),] 
         yrange <- c(yrange,na.omit(unlist(c(est.lin[[char]][,c(4,5)],est.bin[[char]][,c(4,5)]))))
       }
       
       if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/8)}
-      X.lvls <- est.lin[[other_treat[1]]][,1]
+      X.lvls <- est.lin[[other.treat[1]]][,1]
       errorbar.width<-(max(X.lvls)-min(X.lvls))/20
       maxdiff<-(max(yrange)-min(yrange))
       pos<-max(yrange)-maxdiff/20
@@ -421,12 +421,12 @@ if(is.null(diff.values)==FALSE){
         est.lin <- out$est.lin
         yrange <- c()
         
-        for(char in other_treat) {
+        for(char in other.treat) {
           yrange <- c(yrange,na.omit(unlist(est.lin[[char]][,c(4,5)])))
         }
         
         if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/8)}
-        X.lvls <- est.lin[[other_treat[1]]][,1]
+        X.lvls <- est.lin[[other.treat[1]]][,1]
         errorbar.width<-(max(X.lvls)-min(X.lvls))/20
         maxdiff<-(max(yrange)-min(yrange))
         pos<-max(yrange)-maxdiff/20
@@ -468,7 +468,7 @@ if(is.null(diff.values)==FALSE){
         stop("\"CI\" is not a logical flag.")
       }
       yrange <- c()
-      for(char in other_treat) {
+      for(char in other.treat) {
         tempest <- est[[char]]
         
         if(CI==TRUE) {
@@ -504,7 +504,7 @@ if(is.null(diff.values)==FALSE){
   
   if(treat.type=='discrete') {
     p.group <- list()
-    for (char in other_treat) {
+    for (char in other.treat) {
       
       p1 <- ggplot()
       ## black white theme and mark zero
@@ -535,7 +535,7 @@ if(is.null(diff.values)==FALSE){
       col.co<-rgb(feed.col[1]/1000, feed.col[2]/1000,feed.col[3]/1000)
       col.tr<-rgb(red=1, blue=0, green=0)
     
-      for(char in other_treat){
+      for(char in other.treat){
         deX.tr <- data.frame(x = de.tr[[char]]$x,
                              y = de.tr[[char]]$y/max(de.tr[[char]]$y) * maxdiff/5 + min(yrange) - maxdiff/5)
         
@@ -576,7 +576,7 @@ if(is.null(diff.values)==FALSE){
                         xmax=hist.out$mids+dist/2,
                         count1=count.tr[[base]]/hist.max*maxdiff/5+min(yrange)-maxdiff/5) 
       
-      for (char in other_treat){
+      for (char in other.treat){
         
         hist.treat<-data.frame(ymin=hist.col[,'count1'],
                           #ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
@@ -661,7 +661,7 @@ if(is.null(diff.values)==FALSE){
 		}
     }
     if(treat.type=='discrete'){
-      for(char in other_treat) {
+      for(char in other.treat) {
         p1 <- p.group[[char]]
         tempest <- est[[char]]
         p1 <-  p1 + geom_line(data=tempest,aes(X,ME))
@@ -765,7 +765,7 @@ if(is.null(diff.values)==FALSE){
     
     if (treat.type == 'discrete'){
       
-      for(char in other_treat) {
+      for(char in other.treat) {
         
         p1 <- p.group[[char]]
         
@@ -871,7 +871,7 @@ if(is.null(diff.values)==FALSE){
       
       if (treat.type == 'discrete'){
         
-        for(char in other_treat) {
+        for(char in other.treat) {
           
           p1 <- p.group[[char]]
           
@@ -1029,7 +1029,7 @@ if(is.null(diff.values)==FALSE){
     }
     
     k <- 1
-    for(char in other_treat) {
+    for(char in other.treat) {
       p1 <- p.group[[char]]
       ## mark the original interval (in replicated papers)
       if (is.null(interval)==FALSE) {
@@ -1072,9 +1072,9 @@ if(is.null(diff.values)==FALSE){
     }
     
     ## ylim
-    for(char in other_treat){
+    for(char in other.treat){
       y.limits <- layer_scales(p.group[[char]])$y$range$range
-      if(char == other_treat[1]){
+      if(char == other.treat[1]){
         ymaxmax <- y.limits[2]
         yminmin <- y.limits[1]
       }
@@ -1083,7 +1083,7 @@ if(is.null(diff.values)==FALSE){
         yminmin <- min(yminmin,y.limits[1])
       }
     }
-    for(char in other_treat){
+    for(char in other.treat){
       p.group[[char]] <- p.group[[char]]+ylim(c(yminmin,ymaxmax))
     }
     

@@ -240,7 +240,7 @@ if (is.null(main)==FALSE) {
   }
   
   treat.type <- out$treat.type
-  all_treat <- out$all.treat
+  all.treat <- out$all.treat
   labelname <- out$labelname
   D.ref <- out$D.ref
   est_predict <- out$est.predict
@@ -259,14 +259,14 @@ if (is.null(main)==FALSE) {
         stop("\"order\" should not contain repeated values.")
     }
 	
-    if(length(order)!=length(all_treat)){
+    if(length(order)!=length(all.treat)){
       stop("\"order\" should contain all kinds of treatment arms.")
     }
 
-    if(sum(!is.element(order,all_treat))!=0 | sum(!is.element(all_treat,order))!=0){
+    if(sum(!is.element(order,all.treat))!=0 | sum(!is.element(all.treat,order))!=0){
       stop("\"order\" should contain all kinds of treatment arms.")
     }
-    all_treat <- order
+    all.treat <- order
     }
 	
     if(is.null(show.subtitle)==TRUE){
@@ -274,7 +274,7 @@ if (is.null(main)==FALSE) {
 	}
    
     if(is.null(subtitle)==F){
-      if(length(subtitle)!=length(all_treat)){
+      if(length(subtitle)!=length(all.treat)){
         stop("The number of elements in \"subtitles\" should be equal to the number of different treatment arms.")
       }
     }
@@ -305,7 +305,7 @@ if (is.null(main)==FALSE) {
       labelname <- c(labelname,paste0("D=",round(targetD,2)))
     }
 	
-    all_treat <- labelname
+    all.treat <- labelname
     }
 	
     if(is.null(show.subtitle)==T){
@@ -313,14 +313,14 @@ if (is.null(main)==FALSE) {
    }
    
     if(is.null(subtitle)==FALSE){
-      if(length(subtitle)!=length(all_treat)){
+      if(length(subtitle)!=length(all.treat)){
         stop("The number of elements in \"subtitles\" should be equal to the number of reference values of treatment(D).")
       }
     } 
   }
   
  ## ncols 
- ntreat <- length(all_treat)
+ ntreat <- length(all.treat)
  if (is.null(ncols) == FALSE) {
     if (ncols%%1 != 0) {
       stop("\"ncols\" is not a positive integer.")
@@ -383,7 +383,7 @@ if(TRUE){ # PREPROCESS
   
   ## yrange
   yrange <- c()
-  for(char in all_treat){
+  for(char in all.treat){
 	est_predict.char.temp <- est_predict[[char]]
 		if(CI==TRUE){
 			yrange <- c(yrange,est_predict.char.temp[,'CI_lower'],est_predict.char.temp[,'CI_upper'])
@@ -402,7 +402,7 @@ if(TRUE){ # PREPROCESS
 if(pool==FALSE){
   plot_list <- list()
   k <- 1
-  for(char in all_treat){
+  for(char in all.treat){
     p <- ggplot()
     if(theme.bw==T){
       p <- p + theme_bw()
@@ -487,8 +487,8 @@ if(pool==FALSE){
 }
 
 if(pool==TRUE){
-  for(char in all_treat){
-    if(char==all_treat[1]){
+  for(char in all.treat){
+    if(char==all.treat[1]){
       tograph <- est_predict[[char]]
       tograph[,'Treatment'] <- char
     }
@@ -507,7 +507,7 @@ if(pool==TRUE){
   }
 	
   if(treat.type=='discrete'){
-	tograph$Treatment <- factor(tograph$Treatment, levels = all_treat)
+	tograph$Treatment <- factor(tograph$Treatment, levels = all.treat)
 	p <- p + geom_line(data=tograph,aes(x=X,y=EY,color=Treatment),size=0.5)
 	if(is.null(subtitle)==TRUE){
       p <- p + scale_color_manual(values = platte[1:ntreat])
@@ -516,7 +516,7 @@ if(pool==TRUE){
 	}
   }
   if(treat.type=='continuous'){
-	tograph$Treatment <- factor(tograph$Treatment, levels = all_treat)
+	tograph$Treatment <- factor(tograph$Treatment, levels = all.treat)
 	p <- p + geom_line(data=tograph,aes(x=X,y=EY,color=Treatment),size=0.5)
 	if(is.null(subtitle)==TRUE){
       p <- p + scale_color_manual(values = platte[1:ntreat],labels=labelname)
@@ -559,9 +559,9 @@ if(pool==TRUE){
     deX.ymin <- min(yrange)-maxdiff/5
 
     k <- 1
-    char0 <- all_treat[1]
+    char0 <- all.treat[1]
     start_level <- rep(deX.ymin,length(de.tr[[char0]]$x))
-    for(char in all_treat){
+    for(char in all.treat){
       
       dex.tr.plot <- data.frame(x = de.tr[[char]]$x,
                            start_level = start_level,
@@ -593,7 +593,7 @@ if(pool==TRUE){
     hist.max<-max(hist.out$counts)
     k <- 1
     start_level <- min(yrange)-maxdiff/5
-    for (char in all_treat){
+    for (char in all.treat){
         hist.treat<-data.frame(ymin=start_level,
                                ymax=count.tr[[char]]/hist.max*maxdiff/5+start_level,
                                xmin=hist.out$mids-dist/2,
@@ -627,7 +627,7 @@ if(pool==TRUE){
   
 #OTHER PROPERTIES: cex, title, ylim...
 if(pool==FALSE){
-    for(char in all_treat) {
+    for(char in all.treat) {
       p1 <- plot_list[[char]]
       ## mark the original interval (in replicated papers)
       if (is.null(interval)==FALSE) {
@@ -653,9 +653,9 @@ if(pool==FALSE){
 	
 	
     ## ylim
-    for(char in all_treat){
+    for(char in all.treat){
       y.limits <- layer_scales(plot_list[[char]])$y$range$range
-      if(char == all_treat[1]){
+      if(char == all.treat[1]){
         ymaxmax <- y.limits[2]
         yminmin <- y.limits[1]
       }
@@ -664,7 +664,7 @@ if(pool==FALSE){
         yminmin <- min(yminmin,y.limits[1])
       }
     }
-    for(char in all_treat){
+    for(char in all.treat){
       plot_list[[char]] <- plot_list[[char]]+ylim(c(yminmin,ymaxmax))
     }
     

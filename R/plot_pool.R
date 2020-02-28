@@ -243,12 +243,12 @@ if (is.null(main)==FALSE) {
   de <- out$de
   base <- out$base
   treat.type <- out$treat.type
-  all_treat <- out$treatlevels
+  all.treat <- out$treatlevels
   de.tr <- out$de.tr
   hist.out <- out$hist.out
   count.tr <- out$count.tr
-  other_treat <- sort(all_treat[which(all_treat!=base)])
-  ntreat <- length(other_treat)
+  other.treat <- sort(all.treat[which(all.treat!=base)])
+  num.treat <- length(other.treat)
   
   if(is.null(subtitle)==TRUE){
 	base.name <- paste0("Base Group (",base,")")
@@ -260,27 +260,27 @@ if (is.null(main)==FALSE) {
         stop("\"order\" should not contain repeated values.")
     }
 	
-    if(length(order)!=length(other_treat)){
+    if(length(order)!=length(other.treat)){
       stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
     }
 
-    if(sum(!is.element(order,other_treat))!=0 | sum(!is.element(other_treat,order))!=0){
+    if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
       stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
     }
-    other_treat <- order
+    other.treat <- order
    }
    
    if(is.null(subtitle)==FALSE){
-      if(length(subtitle)!=length(all_treat)){
+      if(length(subtitle)!=length(all.treat)){
          stop("The number of elements in \"subtitles\" should be equal to the number of different treatment arms (including baseline group's name).")
       }
    }else{
-	subtitle <- c(base.name,other_treat)
+	subtitle <- c(base.name,other.treat)
    }
    
     subtitle.all <- as.character(subtitle)
 	subtitle <- subtitle.all[2:length(subtitle.all)]
-	all_treat <- c(base,other_treat)
+	all.treat <- c(base,other.treat)
 
 #diff.values
 if(is.null(diff.values)==FALSE){
@@ -297,10 +297,10 @@ if(is.null(diff.values)==FALSE){
 	}
 	
 	if(treat.type=='discrete' & type=='binning'){
-		tempxx <- out$est.lin[[other_treat[1]]][,'X.lvls']
+		tempxx <- out$est.lin[[other.treat[1]]][,'X.lvls']
 	}
 	if(treat.type=='discrete' & type=='kernel'){
-		tempxx <- out$est[[other_treat[1]]][,'X']
+		tempxx <- out$est[[other.treat[1]]][,'X']
 	}
 	if(treat.type=='continuous' & type=='binning'){
 		tempxx <- out$est.lin[,'X.lvls']
@@ -328,13 +328,13 @@ if(is.null(diff.values)==FALSE){
       est.bin3 <- list() ## missing part
       yrange <- c()
       
-      for(char in other_treat) {
+      for(char in other.treat) {
         est.bin2[[char]] <- est.bin[[char]][which(is.na(est.bin[[char]][,2])==FALSE),] 
         est.bin3[[char]] <- est.bin[[char]][which(is.na(est.bin[[char]][,2])==TRUE),] 
         yrange <- c(yrange,na.omit(unlist(c(est.lin[[char]][,c(4,5)],est.bin[[char]][,c(4,5)]))))
       }
       if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/8)}
-      X.lvls <- est.lin[[other_treat[1]]][,1]
+      X.lvls <- est.lin[[other.treat[1]]][,1]
       errorbar.width<-(max(X.lvls)-min(X.lvls))/20
       maxdiff<-(max(yrange)-min(yrange))
       pos<-max(yrange)-maxdiff/20
@@ -343,11 +343,11 @@ if(is.null(diff.values)==FALSE){
         est.lin <- out$est.lin
         yrange <- c()
         
-        for(char in other_treat) {
+        for(char in other.treat) {
           yrange <- c(yrange,na.omit(unlist(est.lin[[char]][,c(4,5)])))
         }
         if (is.null(ylim)==FALSE) {yrange<-c(ylim[2],ylim[1]+(ylim[2]-ylim[1])*1/8)}
-        X.lvls <- est.lin[[other_treat[1]]][,1]
+        X.lvls <- est.lin[[other.treat[1]]][,1]
         errorbar.width<-(max(X.lvls)-min(X.lvls))/20
         maxdiff<-(max(yrange)-min(yrange))
         pos<-max(yrange)-maxdiff/20
@@ -360,7 +360,7 @@ if(is.null(diff.values)==FALSE){
         stop("\"CI\" is not a logical flag.")
       }
       yrange <- c()
-      for(char in other_treat) {
+      for(char in other.treat) {
         tempest <- est[[char]]
         if(CI==TRUE) {
           yrange <- c(yrange,na.omit(c(tempest$CI_lower,tempest$CI_upper)))
@@ -377,8 +377,8 @@ if(is.null(diff.values)==FALSE){
   requireNamespace("RColorBrewer")
 
   platte <- brewer.pal(n=8, "Set2")
-  if(ntreat<3){
-    platte <- platte[c(1:ntreat)]
+  if(num.treat<3){
+    platte <- platte[c(1:num.treat)]
   }
   
   if(is.null(color)==TRUE){
@@ -408,26 +408,26 @@ if(is.null(diff.values)==FALSE){
 
   # kernel estimates
   if (type == "kernel"){
-      for(char in other_treat) {
-        if(char==other_treat[1]){
+      for(char in other.treat) {
+        if(char==other.treat[1]){
           tempest <- est[[char]]
         }else{
           tempest <- rbind(tempest,est[[char]])
         }
       }
-	  tempest$Treatment <- factor(tempest$Treatment, levels = other_treat)
+	  tempest$Treatment <- factor(tempest$Treatment, levels = other.treat)
       p1 <- p1 + geom_line(data=tempest,aes(x = X,y = ME,color = Treatment),show.legend = F)
-	  p1 <- p1 + scale_color_manual(values = platte[1:length(other_treat)],labels = subtitle)
+	  p1 <- p1 + scale_color_manual(values = platte[1:length(other.treat)],labels = subtitle)
       if (CI == TRUE) {
           p1 <- p1 + geom_ribbon(data=tempest, aes(x=X,ymin=CI_lower,ymax=CI_upper,fill = Treatment),alpha=0.2,show.legend = F)
-          p1 <- p1 + scale_fill_manual(values = platte[1:length(other_treat)],labels = subtitle)
+          p1 <- p1 + scale_fill_manual(values = platte[1:length(other.treat)],labels = subtitle)
       }
       ymin=min(yrange)-maxdiff/5
 	  
 
 	  if(is.null(diff.values)==FALSE){
 		k <- 1
-		for(char in other_treat){
+		for(char in other.treat){
 			tempest <- est[[char]]
 			for(target.value in diff.values){
 				Xnew<-abs(tempest[,'X']-target.value)
@@ -478,8 +478,8 @@ if(is.null(diff.values)==FALSE){
   
   if (type == "binning") {
     
-    for(char in other_treat) {
-      if(char==other_treat[1]){
+    for(char in other.treat) {
+      if(char==other.treat[1]){
         tempest <- est.lin[[char]]
       }else{
         tempest <- rbind(tempest,est.lin[[char]])
@@ -487,19 +487,19 @@ if(is.null(diff.values)==FALSE){
     }
 	
 
-    tempest$Treatment <- factor(tempest$Treatment, levels = other_treat)
+    tempest$Treatment <- factor(tempest$Treatment, levels = other.treat)
     p1 <- p1 + geom_line(data=tempest,aes(x = X.lvls,y = marg,color = Treatment),show.legend = F)
-    p1 <- p1 + scale_color_manual(values = platte[1:length(other_treat)], labels = subtitle)
+    p1 <- p1 + scale_color_manual(values = platte[1:length(other.treat)], labels = subtitle)
     if (CI == TRUE) {
     p1 <- p1 + geom_ribbon(data=tempest, aes(x=X.lvls,ymin=lb,ymax=ub,fill = Treatment),alpha=0.2,show.legend = F)
-    p1 <- p1 + scale_fill_manual(values = platte[1:length(other_treat)],labels = subtitle)
+    p1 <- p1 + scale_fill_manual(values = platte[1:length(other.treat)],labels = subtitle)
     }
 
   ## bin estimates
     
   if(nbins>1){
   k <- 1
-  for(char in other_treat) {
+  for(char in other.treat) {
     tempest2 <- est.bin2[[char]]
     tempest3 <- est.bin3[[char]]
        
@@ -524,7 +524,7 @@ if(is.null(diff.values)==FALSE){
 
     ## labels: L, M, H and so on 
       if (bin.labs == TRUE) {
-        char0 <- other_treat[1]
+        char0 <- other.treat[1]
         if (nbins==3) {
             p1 <- p1 + annotate(geom="text", x=est.bin[[char0]][1,1], y=pos,
                               label="L",colour="gray50",size=10) +
@@ -555,7 +555,7 @@ if(is.null(diff.values)==FALSE){
   
   if(nbins==1 & is.null(diff.values)==FALSE){
 	k <- 1
-	for(char in other_treat){
+	for(char in other.treat){
 		tempest <- est.lin[[char]]
 		for(target.value in diff.values){
 			Xnew<-abs(tempest[,'X.lvls']-target.value)
@@ -620,9 +620,9 @@ if(is.null(diff.values)==FALSE){
     p1 <- p1 + geom_ribbon(data = deX.co, aes(x = x, ymax = y, ymin = deX.ymin),color='gray50',
                            fill = base.color, alpha = 0.0, size=0.3)
     k <- 1
-    char0 <- other_treat[1]
+    char0 <- other.treat[1]
     start_level <- rep(deX.ymin,length(de.tr[[char0]]$x))
-    for(char in other_treat){
+    for(char in other.treat){
       
       dex.tr.plot <- data.frame(x = de.tr[[char]]$x,
                            start_level = start_level,
@@ -657,7 +657,7 @@ if(is.null(diff.values)==FALSE){
       
       k <- 1
       start_level <- count.tr[[base]]/hist.max*maxdiff/5+min(yrange)-maxdiff/5
-      for (char in other_treat){
+      for (char in other.treat){
         hist.treat<-data.frame(ymin=start_level,
                                ymax=count.tr[[char]]/hist.max*maxdiff/5+start_level,
                                xmin=hist.out$mids-dist/2,
@@ -738,11 +738,11 @@ if(is.null(diff.values)==FALSE){
   #legend
   if(TRUE){
 	p1_table <- ggplot_gtable(ggplot_build(p1))
-	data.touse3 <- data.frame(X=rep(1,length(all_treat)),ymin=-1,ymax=1,D=all_treat)
-	data.touse3$D <- factor(data.touse3$D,levels = all_treat)
+	data.touse3 <- data.frame(X=rep(1,length(all.treat)),ymin=-1,ymax=1,D=all.treat)
+	data.touse3$D <- factor(data.touse3$D,levels = all.treat)
 	p0 <- ggplot() + geom_ribbon(data=data.touse3, aes(x=X,ymin=ymin,ymax=ymax,fill=D),
 								 alpha=0.3)
-	p0 <-  p0 + scale_fill_manual(values = c(base.color,platte[1:length(other_treat)]),
+	p0 <-  p0 + scale_fill_manual(values = c(base.color,platte[1:length(other.treat)]),
 								  labels = as.character(subtitle.all))
     if(is.null(legend.title)==F){
 		p0 <- p0 + labs(fill = legend.title,color = legend.title)
