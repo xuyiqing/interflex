@@ -25,7 +25,7 @@ crossvalidate.new <- function(data, Y, D, X, CV.method='simple', FE=NULL, treat.
     fold<-sample(fold, n, replace = FALSE)
   }
   if(CV.method=='cluster' & is.null(cl)==TRUE){
-	stop("\"cl\" is not specified.")
+	stop("\"cl\" is not specified when using cluster cross-validation.")
   }
   if(CV.method=='cluster' & is.null(cl)==FALSE){
 	clusters<-unique(data[,cl])

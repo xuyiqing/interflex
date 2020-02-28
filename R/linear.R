@@ -86,7 +86,7 @@ inter.linear<-function(data,
   if (is.null(Z) == FALSE) {
     for (i in 1:length(Z)) {
       if (is.character(Z[i]) == FALSE) {
-        stop("Some element in Z is not a string.")
+        stop("Some element in \"Z\" is not a string.")
       }
     }
   }
@@ -95,7 +95,7 @@ inter.linear<-function(data,
     requireNamespace("lfe")
     for (i in 1:length(FE)) {
       if (is.character(FE[i]) == FALSE) {
-        stop("Some element in FE is not a string.")
+        stop("Some element in \"FE\" is not a string.")
       }
     }
     if (vartype == "pcse") {
@@ -113,7 +113,7 @@ inter.linear<-function(data,
   }
   ## full moderate model
   if (is.logical(full.moderate) == FALSE & is.numeric(full.moderate)==FALSE) {
-    stop("full.moderate is not a logical flag.")
+    stop("\"full.moderate\" is not a logical flag.")
   }else{
     full <- full.moderate
   }
@@ -179,7 +179,7 @@ inter.linear<-function(data,
   # cl
   if (is.null(cl)==FALSE) {
     if (is.character(cl) == FALSE) {
-      stop("cl is not a string.")
+      stop("\"cl\" is not a string.")
     } else {
       cl <- cl[1]
       if (vartype != "pcse" & vartype != "bootstrap") {
@@ -191,7 +191,7 @@ inter.linear<-function(data,
   # time
   if (is.null(time)==FALSE) {
     if (is.character(time) == FALSE) {
-      stop("time is not a string.")
+      stop("\"time\" is not a string.")
     } else {
       time <- time[1]
     }
@@ -209,7 +209,7 @@ inter.linear<-function(data,
   
   #pairwise
   if (is.logical(pairwise) == FALSE & is.numeric(pairwise)==FALSE) {
-    stop("pairwise is not a logical flag.")
+    stop("\"pairwise\" is not a logical flag.")
   }
 
   # predict
@@ -222,8 +222,8 @@ inter.linear<-function(data,
 	if(is.numeric(D.ref)==FALSE){
       stop("\"D.ref\" is not a numeric variable.")
     }
-	if(length(D.ref)>=10){
-	  stop("Too many elements in \"D.ref\".")
+	if(length(D.ref)>9){
+	  stop("Too many values in \"D.ref\".")
 	}
   }
   
@@ -253,7 +253,7 @@ inter.linear<-function(data,
     Ylabel <- Y
   } else {
     if (is.character(Ylabel) == FALSE) {
-      stop("Ylabel is not a string.")
+      stop("\"Ylabel\" is not a string.")
     } else {
       Ylabel <- Ylabel[1]
     }   
@@ -263,7 +263,7 @@ inter.linear<-function(data,
     Dlabel <- D   
   } else {
     if (is.character(Dlabel) == FALSE) {
-      stop("Dlabel is not a string.")
+      stop("\"Dlabel\" is not a string.")
     } else {
       Dlabel <- Dlabel[1]
     }   
@@ -273,7 +273,7 @@ inter.linear<-function(data,
     Xlabel <- X   
   } else {
     if (is.character(Xlabel) == FALSE) {
-      stop("Xlabel is not a string.")
+      stop("\"Xlabel\" is not a string.")
     } else {
       Xlabel <- Xlabel[1]
     }   
@@ -293,19 +293,19 @@ inter.linear<-function(data,
   ## xlim ylim
   if (is.null(xlim)==FALSE) {
     if (is.numeric(xlim)==FALSE) {
-      stop("Some element in xlim is not numeric.")
+      stop("Some element in \"xlim\" is not numeric.")
     } else {
       if (length(xlim)!=2) {
-        stop("xlim must be of length 2.")
+        stop("\"xlim\" must be of length 2.")
       }
     }
   }
   if (is.null(ylim)==FALSE) {
     if (is.numeric(ylim)==FALSE) {
-      stop("Some element in ylim is not numeric.")
+      stop("Some element in \"ylim\" is not numeric.")
     } else {
       if (length(ylim)!=2) {
-        stop("ylim must be of length 2.")
+        stop("\"ylim\" must be of length 2.")
       }
     }
   }
@@ -345,7 +345,7 @@ inter.linear<-function(data,
   # interval
   if (is.null(interval)==FALSE) {
 	if (is.numeric(interval)==FALSE) {
-      stop("Some element in interval is not numeric.")
+      stop("Some element in \"interval\" is not numeric.")
     } 
   }
   
@@ -381,7 +381,7 @@ inter.linear<-function(data,
 		res <- try(col2rgb(char),silent=TRUE)
 		if(!"try-error"%in%class(res)){
 			color.in <- c(color.in,char)
-		}else{stop(paste0(char," is not a color name.\n"))}
+		}else{stop(paste0(char," is not one name for a color.\n"))}
 	}
 	color <- color.in
   }
@@ -403,7 +403,7 @@ inter.linear<-function(data,
 	max.XX <- max(data[,X])
 	for(a in diff.values){
 		if(a<min.XX|a>max.XX){
-			stop("Elements in \"diff.values\" should be greater than the minimum and less than the maximum of the moderator.")
+			stop("Elements in \"diff.values\" should be within the range of the moderator.")
 		}
 	}
   }
@@ -446,13 +446,11 @@ inter.linear<-function(data,
   
   #if treat is discrete
   if (treat.type=='discrete') {
-    if(length(unique(data[,D]))>5) {
-      warning("More than 5 kinds of treatment arms.")
+  
+    if(length(unique(data[,D]))>9) {
+      stop("Too many kinds of treatment arms")
     }
     
-    if(length(unique(data[,D]))>10) {
-      stop("Too many kinds of treatment arms.")
-    }
     data[,D] <- as.character(data[,D])
     
     
@@ -484,11 +482,11 @@ inter.linear<-function(data,
       }
 	  
       if(length(order)!=length(other.treat)){
-        stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
+        stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
 	  }
 
       if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
-        stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
+        stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
 	  }
       other.treat <- order
 	  colnames.p <- c()

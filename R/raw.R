@@ -87,13 +87,13 @@ inter.raw<-function(
   if (is.null(Z) == FALSE) {
     for (i in 1:length(Z)) {
       if (is.character(Z[i]) == FALSE) {
-        stop("Some element in Z is not a string.")
+        stop("Some element in \"Z\" is not a string.")
       }
     }
   }
   
   if (is.logical(full.moderate) == FALSE & is.numeric(full.moderate)==FALSE) {
-    stop("full.moderate is not a logical flag.")
+    stop("\"full.moderate\" is not a logical flag.")
   }else{
     full <- full.moderate
   } 
@@ -102,7 +102,7 @@ inter.raw<-function(
     requireNamespace("lfe")
     for (i in 1:length(FE)) {
       if (is.character(FE[i]) == FALSE) {
-        stop("Some element in FE is not a string.")
+        stop("Some element in \"FE\" is not a string.")
       }
     }
   }
@@ -126,7 +126,7 @@ inter.raw<-function(
   }
   if (is.null(cutoffs) == FALSE) {
     if (is.numeric(cutoffs) == FALSE) {
-      stop("Some element of cutoffs is not numeric.")
+      stop("Some element in \"cutoffs\" is not numeric.")
     } 
   }
   if (is.null(span) == FALSE) {
@@ -293,11 +293,8 @@ inter.raw<-function(
   
   ## plotting
   if (treat.type=="discrete") { ## discrte case
-    if(length(unique(data[,D]))>5) {
-      warning("More than 5 kinds of treatments")
-    }
-    if(length(unique(data[,D]))>20) {
-      stop("Too many kinds of treatments, treatments may be continuous")
+    if(length(unique(data[,D]))>9) {
+      stop("Too many kinds of treatment arms")
     }
     all_treatment=as.character(unique(data[,D]))
     

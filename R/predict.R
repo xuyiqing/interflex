@@ -105,7 +105,7 @@ if (is.null(main)==FALSE) {
     Ylabel <- out$Ylabel
   } else {
     if (is.character(Ylabel) == FALSE) {
-      stop("Ylabel is not a string.")
+      stop("\"Ylabel\" is not a string.")
     } else {
       Ylabel <- Ylabel[1]
     }   
@@ -118,7 +118,7 @@ if (is.null(main)==FALSE) {
     Xlabel <- out$Xlabel  
   } else {
     if (is.character(Xlabel) == FALSE) {
-      stop("Xlabel is not a string.")
+      stop("\"Xlabel\" is not a string.")
     } else {
       Xlabel <- Xlabel[1]
     }   
@@ -145,20 +145,20 @@ if (is.null(main)==FALSE) {
 ## xlim ylim
   if (is.null(xlim)==FALSE) {
     if (is.numeric(xlim)==FALSE) {
-      stop("Some element in xlim is not numeric.")
+      stop("Some element in \"xlim\" is not numeric.")
     } else {
       if (length(xlim)!=2) {
-        stop("xlim must be of length 2.")
+        stop("\"xlim\" must be of length 2.")
       }
     }
   }
   
   if (is.null(ylim)==FALSE) {
     if (is.numeric(ylim)==FALSE) {
-      stop("Some element in ylim is not numeric.")
+      stop("Some element in \"ylim\" is not numeric.")
     } else {
       if (length(ylim)!=2) {
-        stop("ylim must be of length 2.")
+        stop("\"ylim\" must be of length 2.")
       }
     }
   }
@@ -203,7 +203,7 @@ if (is.null(main)==FALSE) {
 		res <- try(col2rgb(char),silent=TRUE)
 		if(!"try-error"%in%class(res)){
 			color.in <- c(color.in,char)
-		}else{stop(paste0(char," is not a color name.\n"))}
+		}else{stop(paste0(char," is not one name for a color.\n"))}
 	}
 	color <- color.in
 }
@@ -218,7 +218,7 @@ if (is.null(main)==FALSE) {
   # interval
   if (is.null(interval)==FALSE) {
 	if (is.numeric(interval)==FALSE) {
-      stop("Some element in interval is not numeric.")
+      stop("Some element in \"interval\" is not numeric.")
     } 
   }
   
@@ -275,7 +275,7 @@ if (is.null(main)==FALSE) {
    
     if(is.null(subtitle)==F){
       if(length(subtitle)!=length(all_treat)){
-        stop("The number of elements in \"subtitle\" should be equal to the number of different treatment arms.")
+        stop("The number of elements in \"subtitles\" should be equal to the number of different treatment arms.")
       }
     }
   }
@@ -293,11 +293,11 @@ if (is.null(main)==FALSE) {
     }
 	
     if(length(order)!=length(D.ref)){
-      stop("\"order\" should contain all reference values of treatment(D).")
+      stop("\"order\" should contain all reference values of D.")
     }
 
     if(sum(!is.element(order,D.ref))!=0 | sum(!is.element(D.ref,order))!=0){
-      stop("\"order\" should contain all reference values of treatment(D).")
+      stop("\"order\" should contain all reference values of D.")
     }
 	
 	labelname <- c()

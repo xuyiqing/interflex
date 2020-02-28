@@ -90,7 +90,7 @@ if (is.null(main)==FALSE) {
     Ylabel <- out$Ylabel
   } else {
     if (is.character(Ylabel) == FALSE) {
-      stop("Ylabel is not a string.")
+      stop("\"Ylabel\" is not a string.")
     } else {
       Ylabel <- Ylabel[1]
     }   
@@ -101,7 +101,7 @@ if (is.null(main)==FALSE) {
     Dlabel <- out$Dlabel   
   } else {
     if (is.character(Dlabel) == FALSE) {
-      stop("Dlabel is not a string.")
+      stop("\"Dlabel\" is not a string.")
     } else {
       Dlabel <- Dlabel[1]
     }   
@@ -112,7 +112,7 @@ if (is.null(main)==FALSE) {
     Xlabel <- out$Xlabel  
   } else {
     if (is.character(Xlabel) == FALSE) {
-      stop("Xlabel is not a string.")
+      stop("\"Xlabel\" is not a string.")
     } else {
       Xlabel <- Xlabel[1]
     }   
@@ -147,20 +147,20 @@ if (is.null(main)==FALSE) {
 ## xlim ylim
   if (is.null(xlim)==FALSE) {
     if (is.numeric(xlim)==FALSE) {
-      stop("Some element in xlim is not numeric.")
+      stop("Some element in \"xlim\" is not numeric.")
     } else {
       if (length(xlim)!=2) {
-        stop("xlim must be of length 2.")
+        stop("\"xlim\" must be of length 2.")
       }
     }
   }
   
   if (is.null(ylim)==FALSE) {
     if (is.numeric(ylim)==FALSE) {
-      stop("Some element in ylim is not numeric.")
+      stop("Some element in \"ylim\" is not numeric.")
     } else {
       if (length(ylim)!=2) {
-        stop("ylim must be of length 2.")
+        stop("\"ylim\" must be of length 2.")
       }
     }
   }
@@ -205,7 +205,7 @@ if (is.null(main)==FALSE) {
 ## interval
   if (is.null(interval)==FALSE) {
 	if (is.numeric(interval)==FALSE) {
-      stop("Some element in interval is not numeric.")
+      stop("Some element in \"interval\" is not numeric.")
     } 
   }
 
@@ -224,7 +224,7 @@ if (is.null(main)==FALSE) {
 		res <- try(col2rgb(char),silent=TRUE)
 		if(!"try-error"%in%class(res)){
 			color.in <- c(color.in,char)
-		}else{stop(paste0(char," is not a color name.\n"))}
+		}else{stop(paste0(char," is not one name for a color.\n"))}
 	}
 	color <- color.in
   }
@@ -256,22 +256,23 @@ if (is.null(main)==FALSE) {
     
   if(is.null(order)==FALSE){
 	order <- as.character(order)
-    if(length(order)!=length(other_treat)){
-      stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
-    }
-    if(length(order)!=length(unique(order))){
+	if(length(order)!=length(unique(order))){
         stop("\"order\" should not contain repeated values.")
     }
-      
+	
+    if(length(order)!=length(other_treat)){
+      stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
+    }
+
     if(sum(!is.element(order,other_treat))!=0 | sum(!is.element(other_treat,order))!=0){
-      stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
+      stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
     }
     other_treat <- order
    }
    
    if(is.null(subtitle)==FALSE){
       if(length(subtitle)!=length(all_treat)){
-         stop("The number of elements in \"subtitles\" should be equal to the number of different treatment arms (include base-group's name).")
+         stop("The number of elements in \"subtitles\" should be equal to the number of different treatment arms (including baseline group's name).")
       }
    }else{
 	subtitle <- c(base.name,other_treat)
@@ -311,7 +312,7 @@ if(is.null(diff.values)==FALSE){
 	max.XX <- max(tempxx)
 	for(a in diff.values){
 		if(a<min.XX|a>max.XX){
-			stop("Elements in \"diff.values\" should be larger than the minimum of moderator and less than the maximum of it.")
+			stop("Elements in \"diff.values\" should be within the range of the moderator.")
 		}
 	}
   } 

@@ -92,7 +92,7 @@ if(TRUE){ #INPUT CHECK
   if (is.null(Z) == FALSE) {
     for (i in 1:length(Z)) {
       if (is.character(Z[i]) == FALSE) {
-        stop("Some element in Z is not a string.")
+        stop("Some element in \"Z\" is not a string.")
       }
     }
   }
@@ -111,14 +111,14 @@ if(TRUE){ #INPUT CHECK
     requireNamespace("lfe")
     for (i in 1:length(FE)) {
       if (is.character(FE[i]) == FALSE) {
-        stop("Some element in FE is not a string.")
+        stop("Some element in \"FE\" is not a string.")
       }
     }
   }
   
   ## full moderate model
   if (is.logical(full.moderate) == FALSE & is.numeric(full.moderate)==FALSE) {
-    stop("full.moderate is not a logical flag.")
+    stop("\"full.moderate\" is not a logical flag.")
   }else{
     full <- full.moderate
   }
@@ -291,8 +291,8 @@ if(TRUE){ #INPUT CHECK
 	if(is.numeric(D.ref)==FALSE){
       stop("\"D.ref\" is not a numeric variable.")
     }
-	if(length(D.ref)>=10){
-	  stop("Too many elements in \"D.ref\".")
+	if(length(D.ref)>9){
+	  stop("Too many values in \"D.ref\".")
 	}
   }
   
@@ -322,7 +322,7 @@ if(TRUE){ #INPUT CHECK
     Ylabel <- Y
   } else {
     if (is.character(Ylabel) == FALSE) {
-      stop("Ylabel is not a string.")
+      stop("\"Ylabel\" is not a string.")
     } else {
       Ylabel <- Ylabel[1]
     }   
@@ -332,7 +332,7 @@ if(TRUE){ #INPUT CHECK
     Dlabel <- D   
   } else {
     if (is.character(Dlabel) == FALSE) {
-      stop("Dlabel is not a string.")
+      stop("\"Dlabel\" is not a string.")
     } else {
       Dlabel <- Dlabel[1]
     }   
@@ -343,7 +343,7 @@ if(TRUE){ #INPUT CHECK
     Xlabel <- X   
   } else {
     if (is.character(Xlabel) == FALSE) {
-      stop("Xlabel is not a string.")
+      stop("\"Xlabel\" is not a string.")
     } else {
       Xlabel <- Xlabel[1]
     }   
@@ -364,19 +364,19 @@ if(TRUE){ #INPUT CHECK
   ## xlim ylim
   if (is.null(xlim)==FALSE) {
     if (is.numeric(xlim)==FALSE) {
-      stop("Some element in xlim is not numeric.")
+      stop("Some element in \"xlim\" is not numeric.")
     } else {
       if (length(xlim)!=2) {
-        stop("xlim must be of length 2.")
+        stop("\"xlim\" must be of length 2.")
       }
     }
   }
   if (is.null(ylim)==FALSE) {
     if (is.numeric(ylim)==FALSE) {
-      stop("Some element in ylim is not numeric.")
+      stop("Some element in \"ylim\" is not numeric.")
     } else {
       if (length(ylim)!=2) {
-        stop("ylim must be of length 2.")
+        stop("\"ylim\" must be of length 2.")
       }
     }
   }
@@ -389,7 +389,7 @@ if(TRUE){ #INPUT CHECK
   # interval
   if (is.null(interval)==FALSE) {
 	if (is.numeric(interval)==FALSE) {
-      stop("Some element in interval is not numeric.")
+      stop("Some element in \"interval\" is not numeric.")
     } 
   }
   
@@ -452,7 +452,7 @@ if(TRUE){ #INPUT CHECK
 		res <- try(col2rgb(char),silent=TRUE)
 		if(!"try-error"%in%class(res)){
 			color.in <- c(color.in,char)
-		}else{stop(paste0(char," is not a color name.\n"))}
+		}else{stop(paste0(char," is not one name for a color.\n"))}
 	}
 	color <- color.in
   }
@@ -474,7 +474,7 @@ if(TRUE){ #INPUT CHECK
 	max.XX <- max(data[,X])
 	for(a in diff.values){
 		if(a<min.XX|a>max.XX){
-			stop("Elements in \"diff.values\" should be greater than the minimum and less than the maximum of the moderator.")
+			stop("Elements in \"diff.values\" should be within the range of the moderator.")
 		}
 	}
   }
@@ -517,11 +517,9 @@ if(TRUE){ #TREAT SETTING
   if (treat.type=='discrete') {
   
 	data[,D] <- as.character(data[,D])
-    if(length(unique(data[,D]))>5) {
-      warning("More than 5 kinds of treatments")
-    }
-    if(length(unique(data[,D]))>10) {
-      stop("Too many kinds of treatments, treatments may be continuous")
+
+    if(length(unique(data[,D]))>9) {
+      stop("Too many kinds of treatment arms")
     }
 	
     if(is.null(base)==TRUE) {
@@ -532,7 +530,7 @@ if(TRUE){ #TREAT SETTING
     else {
       base <- as.character(base)
       if (!base %in% unique(data[,D])){
-        stop("\"base\" must be one kind of treatments.")
+        stop("\"base\" must be one of the treatment arms.")
       }
       f=sprintf("Baseline group: treat = %s \n",base)
       cat(f)
@@ -551,10 +549,10 @@ if(TRUE){ #TREAT SETTING
         stop("\"order\" should not contain repeated values.")
       }
       if(length(order)!=length(other.treat)){
-        stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
+        stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
 	  }
       if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
-        stop("\"order\" should include all kinds of treatment arms except for the baseline category.")
+        stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
 	  }
       other.treat <- order
 	  colnames.p <- c()

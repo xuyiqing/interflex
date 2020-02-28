@@ -32,13 +32,13 @@ inter.gam<-function(data,Y,D,X,
   if (is.null(Z) == FALSE) {
     for (i in 1:length(Z)) {
       if (is.character(Z[i]) == FALSE) {
-        stop("Some element in Z is not a string.")
+        stop("Some element in \"Z\" is not a string.")
       }
     }
   }
   
   if (is.logical(full.moderate) == FALSE & is.numeric(full.moderate)==FALSE) {
-    stop("full.moderate is not a logical flag.")
+    stop("\"full.moderate\" is not a logical flag.")
   }else{
     full <- full.moderate
   } 
@@ -46,7 +46,7 @@ inter.gam<-function(data,Y,D,X,
   if (is.null(FE) == FALSE) {
     for (i in 1:length(FE)) {
       if (is.character(FE[i]) == FALSE) {
-        stop("Some element in FE is not a string.")
+        stop("Some element in \"FE\" is not a string.")
       }
     }
   }
@@ -76,7 +76,7 @@ inter.gam<-function(data,Y,D,X,
     stop("\"angle\" must have length 1 to 4.")
   } else {
     if (is.numeric(angle)==FALSE) {
-      stop("Some element in angle is not numeric.")
+      stop("Some element in \"angle\" is not numeric.")
     }
   }
   if (is.null(Ylabel)==TRUE) {
