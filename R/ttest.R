@@ -100,9 +100,9 @@ ttest <- function(
 	
 	if(length(diff.values)==3){
 		if(percentile==FALSE){
-				diff.name <- c(paste0(diff.values[2]," vs ",diff.values[1]),
-								   paste0(diff.values[3]," vs ",diff.values[2]),
-								   paste0(diff.values[3]," vs ",diff.values[1]))
+				diff.name <- c(paste0(round(diff.values[2],3)," vs ",round(diff.values[1],3)),
+								   paste0(round(diff.values[3],3)," vs ",round(diff.values[2],3)),
+								   paste0(round(diff.values[3],3)," vs ",round(diff.values[1],3)))
 		}
 		if(percentile==TRUE){
 				diff.name <- c(paste0(round(100*diff.pc[2],3),'%',' vs ',round(100*diff.pc[1],3),'%'),
@@ -112,7 +112,7 @@ ttest <- function(
 	}
 	if(length(diff.values)==2){
 		if(percentile==FALSE){
-				diff.name <- c(paste0(diff.values[2]," vs ",diff.values[1]))
+				diff.name <- c(paste0(round(diff.values[2],3)," vs ",round(diff.values[1],3)))
 			}
 		if(percentile==TRUE){
 				diff.name <- c(paste0(round(100*diff.pc[2],3),'%',' vs ',round(100*diff.pc[1],3),'%'))
