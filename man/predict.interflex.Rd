@@ -2,16 +2,17 @@
 \alias{predict.interflex}
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting expected outcomes given fixed values of the treatment and moderator after either the linear, binning or the kernel estimator is applied.}
-\usage{\method{predict}{interflex}(object, order = NULL, subtitles = NULL, show.subtitles = NULL, 
-  Xdistr = "histogram", CI = NULL, pool = FALSE,main = NULL, Ylabel = NULL, 
-  Xlabel = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, 
+\usage{\method{predict}{interflex}(object, to.show = NULL, order = NULL, subtitles = NULL, 
+  show.subtitles = NULL, Xdistr = "histogram", CI = NULL, pool = FALSE, main = NULL, 
+  Ylabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, 
   theme.bw = FALSE, show.grid = TRUE, cex.main = NULL, cex.sub = NULL, 
   cex.lab = NULL, cex.axis = NULL, color = NULL, file = NULL,interval = NULL, 
   legend.title = NULL, ncols = NULL, \dots)
 }
 \arguments{
   \item{object}{an \bold{interflex} object (\bold{predict==TRUE}).}
-  \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing expected values. It should contain all kinds of treatment arms.}
+  \item{to.show}{a vector of strings that determines which treatment arms will be displayed when visualizing expected values. It should should be a subset of all treatment arms including the base group.}
+  \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing expected values. It should contain all treatment arms or all elements in "to.show".}
   \item{subtitles}{a vector of strings that determines the subtitles of subplots when \bold{pool} is FALSE, or determines the label in the legend when \bold{pool} is TRUE. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
   \item{Xdistr}{a string indicating the way the distribution of the moderator will be plotted: "histogram" (or "hist"), "density", or "none". The default is "histogram".}

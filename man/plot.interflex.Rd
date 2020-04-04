@@ -2,17 +2,18 @@
 \alias{plot.interflex}
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting marginal effect estimates after either the binning estimator or the kernel estimator is applied}
-\usage{\method{plot}{interflex}(x, order = NULL, subtitles = NULL, show.subtitles = NULL,
-  CI = NULL, diff.values = NULL, Xdistr = "histogram", main = NULL, 
-  Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, 
-  xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
+\usage{\method{plot}{interflex}(x, to.show = NULL, order = NULL, subtitles = NULL, 
+  show.subtitles = NULL, CI = NULL, diff.values = NULL, Xdistr = "histogram", 
+  main = NULL, Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL, 
+  ylab = NULL, xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
   cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
   bin.labs = TRUE, interval = NULL, file = NULL, ncols = NULL, pool = FALSE, 
   legend.title = NULL, color = NULL, jitter = FALSE, \dots)
 }
 \arguments{
   \item{x}{an \bold{interflex} object.}
-  \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing marginal effects. It should contain all kinds of treatment arms except for the base group.}
+  \item{to.show}{a vector of strings that determines which treatment arms will be displayed when visualizing marginal effects. It should should be a subset of all treatment arms except for the base group.}
+  \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing marginal effects. It should contain all kinds of treatment arms except for the base group or all elements in "to.show".}
   \item{subtitles}{a vector of strings that determines the subtitles of subplots. Its length should be equal to the number of categories of treatment arms minus one. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
   \item{CI}{a logical flag indicating whether the confidence intervals need to be shown.}
