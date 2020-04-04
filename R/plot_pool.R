@@ -1,6 +1,7 @@
 inter.plot.pool <- function( # only for discrete treatments 
   out,
   diff.values = NULL,
+  to.show = NULL,
   order = NULL,
   subtitle = NULL,
   legend.title = NULL,
@@ -250,10 +251,33 @@ if (is.null(main)==FALSE) {
   other.treat <- sort(all.treat[which(all.treat!=base)])
   num.treat <- length(other.treat)
   
-  if(is.null(subtitle)==TRUE){
-	base.name <- paste0("Base Group (",base,")")
-  }else{base.name <- subtitle[1]}
-    
+	if(is.null(subtitle)==TRUE){
+		base.name <- paste0("Base Group (",base,")")
+	}
+	else{base.name <- subtitle[1]}
+  
+  	if(is.null(to.show)==FALSE){
+		if(length(to.show)!=length(unique(to.show))){
+			stop("\"to.show\" should not contain repeated values.")
+		}
+		for(a in to.show){
+			if(a==base){
+				stop("\"to.show\" should not contain the baseline group.")
+			}
+			if(!(a %in% other.treat)){
+				stop("\"to.show\" contains a non-existent treatment arm.")
+			}
+		}
+		other.treat.touse <- c()
+		for(a in other.treat){
+			if(a %in% to.show){
+				other.treat.touse <- c(other.treat.touse,a)
+			}
+		}
+		other.treat <- other.treat.touse
+	}
+  
+  
   if(is.null(order)==FALSE){
 	order <- as.character(order)
 	if(length(order)!=length(unique(order))){
@@ -261,20 +285,21 @@ if (is.null(main)==FALSE) {
     }
 	
     if(length(order)!=length(other.treat)){
-      stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
+      stop("\"order\" should include all treatment arms except for the baseline group(or treatment arms specified in \"to.show\").")
     }
 
     if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
-      stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
+      stop("\"order\" should include all treatment arms except for the baseline group(or treatment arms specified in \"to.show\").")
     }
     other.treat <- order
    }
    
    if(is.null(subtitle)==FALSE){
-      if(length(subtitle)!=length(all.treat)){
-         stop("The number of elements in \"subtitles\" should be equal to the number of different treatment arms (including baseline group's name).")
+      if(length(subtitle)!=(length(other.treat)+1)){
+         stop("The length of \"subtitles\" should be equal to the number of treatment arms(or treatment arms specified in \"to.show\") including the base group.")
       }
-   }else{
+   }
+   else{
 	subtitle <- c(base.name,other.treat)
    }
    

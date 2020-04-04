@@ -2,6 +2,7 @@
 #' @export
 predict.interflex <- function(
   object,
+  to.show=NULL,
   order = NULL,
   subtitles = NULL,
   show.subtitles = NULL,
@@ -253,18 +254,36 @@ if (is.null(main)==FALSE) {
 	if(is.null(order)==FALSE){
 		order <- as.character(order)
 	}
+	
+	if(is.null(to.show)==FALSE){
+		if(length(to.show)!=length(unique(to.show))){
+			stop("\"to.show\" should not contain repeated values.")
+		}
+		for(a in to.show){
+			if(!(a %in% all.treat)){
+				stop("\"to.show\" contains a non-existent treatment arm.")
+			}
+		}
+		all.treat.touse <- c()
+		for(a in all.treat){
+			if(a %in% to.show){
+				all.treat.touse <- c(all.treat.touse,a)
+			}
+		}
+		all.treat <- all.treat.touse
+	}
 
     if(is.null(order)==FALSE){
 	if(length(order)!=length(unique(order))){
-        stop("\"order\" should not contain repeated values.")
+        stop("\"order\" should not contain repeated values z.")
     }
 	
     if(length(order)!=length(all.treat)){
-      stop("\"order\" should contain all kinds of treatment arms.")
+      stop("\"order\" should contain all treatment arms(or treatment arms specified in \"to.show\").")
     }
 
     if(sum(!is.element(order,all.treat))!=0 | sum(!is.element(all.treat,order))!=0){
-      stop("\"order\" should contain all kinds of treatment arms.")
+      stop("\"order\" should contain all treatment arms(or treatment arms specified in \"to.show\").")
     }
     all.treat <- order
     }
@@ -275,7 +294,7 @@ if (is.null(main)==FALSE) {
    
     if(is.null(subtitle)==F){
       if(length(subtitle)!=length(all.treat)){
-        stop("The number of elements in \"subtitles\" should be equal to the number of different treatment arms.")
+        stop("The length of \"subtitles\" should be equal to the number of treatment arms(or treatment arms specified in \"to.show\").")
       }
     }
   }

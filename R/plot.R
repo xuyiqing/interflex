@@ -2,6 +2,7 @@
 #' @export
 plot.interflex <- function(
   x,
+  to.show = NULL,
   order = NULL,
   subtitles = NULL,
   show.subtitles = NULL,
@@ -46,6 +47,7 @@ plot.interflex <- function(
 	
 	if(pool==TRUE & treat.type=='discrete'){
 	graph <- inter.plot.pool(out=out,
+	to.show = to.show,
 	order = order,
 	subtitle = subtitles,
 	CI = CI,
@@ -78,8 +80,8 @@ plot.interflex <- function(
 if(TRUE){ ##INPUT CHECK
 
 	if(out$type=='linear'){
-	out$type <- 'binning'
-	out$nbins <- 1
+		out$type <- 'binning'
+		out$nbins <- 1
 	}
 
 # show.subtitles
@@ -266,20 +268,42 @@ if (is.null(main)==FALSE) {
 
 if(treat.type=='discrete') {
     other.treat <- sort(all.treat[which(all.treat!=base)])
-    if(is.null(order)==FALSE){
-	order <- as.character(order)
-	if(length(order)!=length(unique(order))){
-        stop("\"order\" should not contain repeated values.")
-    }
 	
-    if(length(order)!=length(other.treat)){
-      stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
-    }
+	if(is.null(to.show)==FALSE){
+		if(length(to.show)!=length(unique(to.show))){
+			stop("\"to.show\" should not contain repeated values.")
+		}
+		for(a in to.show){
+			if(a==base){
+				stop("\"to.show\" should not contain the baseline group.")
+			}
+			if(!(a %in% other.treat)){
+				stop("\"to.show\" contains a non-existent treatment arm.")
+			}
+		}
+		other.treat.touse <- c()
+		for(a in other.treat){
+			if(a %in% to.show){
+				other.treat.touse <- c(other.treat.touse,a)
+			}
+		}
+		other.treat <- other.treat.touse
+	}
+	
+    if(is.null(order)==FALSE){
+		order <- as.character(order)
+		if(length(order)!=length(unique(order))){
+			stop("\"order\" should not contain repeated values.")
+		}
+	
+		if(length(order)!=length(other.treat)){
+			stop("\"order\" should only include all treatment arms except for the baseline group(or treatment arms specified in \"to.show\").")
+		}
 
-    if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
-      stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
-    }
-    other.treat <- order
+		if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
+			stop("\"order\" should only include all treatment arms except for the baseline group(or treatment arms specified in \"to.show\").")
+		}
+		other.treat <- order
     }
 	
     if(is.null(show.subtitle)==TRUE){
@@ -296,7 +320,7 @@ if(treat.type=='discrete') {
     }
     if(is.null(subtitle)==FALSE){
       if(length(subtitle)!=length(other.treat)){
-        stop("The number of elements in \"subtitles\" should be m-1(m is the number of different treatment arms).")
+        stop("The length of \"subtitles\" should be equal to the number of treatment arms(or treatment arms specified in \"to.show\") except for the base group.")
       }
     }
   }

@@ -706,7 +706,7 @@ if(vartype=='bootstrap'){
 		groupX[which(data[,X]==min(data[,X]))]<-1
 		
 		if(length(unique(groupX))<nbins){
-			return(matrix(NA,nrow=length(X.lvls),ncol=1))
+			return(matrix(NA,nrow=length(X.lvls),ncol=0))
 		}
 		
 		if (is.null(FE)==TRUE) { #OLS
@@ -1458,7 +1458,7 @@ if(vartype!='bootstrap'){
       v<-vcov(mod.naive)
     } else if (vartype=="robust") {
       requireNamespace("sandwich")
-      v<-vcov(mod.naive,type="HC1") # White with small sample correction
+      v<-vcovHC(mod.naive,type="HC1") # White with small sample correction
     } else if (vartype=="cluster") {
       v<-vcovCluster(mod.naive,cluster = data[,cl])
     } else if (vartype=="pcse") {
@@ -1614,7 +1614,7 @@ if(vartype!='bootstrap'){
     if (vartype=="homoscedastic") {
       X.v<-vcov(mod.X)
     } else if (vartype=="robust") {
-      X.v<-vcov(mod.X,type="HC1") ## White with small sample correction
+      X.v<-vcovHC(mod.X,type="HC1") ## White with small sample correction
     } else if (vartype=="cluster") {
       X.v<-vcovCluster(mod.X,cluster=data[,cl])
     } else if (vartype=="pcse") {
@@ -1735,7 +1735,7 @@ if(vartype!='bootstrap'){
       if (vartype=="homoscedastic") {
         X.v_all<-vcov(mod.X)
       } else if (vartype=="robust") {
-        X.v_all<-vcov(mod.X,type="HC1") ## White with small sample correction
+        X.v_all<-vcovHC(mod.X,type="HC1") ## White with small sample correction
       } else if (vartype=="cluster") {
         X.v_all<-vcovCluster(mod.X,cluster=data[,cl])
       } else if (vartype=="pcse") {
@@ -1890,7 +1890,7 @@ if(vartype!='bootstrap'){
 				v<-vcov(binning_fit)
 		} else if (vartype=="robust") {
 			requireNamespace("sandwich")
-			v<-vcov(binning_fit,type="HC1") # White with small sample correction
+			v<-vcovHC(binning_fit,type="HC1") # White with small sample correction
 		} else if (vartype=="cluster") {
 			v<-vcovCluster(binning_fit,cluster = data[,cl])
 		} else if (vartype=="pcse") {
@@ -2028,7 +2028,7 @@ if(vartype!='bootstrap'){
 				v<-vcov(binning_fit)
 		} else if (vartype=="robust") {
 			requireNamespace("sandwich")
-			v<-vcov(binning_fit,type="HC1") # White with small sample correction
+			v<-vcovHC(binning_fit,type="HC1") # White with small sample correction
 		} else if (vartype=="cluster") {
 			v<-vcovCluster(binning_fit,cluster = data[,cl])
 		} else if (vartype=="pcse") {
@@ -2260,7 +2260,7 @@ if(vartype!='bootstrap'){
       if (vartype=="homoscedastic") {
         v<-vcov(mod.un)
       } else if (vartype=="robust") {
-        v<-vcov(mod.un,type="HC1") # White with small sample correction
+        v<-vcovHC(mod.un,type="HC1") # White with small sample correction
       } else if (vartype=="cluster") {
         v<-vcovCluster(mod.un,cluster = data.aug[,cl])
       } else if (vartype=="pcse") {
@@ -2396,7 +2396,7 @@ if(vartype!='bootstrap'){
       if (vartype=="homoscedastic") {
         v<-vcov(mod.un)
       } else if (vartype=="robust") {
-        v<-vcov(mod.un,type="HC1") # White with small sample correction
+        v<-vcovHC(mod.un,type="HC1") # White with small sample correction
       } else if (vartype=="cluster") {
         v<-vcovCluster(mod.un,cluster = data.aug[,cl])
       } else if (vartype=="pcse") {

@@ -746,7 +746,7 @@ inter.linear<-function(data,
 			v<-vcov(mod.naive)
     } else if (vartype=="robust") {
 			requireNamespace("sandwich")
-			v<-vcov(mod.naive,type="HC1") # White with small sample correction
+			v<-vcovHC(mod.naive,type="HC1") # White with small sample correction
     } else if (vartype=="cluster") {
       v<-vcovCluster(mod.naive,cluster = data[,cl])
     } else if (vartype=="pcse") {
@@ -974,7 +974,7 @@ inter.linear<-function(data,
 				v<-vcov(mod.naive2)
 		} else if (vartype=="robust") {
 			requireNamespace("sandwich")
-			v<-vcov(mod.naive2,type="HC1") # White with small sample correction
+			v<-vcovHC(mod.naive2,type="HC1") # White with small sample correction
 		} else if (vartype=="cluster") {
 			v<-vcovCluster(mod.naive2,cluster = data[,cl])
 		} else if (vartype=="pcse") {
