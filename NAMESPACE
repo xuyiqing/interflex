@@ -12,7 +12,7 @@ importFrom("ggplot2","geom_errorbar", "geom_hline", "labs" ,"geom_line", "geom_p
 			"coord_cartesian", "facet_wrap", "facet_grid","theme_bw","element_blank","ggsave","layer_scales","ylim","xlim",
 			"scale_color_manual","scale_fill_manual","ggplot_build","ggplot_gtable","geom_histogram","geom_text")
 importFrom("mgcv","vis.gam","gam")
-importFrom("sandwich","sandwich","estfun","bread")
+importFrom("sandwich","sandwich","estfun","bread","vcovHC")
 importFrom("pcse","pcse")
 importFrom("lmtest","waldtest")
 importFrom("lfe","felm")
