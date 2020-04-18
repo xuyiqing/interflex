@@ -163,7 +163,7 @@ inter.linear<-function(data,
   
   # Parallel
   if (is.logical(parallel) == FALSE & is.numeric(parallel)==FALSE) {
-    stop("\"paralell\" is not a logical flag.")
+    stop("\"parallel\" is not a logical flag.")
   }
   
   # Cores
