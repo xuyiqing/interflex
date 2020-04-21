@@ -1,11 +1,14 @@
-#' @rdname ttest.interflex
+#' @rdname t.test.interflex
 #' @export
-ttest <- function(
-	out,
+t.test.interflex <- function(
+	x,
 	diff.values,
 	percentile=FALSE,
-	k=15
-){
+	k=15,
+	...
+){	
+	out <- x
+	
 	if(!class(out) %in% c("interflex")){
 		stop("Not an \"interflex\" object.")
 	}
@@ -52,12 +55,12 @@ ttest <- function(
 	
 	if(type=='kernel'){
 		if(out$CI==FALSE){
-			stop("ttest() can't work without vcov matrix.")
+			stop("t.test() can't work without vcov matrix.")
 		}
 	}
 	
 	if(type=='binning'){
-		stop("ttest() can only work after linear or kernel estimations.")
+		stop("t.test() can only work after linear or kernel estimations.")
 	}
 	
 	if(treat.type=='discrete'){

@@ -60,7 +60,7 @@ inter.binning<-function(data,
   ymin <- NULL
   ymax <- NULL
   
-if(TRUE){ #INPUT CHECK
+if(TRUE){ #Input Check
   
   ## in case data is in tibble format
   if (is.data.frame(data) == FALSE) {

@@ -6,7 +6,7 @@ importFrom("parallel", "detectCores", "stopCluster", "makeCluster")
 importFrom("graphics", "hist", "par", "plot")
 importFrom("stats", "as.formula", "density", "dnorm", "lm", "median", "predict",
              "model.matrix", "na.omit", "pt", "qt", "quantile", "sd", "cov",
-             "var", "vcov","coef", "relevel", "rnorm","pnorm","contr.sum")
+             "var", "vcov","coef", "relevel", "rnorm","pnorm","contr.sum","t.test")
 importFrom("ggplot2","geom_errorbar", "geom_hline", "labs" ,"geom_line", "geom_point", "geom_rect","geom_ribbon", "geom_smooth", 
 			"geom_vline", "ggplot", "ggtitle", "theme", "aes","element_text", "annotate", "xlab", "ylab", "aes_string", 
 			"coord_cartesian", "facet_wrap", "facet_grid","theme_bw","element_blank","ggsave","layer_scales","ylim","xlim",
@@ -32,9 +32,9 @@ export(interflex)
 S3method("interflex", "default")
 S3method("plot", "interflex")
 S3method("predict", "interflex")
+S3method("t.test","interflex")
 export(inter.raw)
 export(inter.gam)
 export(inter.linear)
 export(inter.binning)
 export(inter.kernel)
-export(ttest)
