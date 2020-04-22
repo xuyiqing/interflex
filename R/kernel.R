@@ -470,11 +470,20 @@ if(TRUE){ #INPUT CHECK
 	if(length(diff.values)!=3 & length(diff.values)!=2){
 		stop("\"diff.values\" must be of length 3 or 2.")
 	}
-	min.XX <- min(data[,X])
-	max.XX <- max(data[,X])
-	for(a in diff.values){
-		if(a<min.XX|a>max.XX){
-			stop("Elements in \"diff.values\" should be within the range of the moderator.")
+	if(Xunif==FALSE){
+		min.XX <- min(data[,X])
+		max.XX <- max(data[,X])
+		for(a in diff.values){
+			if(a<min.XX|a>max.XX){
+				stop("Elements in \"diff.values\" should be within the range of the moderator.")
+			}
+		}
+	}
+	else{
+		for(a in diff.values){
+			if(a<0|a>100){
+				stop("Elements in \"diff.values\" should be within the range of 0 to 100 when Xunif is TRUE.")
+			}
 		}
 	}
   }

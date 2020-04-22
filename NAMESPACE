@@ -32,9 +32,7 @@ export(interflex)
 S3method(interflex, default)
 S3method(plot, interflex)
 S3method(predict, interflex)
-if(getRversion() >= "3.6.0") {
-    S3method(stats::t.test, interflex)
-}
+export(inter.test)
 export(inter.raw)
 export(inter.gam)
 export(inter.linear)

@@ -1,11 +1,8 @@
-#' @rdname t.test.interflex
-#' @export
-t.test.interflex <- function(
+inter.test <- function(
 	x,
 	diff.values,
 	percentile=FALSE,
-	k=15,
-	...
+	k=15
 ){	
 	out <- x
 	
