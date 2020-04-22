@@ -15,5 +15,5 @@ Imports: Rcpp (>= 0.12.3), ggplot2 (>= 2.1.0), sandwich (>= 2.3-4),
         caret, gtable
 LinkingTo: Rcpp, RcppArmadillo
 NeedsCompilation: yes
-Packaged: 2019-12-20 14:26:54 UTC; cug
-Depends: R (>= 3.5.0)
+Packaged: 2020-04-22 00:58:05 UTC; cug
+Depends: R (>= 3.6.0)

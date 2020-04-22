@@ -1494,7 +1494,7 @@ if(TRUE){ #Storage
       hist.out = hist.out,
       count.tr = treat_hist,
 	  CI=CI,
-	  ttest.diffs = diff.table
+	  t.test.diffs = diff.table
     )
   }
   
@@ -1516,7 +1516,7 @@ if(TRUE){ #Storage
       hist.out = hist.out,
       count.tr = NULL,
 	  CI=CI,
-	  ttest.diffs = diff.table
+	  t.test.diffs = diff.table
     )
   }
   

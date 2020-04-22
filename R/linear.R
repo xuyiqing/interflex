@@ -1715,7 +1715,7 @@ inter.linear<-function(data,
     hist.out = hist.out,
     count.tr = treat_hist,
     tests = tests,
-	ttest.diffs = diff.table,
+	t.test.diffs = diff.table,
 	predict = predict
   )
   }
@@ -1737,7 +1737,7 @@ inter.linear<-function(data,
       hist.out = hist.out,
       count.tr = NULL,
       tests = tests,
-	  ttest.diffs = diff.table,
+	  t.test.diffs = diff.table,
 	  predict = predict
     )
   }

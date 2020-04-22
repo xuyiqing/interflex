@@ -97,7 +97,7 @@
   \item{CV.out}{results from cross-validation if \bold{bw} is not specified.}
   \item{graph}{stores the graphic output, a ggplot object.}
   \item{est.predict}{stores the expected value of Y conditional on X, D and the mean of all covariates if \bold{predict = TRUE}.}
-  \item{ttest.diffs}{stores the difference between treatment effects at corresponding values specified in \bold{diff.values}.}
+  \item{t.test.diffs}{stores the difference between treatment effects at corresponding values specified in \bold{diff.values}.}
 
 }
 \author{
