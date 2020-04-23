@@ -1,6 +1,6 @@
 \name{inter.test}
 \alias{inter.test}
-\title{Conduct t-Test after Estimation}
+\title{Conduct t-test of Treatment Effects}
 \description{Compare treatment effects at specific values of the moderator}
 \usage{inter.test(x, diff.values, percentile=FALSE, k=15)}
 \arguments{
