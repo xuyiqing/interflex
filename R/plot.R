@@ -23,6 +23,7 @@ plot.interflex <- function(
   cex.sub = NULL,
   cex.lab = NULL,
   cex.axis = NULL,
+  cex.legend = NULL,
   bin.labs = TRUE, # bin labels    
   interval = NULL, # interval in replicated papers
   file = NULL,
@@ -30,6 +31,7 @@ plot.interflex <- function(
   #pool plot
   pool = FALSE,
   legend.title = NULL,
+  legend.position = "top",
   color = NULL,
   jitter = FALSE,
   ...
@@ -66,9 +68,11 @@ plot.interflex <- function(
 	cex.main = cex.main,
 	cex.lab = cex.lab,
 	cex.axis = cex.axis,
+  cex.legend = cex.legend,
 	bin.labs = bin.labs, # bin labels    
 	interval = interval, # interval in replicated papers
 	legend.title = legend.title,
+  legend.position = legend.position,
 	color = color,
 	file = file,
 	jitter = jitter)

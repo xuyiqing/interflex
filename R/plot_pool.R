@@ -5,6 +5,7 @@ inter.plot.pool <- function( # only for discrete treatments
   order = NULL,
   subtitle = NULL,
   legend.title = NULL,
+  legend.position = "top",
   CI = TRUE,
   Xdistr = "histogram",
   main = NULL,
@@ -21,6 +22,7 @@ inter.plot.pool <- function( # only for discrete treatments
   cex.lab = NULL,
   cex.axis = NULL,
   cex.sub = NULL,
+  cex.legend = NULL,
   bin.labs = TRUE, # bin labels    
   interval = NULL, # interval in replicated papers
   color = NULL,
@@ -195,6 +197,11 @@ if (is.null(main)==FALSE) {
   if (is.null(cex.axis)==FALSE) {
     if (is.numeric(cex.axis)==FALSE) {
       stop("\"cex.axis\" is not numeric.")
+    }    
+  }
+  if (is.null(cex.legend)==FALSE) {
+    if (is.numeric(cex.legend)==FALSE) {
+      stop("\"cex.legend\" is not numeric.")
     }    
   }
 
@@ -738,6 +745,12 @@ if(is.null(diff.values)==FALSE){
   } else {
     cex.sub <- 10 * cex.sub
   }
+
+  if (is.null(cex.legend)==TRUE) {
+    cex.legend <- 12
+  } else {
+    cex.legend <- 12 * cex.legend
+  }
   
   
   if (is.null(main)==FALSE) {
@@ -745,7 +758,8 @@ if(is.null(diff.values)==FALSE){
       theme(plot.title = element_text(hjust = 0.5, size=cex.main,
                                       lineheight=.8, face="bold"))
   } 
-  
+
+
   ## xlim and ylim
   if (is.null(ylim)==FALSE) {
     ylim2 = c(ylim[1]-(ylim[2]-ylim[1])*0.25/6, ylim[2]+(ylim[2]-ylim[1])*0.4/6)
@@ -773,7 +787,7 @@ if(is.null(diff.values)==FALSE){
 		p0 <- p0 + labs(fill = legend.title,color = legend.title)
     }else{p0 <- p0 + labs(fill = "Treatment",color = "Treatment")}
 	p0 <- p0 + theme(legend.title = element_text(colour="black", size=cex.sub),
-					 legend.text = element_text(color = "black", size = cex.sub*0.95))
+					 legend.text = element_text(color = "black", size = cex.legend))
 	
 	p0 <- p0 + xlab(xlab) + ylab(ylab) + 
     theme(axis.text = element_text(size=cex.axis), axis.title = element_text(size=cex.lab))
@@ -783,6 +797,10 @@ if(is.null(diff.values)==FALSE){
       theme(plot.title = element_text(hjust = 0.5, size=cex.main,
                                       lineheight=.8, face="bold"))
 	}
+
+  # legend position
+  p0 <- p0 + theme(legend.position = legend.position)
+  
 	
 	## xlim and ylim
 	if (is.null(ylim)==FALSE) {
