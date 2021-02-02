@@ -591,7 +591,7 @@ if(TRUE){ #Preprocess
   }
   if(length(to_dummy_var)>0){
 	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
-	contr.list <- list(contr.sum, contr.sum)
+	contr.list <- rep("contr.sum", length(to_dummy_var))
 	names(contr.list) <- fnames
 	to_dummy_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
 	suppressWarnings(
@@ -668,29 +668,29 @@ if(TRUE){ ## linear model formula
 }
   
 if(TRUE){## binning model cutting points
-	## grouping by X
-	if (is.null(cutoffs)==TRUE) {
+		## binning part
+	if(is.null(cutoffs)==TRUE){
 		cuts.X<-quantile(data[,X],probs=seq(0,1,1/nbins))
-		while (length(unique(cuts.X))!=nbins+1) {
-			nbins<-nbins-1
-			cuts.X<-quantile(data[,X],probs=seq(0,1,1/nbins))
+		if (length(unique(cuts.X))!=nbins+1) {
+			cuts.X <- unique(cuts.X)
+			nbins <- length(cuts.X)-1
 		} 
-	} else {
-		cutoffs <-cutoffs[which(cutoffs>min(data[,X]) & cutoffs < max(data[,X]))]
+	}else {
+		cutoffs <- cutoffs[which(cutoffs>min(data[,X]) & cutoffs < max(data[,X]))]
 		cuts.X<- sort(unique(c(min(data[,X]),cutoffs,max(data[,X]))))
 	} 
-	groupX<-cut(data[,X],breaks=cuts.X, labels = FALSE)
-	groupX[which(data[,X]==min(data[,X]))]<-1
+	groupX <- cut(data[,X],breaks=cuts.X, labels = FALSE)
+	groupX[which(data[,X]==min(data[,X]))] <- 1
 	nbins <- length(unique(groupX))
   
 	## X labels
 	groupX2 <- cut(data[,X],breaks=cuts.X)
-	gp.lab = paste(Xlabel, ": ", levels(groupX2), sep="")
-	gp.lab[1] <- paste(Xlabel, ": [", substring(levels(groupX2)[1],2), sep = "")
+	gp.lab <- paste(Xlabel, ":", levels(groupX2), sep="")
+	gp.lab[1] <- paste(Xlabel, ":[", substring(levels(groupX2)[1],2), sep = "")
 
 	## mid points
 	x0<-rep(NA,nbins)
-	for (i in 1:nbins) x0[i]<-median(data[which(groupX==i),X], na.rm=TRUE)
+	for (i in 1:nbins) x0[i] <- median(data[which(groupX==i),X], na.rm=TRUE)
 }
   
 if(vartype=='bootstrap'){
@@ -2197,6 +2197,10 @@ if(vartype!='bootstrap'){
 	}
     
   ##############  Wald Test #####################
+  if(wald==TRUE & nbins==1){
+    wald <- FALSE
+  }
+
   
   if (wald == TRUE & treat.type=='continuous') { 
     ## formula

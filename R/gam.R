@@ -123,7 +123,7 @@ inter.gam<-function(data,Y,D,X,
   }
   if(length(to_dummy_var)>0){
 	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
-	contr.list <- list(contr.sum, contr.sum)
+	contr.list <- rep("contr.sum", length(to_dummy_var))
 	names(contr.list) <- fnames
 	to_dummy_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
 	suppressWarnings(
