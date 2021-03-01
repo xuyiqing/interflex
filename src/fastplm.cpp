@@ -20,10 +20,6 @@ List fastplm(arma::mat data,
   arma::mat data_old = arma::zeros(n, k);
   double diff = 100;
   
-  /*if(weight.is_empty()){
-   weight = arma::ones(n, 1);
-  }*/
-  
   // declare variables
   arma::colvec y;  // n*1
   arma::mat X; // n*p
@@ -118,8 +114,6 @@ List fastplm(arma::mat data,
     X = data.cols(1, p); // n*p
     //store coefficents and check variation of X
     coeff =arma::zeros(p,1); //store coefficients
-    //se =arma::zeros(p,1);
-    
     // check X variation
     int cc = p;
     for(int i=0;i<cc;i++){
@@ -146,45 +140,40 @@ List fastplm(arma::mat data,
   else {
     resid = y;
   }
-  
-  
-  // std.err.
-  // df = n - gtot - p;
-  //sig2 = arma::as_scalar(resid.t()*resid/df);
-  // if (p>0) { 
-  //   stderror = arma::sqrt(sig2 * arma::diagvec(arma::inv(arma::trans(X)*X))); 
-  // } 
-  
+
+  resid = resid/sqrt(weight);
+ 
   // fill in non-NaN coefficients
   int count=0;
   //String label = xname(0); 
   for(int i=0; i<p; i++){
     if(coeff(i)==0){
-      //  if(coeff(i)==0||se(i)==0){
       coeff(i)=coef(count);
-      //  se(i)=stderror(count); 
       count=count+1;
     }
   }
-  
+
+  data = data_bak;
+  y = data.col(0);  // n*1
+  mu = arma::sum(y%weight)/arma::sum(weight);
+  if (p > 0) {
+    X = data.cols(1, p); // n*p
+    coef = coeff; 
+    for (int i=0; i<p; i++) {
+      if (coef(i) == arma::datum::nan) {
+        coef(i) = 0;
+      }
+    }
+    arma::mat X_wei = X;
+    for(int i=0;i<p;i++){
+      X_wei.col(i)=X_wei.col(i)%weight;
+    }
+    X_wei = arma::sum(X_wei,0)/arma::sum(weight);
+    mu = mu - arma::as_scalar(X_wei * coef);
+  }
+
   // Calculate fixed effects coefficients
   if (FEcoefs == 1) {
-    data = data_bak;
-    y = data.col(0);  // n*1
-    
-    // grand mean
-    mu = arma::mean(y);
-    if (p > 0) {
-      X = data.cols(1, p); // n*p
-      coef = coeff; 
-      for (int i=0; i<p; i++) {
-        if (coef(i) == arma::datum::nan) {
-          coef(i) = 0;
-        }
-      }
-      mu = mu - arma::as_scalar(arma::mean(X, 0) * coef);
-    }
-    
     // residuals (with fixed effects)
     e = y - mu;
     if (p > 0) {
@@ -196,13 +185,13 @@ List fastplm(arma::mat data,
     
     for(int i=0; i<gtot; i++){
       std::string tempFE = std::to_string(int(FEvalues(i,0)))+"."+std::to_string(int(FEvalues(i,1)));
-      
       FEindex_map[tempFE] = i;
     }
     
     for(int i=0; i<n; i++) {
       arma::colvec FEindex(m,arma::fill::zeros);
       arma::rowvec FEobs = FE.row(i);
+      double sub_weight = arma::as_scalar(weight(i));
       for(int j=0; j<m; j++) {
         std::string tempFE = std::to_string(j)+"."+std::to_string(int(FEobs(j)));
         //std::cout << tempFE << std::endl;
@@ -210,17 +199,16 @@ List fastplm(arma::mat data,
       }
       for(int j=0;j<m;j++) {
         int index1 = FEindex(j);
-        LHS(index1) = LHS(index1) + e(i);
+        LHS(index1) = LHS(index1) + e(i)*sub_weight;
         for(int k=0;k<m;k++) {
           int index2 = FEindex(k);
-          W(index1, index2) = W(index1, index2) + 1;
+          W(index1, index2) = W(index1, index2) + sub_weight;
         }
       }
     }
     alphas = arma::solve(W,LHS);
     FEvalues = join_rows(FEvalues, alphas);
   }
-  
   
   // storage
   List output;
@@ -230,10 +218,10 @@ List fastplm(arma::mat data,
   }
   output["residuals"] = resid;
   output["niter"] = niter;
-  output["FEvalues"] = FEvalues;
+  output["mu"] = mu ;
   if (FEcoefs == 1) {
-    output["mu"] = mu ;
     output["ngroups"] = gtot; 
+    output["FEvalues"] = FEvalues;
   }
   return(output); 
   
