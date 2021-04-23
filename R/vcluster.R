@@ -31,6 +31,7 @@ vcovCluster <- function(
 	colnames(bread.empty) <- est.colname
 	rownames(bread.empty) <- est.colname
 	
+	
 	bread.empty[1:est.ori.length,1:est.ori.length] <- bread(model)
 	rcse.cov <- dfc * sandwich(model,bread. = bread.empty, meat. = crossprod(uj)/N)
 
