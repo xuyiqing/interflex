@@ -4,7 +4,7 @@
 
 ---
 
-**Authors:** Jens Hainmueller, Jonathan Mummolo, and Yiqing Xu
+**Authors:** Jens Hainmueller, Jonathan Mummolo, Yiqing Xu, and Ziyi Liu
 
 **Maintainer:** Yiqing Xu [<yiqingxu@stanford.edu>]  
 
