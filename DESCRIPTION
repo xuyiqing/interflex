@@ -1,19 +1,20 @@
 Package: interflex
 Type: Package
 Title: Multiplicative Interaction Models Diagnostics and Visualization
-Version: 1.1.4
-Date: 2020-9-26
+Version: 1.2.1
+Date: 2021-2-10
 Author: Jens Hainmueller, Jonathan Mummolo, Yiqing Xu and Ziyi Liu
-Maintainer: Yiqing Xu <yiqingxu@stanford.edu>
+Maintainer: Ziyi Liu <zyliu2016@nsd.pku.edu.cn>
 Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
 URL: http://yiqingxu.org/software/interaction/RGuide.html
 License: MIT + file LICENSE
-Imports: Rcpp (>= 0.12.3), ggplot2 (>= 2.1.0), sandwich (>= 2.3-4),
-        pcse (>= 1.9), lmtest (>= 0.9-34), Lmoments (>= 1.2-3),
+Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16),
-        lfe (>= 2.6-2291), gridExtra, grid, ggplotify, RColorBrewer,
-        caret, gtable
+        lfe (>= 2.6-2291), gridExtra, grid, ggplotify,
+        RColorBrewer,pcse, caret, gtable, MASS, mvtnorm, pROC,
+        ModelMetrics, Rcpp, lmtest, AER, future
 LinkingTo: Rcpp, RcppArmadillo
-NeedsCompilation: yes
-Depends: R (>= 3.6.0)
 LazyData: true
+NeedsCompilation: yes
+Packaged: 2021-04-19 13:25:46 UTC; BEIJING-c024
+Depends: R (>= 3.5.0)

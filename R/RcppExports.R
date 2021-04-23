@@ -5,3 +5,23 @@ fastplm <- function(data, FE, weight, FEcoefs = 0L) {
     .Call(`_interflex_fastplm`, data, FE, weight, FEcoefs)
 }
 
+iv_fastplm <- function(Y, X, Z, IV, FE, weight, FEcoefs = 0L) {
+    .Call(`_interflex_iv_fastplm`, Y, X, Z, IV, FE, weight, FEcoefs)
+}
+
+rcpparma_hello_world <- function() {
+    .Call(`_interflex_rcpparma_hello_world`)
+}
+
+rcpparma_outerproduct <- function(x) {
+    .Call(`_interflex_rcpparma_outerproduct`, x)
+}
+
+rcpparma_innerproduct <- function(x) {
+    .Call(`_interflex_rcpparma_innerproduct`, x)
+}
+
+rcpparma_bothproducts <- function(x) {
+    .Call(`_interflex_rcpparma_bothproducts`, x)
+}
+

@@ -15,5 +15,5 @@
 }
 
 \seealso{
-  \code{\link{interflex}}, \code{\link{inter.raw}}, \code{\link{inter.gam}}, \code{\link{plot.interflex}}, and \code{\link{predict.interflex}}
+  \code{\link{interflex}}, \code{\link{plot.interflex}}, and \code{\link{predict.interflex}}
 }

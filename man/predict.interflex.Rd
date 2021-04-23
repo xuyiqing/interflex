@@ -2,16 +2,19 @@
 \alias{predict.interflex}
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting expected outcomes given fixed values of the treatment and moderator after either the linear, binning or the kernel estimator is applied.}
-\usage{\method{predict}{interflex}(object, to.show = NULL, order = NULL, subtitles = NULL, 
-  show.subtitles = NULL, Xdistr = "histogram", CI = NULL, pool = FALSE, main = NULL, 
-  Ylabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL, 
-  theme.bw = FALSE, show.grid = TRUE, cex.main = NULL, cex.sub = NULL, 
-  cex.lab = NULL, cex.axis = NULL, color = NULL, file = NULL,interval = NULL, 
-  legend.title = NULL, ncols = NULL, \dots)
+\usage{\method{predict}{interflex}(object, type = 'response', order = NULL, 
+  subtitles = NULL, show.subtitles = NULL, Xdistr = "histogram", CI = NULL, pool = FALSE, 
+  main = NULL, Ylabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, 
+  xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
+  cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
+  color = NULL, file = NULL,interval = NULL, 
+  legend.title = NULL, ncols = NULL, show.all = FALSE, 
+  scale = 1.1, height = 7, width = 10,
+  \dots)
 }
 \arguments{
   \item{object}{an \bold{interflex} object (\bold{predict==TRUE}).}
-  \item{to.show}{a vector of strings that determines which treatment arms will be displayed when visualizing expected values. It should should be a subset of all treatment arms including the base group.}
+  \item{type}{a string indicating the type of prediction. Can be "response"(default) or "link".}
   \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing expected values. It should contain all treatment arms or all elements in "to.show".}
   \item{subtitles}{a vector of strings that determines the subtitles of subplots when \bold{pool} is FALSE, or determines the label in the legend when \bold{pool} is TRUE. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
@@ -36,6 +39,10 @@
   \item{interval}{draw two vertical lines to demonstrate the interval used in replicated papers.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
   \item{ncols}{na integral that controls the number of columns in the plot if \bold{pool} is FALSE.}
+  \item{show.all}{a logical flag specifying whether to return the plots for each kinds of treatment level. If setting to TRUE, the program will return a list of ggplot2 objects.}
+  \item{scale}{Multiplicative scaling factor of printed graph.}
+  \item{height}{Plot size (Height).}
+  \item{width}{Plot size (Width).}
   \item{\dots}{other argv.}
 }
 \details{
@@ -53,10 +60,5 @@
 \seealso{
   \code{\link{interflex}} and \code{\link{plot.interflex}}
 }
-\examples{
-library(interflex)
-data(interflex)
-out <- inter.binning(data = s1, Y = "Y", D = "D", X = "X", Z = "Z1",predict = TRUE)
-predict(out)
-}
+
 \keyword{graphics}

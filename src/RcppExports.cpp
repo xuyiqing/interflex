@@ -20,10 +20,78 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// iv_fastplm
+List iv_fastplm(arma::mat Y, arma::mat X, arma::mat Z, arma::mat IV, arma::mat FE, arma::colvec weight, int FEcoefs);
+RcppExport SEXP _interflex_iv_fastplm(SEXP YSEXP, SEXP XSEXP, SEXP ZSEXP, SEXP IVSEXP, SEXP FESEXP, SEXP weightSEXP, SEXP FEcoefsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type IV(IVSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type FE(FESEXP);
+    Rcpp::traits::input_parameter< arma::colvec >::type weight(weightSEXP);
+    Rcpp::traits::input_parameter< int >::type FEcoefs(FEcoefsSEXP);
+    rcpp_result_gen = Rcpp::wrap(iv_fastplm(Y, X, Z, IV, FE, weight, FEcoefs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpparma_hello_world
+arma::mat rcpparma_hello_world();
+RcppExport SEXP _interflex_rcpparma_hello_world() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(rcpparma_hello_world());
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpparma_outerproduct
+arma::mat rcpparma_outerproduct(const arma::colvec& x);
+RcppExport SEXP _interflex_rcpparma_outerproduct(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpparma_outerproduct(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpparma_innerproduct
+double rcpparma_innerproduct(const arma::colvec& x);
+RcppExport SEXP _interflex_rcpparma_innerproduct(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpparma_innerproduct(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rcpparma_bothproducts
+Rcpp::List rcpparma_bothproducts(const arma::colvec& x);
+RcppExport SEXP _interflex_rcpparma_bothproducts(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpparma_bothproducts(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_interflex_fastplm", (DL_FUNC) &_interflex_fastplm, 4},
+    {"_interflex_iv_fastplm", (DL_FUNC) &_interflex_iv_fastplm, 7},
+    {"_interflex_rcpparma_hello_world", (DL_FUNC) &_interflex_rcpparma_hello_world, 0},
+    {"_interflex_rcpparma_outerproduct", (DL_FUNC) &_interflex_rcpparma_outerproduct, 1},
+    {"_interflex_rcpparma_innerproduct", (DL_FUNC) &_interflex_rcpparma_innerproduct, 1},
+    {"_interflex_rcpparma_bothproducts", (DL_FUNC) &_interflex_rcpparma_bothproducts, 1},
     {NULL, NULL, 0}
 };
 
-
+RcppExport void R_init_interflex(DllInfo *dll) {
+    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+    R_useDynamicSymbols(dll, FALSE);
+}

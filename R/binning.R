@@ -1,674 +1,320 @@
-inter.binning<-function(data,
-                            Y, # outcome
-                            D, # treatment indicator
-                            X, # moderator
-                            treat.type = NULL, #discrete or continuous
-                            base = NULL, # base group when treatments are discrete
-                            Z = NULL, # covariates
-                            FE = NULL, # fixed effects
-                            weights = NULL, # weighting variable
-                            full.moderate = TRUE, # whether use fully moderated model
-                            na.rm = FALSE,
-                            Xunif = FALSE,
-                            nbins = 3,  # No. of X bins
-                            cutoffs = NULL,
-							CI = TRUE,
-                            vartype = "robust", # variance type
-                            ##  "homoscedastic" (default); "robust"; "cluster", "pcse", "bootstrap"
-							nboots = 200,
-							parallel = TRUE,
-							cores = 4,
-                            cl = NULL, # variable to be clustered on
-                            time = NULL, # time variable for pcse
-                            pairwise = TRUE, # pcse option
-                            wald = TRUE,
-							predict = FALSE,
-							D.ref = NULL,
-                            figure = TRUE,
-                            order = NULL,
-                            subtitles = NULL,
-                            show.subtitles = NULL,
-                            Xdistr = "histogram", # c("density","histogram","none")
-                            main = NULL,
-                            Ylabel = NULL,
-                            Dlabel = NULL,
-                            Xlabel = NULL,
-                            xlab = NULL,
-                            ylab = NULL,
-                            xlim = NULL,
-                            ylim = NULL,
-                            theme.bw = FALSE,
-                            show.grid = TRUE,
-                            cex.main = NULL,
-                            cex.sub = NULL,
-                            cex.lab = NULL,
-                            cex.axis = NULL,
-                            bin.labs = TRUE,                        
-                            interval = NULL,
-                            file = NULL,
-                            ncols = NULL,
-                            pool = FALSE,
-							color = NULL,
-                            jitter = FALSE,
-							legend.title = NULL
-){
-
-  x <- NULL
-  y <- NULL
-  xmin <- NULL
-  xmax <- NULL
-  ymin <- NULL
-  ymax <- NULL
-  
-if(TRUE){ #Input Check
-  
-  ## in case data is in tibble format
-  if (is.data.frame(data) == FALSE) {
-    data <- as.data.frame(data)
-  }
-  n<-dim(data)[1]
-  ## Y
-  if (is.character(Y) == FALSE) {
-    stop("\"Y\" is not a string.")
-  } else {
-    Y <- Y[1]
-  }
-  ## D
-  if (is.character(D) == FALSE) {
-    stop("\"D\" is not a string.")
-  } else {
-    D <- D[1]
-  }
-  ## X
-  if (is.character(X) == FALSE) {
-    stop("\"X\" is not a string.")
-  } else {
-    X <- X[1]
-  }
-  ## Z
-  if (is.null(Z) == FALSE) {
-    for (i in 1:length(Z)) {
-      if (is.character(Z[i]) == FALSE) {
-        stop("Some element in \"Z\" is not a string.")
-      }
-    }
-  }
-  ## FE
-  if (is.null(FE) == FALSE) {
-    requireNamespace("lfe")
-    for (i in 1:length(FE)) {
-      if (is.character(FE[i]) == FALSE) {
-        stop("Some element in \"FE\" is not a string.")
-      }
-    }
-    if (vartype == "pcse") {
-      vartype <- "cluster"
-      warning("Fixed-effect models do not allow panel corrected standard errors; changed to clustered standard errors.")
-    }
-  }
-  ## weights
-  if (is.null(weights) == FALSE) {
-    if (is.character(weights) == FALSE) {
-      stop("\"weights\" is not a string.")
-    } else {
-      dataweights <- data[,weights]
-    }   
-  }
-  ## full moderate model
-  if (is.logical(full.moderate) == FALSE & is.numeric(full.moderate)==FALSE) {
-    stop("\"full.moderate\" is not a logical flag.")
-  }else{
-    full <- full.moderate
-  }
-  ## na.rm
-  if (is.logical(na.rm) == FALSE & is.numeric(na.rm)==FALSE) {
-    stop("\"na.rm\" is not a logical flag.")
-  }
-
-  ## Xunif
-  if (is.logical(Xunif) == FALSE & is.numeric(Xunif)==FALSE) {
-    stop("\"Xunif\" is not a logical flag.")
-  }
-  
-  ## nbins
-  if (is.null(nbins) == FALSE) {
-    if (nbins%%1 != 0) {
-      stop("\"nbins\" is not a positive integer.")
-    } else {
-      nbins <- nbins[1]
-    }
-    if (nbins < 2) {
-      stop("\"nbins\" should be a positive integer larger than 2.")
-    }
-  }
-  
-  ## cutoffs
-  if (is.null(cutoffs) == FALSE) {
-    if (is.numeric(cutoffs) == FALSE) {
-      stop("Some element in \"cutoffs\" is not numeric.")
-    } 
-  }
-
-  ## CI
-  if (is.logical(CI) == FALSE & is.numeric(CI)==FALSE) {
-    stop("\"CI\" is not a logical flag.")
-  }
-  ## vartype
-  if (is.null(vartype)==TRUE) {
-    vartype <- "homoscedastic"
-  }
-  if (!vartype %in% c("homoscedastic","robust","cluster","pcse","bootstrap")){
-    stop("\"vartype\" must be one of the following: \"homoscedastic\",\"robust\",\"cluster\",\"pcse\",\"bootstrap\".")
-  } 
-  if (vartype == "cluster") {
-    if (is.null(cl)==TRUE) {
-      stop("\"cl\" not specified; set cl = \"varname\".")
-    }
-  } 
-  if (vartype == "pcse") {
-    if (is.null(cl)==TRUE | is.null(time)==TRUE) {
-      stop("\"cl\" or \"time\" not specified; set cl = \"varname1\", time = \"varname2\".")
-    }
-  }
-  
-  #nboots
-  if (is.null(nboots) == FALSE) {
-    if (is.numeric(nboots)==FALSE) {
-      stop("\"nboots\" is not a positive integer.")
-    } else {
-      nboots <- nboots[1]
-      if (nboots%%1 != 0 | nboots < 1) {
-        stop("\"nboots\" is not a positive number.")
-      }
-    } 
-  }else{nboots <- 200}
-  
-  # Parallel
-  if (is.logical(parallel) == FALSE & is.numeric(parallel)==FALSE) {
-    stop("\"parallel\" is not a logical flag.")
-  }
-  
-  # Cores
-  if (is.numeric(cores)==FALSE) {
-    stop("\"cores\" is not a positive integer.")
-  } else {
-    cores <- cores[1]
-    if (cores%%1!= 0 | cores<=0) {
-      stop("\"cores\" is not a positive integer.")
-    }
-  }
-  
-  # cl
-  if (is.null(cl)==FALSE) {
-    if (is.character(cl) == FALSE) {
-      stop("\"cl\" is not a string.")
-    } else {
-      cl <- cl[1]
-      if (vartype != "pcse" & vartype != "bootstrap") {
-        vartype <- "cluster"
-      }
-    }
-  }
-  
-  # time
-  if (is.null(time)==FALSE) {
-    if (is.character(time) == FALSE) {
-      stop("\"time\" is not a string.")
-    } else {
-      time <- time[1]
-    }
-  }
-  
-  ## check missing values
-  vars <- c(Y, D, X, Z, FE, cl,time, weights)
-  if (na.rm == TRUE) {        
-    data <- na.omit(data[,vars])
-  } else {
-    if (sum(is.na(data[,vars]))>0) {
-      stop("Missing values. Try option na.rm = TRUE\n")
-    }
-  }
-  
-  #pairwise
-  if (is.logical(pairwise) == FALSE & is.numeric(pairwise)==FALSE) {
-    stop("\"pairwise\" is not a logical flag.")
-  }
-  
-  #wald
-  if (is.logical(wald) == FALSE & is.numeric(wald)==FALSE) {
-    stop("\"wald\" is not a logical flag.")
-  }
-
-  # predict
-  if (is.logical(predict) == FALSE & is.numeric(predict)==FALSE) {
-    stop("\"predict\" is not a logical flag.")
-  }
-
-  # D.ref
-  if(is.null(D.ref)==FALSE){
-	if(is.numeric(D.ref)==FALSE){
-      stop("\"D.ref\" is not a numeric variable.")
-    }
-	if(length(D.ref)>9){
-	  stop("Too many values in \"D.ref\".")
+interflex.binning <- function(data,
+								Y, # outcome
+								D, # treatment indicator
+								X, # moderator
+								treat.info,
+								Z = NULL, # covariates
+								FE = NULL, # fixed effects
+								IV = NULL, # instrument variables
+								weights = NULL, # weighting variable
+								full.moderate = FALSE, # fully moderated model
+								Z.X = NULL, # fully moderated terms
+								neval = 50,
+								method = "linear", ## "probit"; "logit"; "poisson"; "nbinom"
+								nbins = 3,
+								cutoffs = NULL,
+								vartype = "simu", ## variance type "simu"; "bootstrap"; "delta"
+								vcov.type = "robust", ##"homoscedastic"; "robust"; "cluster"; "pcse"
+								time = NULL,
+								pairwise = TRUE,
+								nboots = 200,
+								nsimu = 1000,
+								parallel = TRUE,
+								cores = 4,
+								cl = NULL, # variable to be clustered on
+								#predict = FALSE,
+								Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
+								wald = TRUE,
+								figure = TRUE,
+								CI=TRUE,
+								bin.labs = TRUE,
+								order = NULL,
+								subtitles = NULL,
+								show.subtitles = NULL,
+								Xdistr = "histogram", # c("density","histogram","none")
+								main = NULL,
+								Ylabel = NULL,
+								Dlabel = NULL,
+								Xlabel = NULL,
+								xlab = NULL,
+								ylab = NULL,
+								xlim = NULL,
+								ylim = NULL,
+								theme.bw = FALSE,
+								show.grid = TRUE,
+								cex.main = NULL,
+								cex.sub = NULL,
+								cex.lab = NULL,
+								cex.axis = NULL,                       
+								interval = NULL,
+								file = NULL,
+								ncols = NULL,
+								pool = FALSE,
+								color = NULL,
+								legend.title = NULL,
+								show.all = FALSE,
+								scale = 1.1,
+  								height = 7,
+  								width = 10
+){	
+	WEIGHTS <- NULL
+	n <- dim(data)[1]
+	treat.type <- treat.info[["treat.type"]]
+	if(treat.type=='discrete'){
+		other.treat <- treat.info[["other.treat"]]
+		other.treat.origin <- names(other.treat)
+		names(other.treat.origin) <- other.treat
+		all.treat <- treat.info[["all.treat"]]
+		all.treat.origin <- names(all.treat)
+		names(all.treat.origin) <- all.treat
+		base <- treat.info[["base"]]
 	}
-  }
-  
-  # figure
-  if (is.logical(figure) == FALSE & is.numeric(figure)==FALSE) {
-    stop("\"figure\" is not a logical flag.")
-  }
-  
-  # show.subtitles
-  if(is.null(show.subtitles)==FALSE){
-	if (is.logical(show.subtitles) == FALSE & is.numeric(show.subtitles)==FALSE) {
-		stop("\"show.subtitles\" is not a logical flag.")
+	if(treat.type=='continuous'){
+		D.sample <- treat.info[["D.sample"]]
+		label.name <- names(D.sample)
+		#names(label.name) <- D.sample
 	}
-  }
-  
-  # Xdistr
-  if (!Xdistr %in% c("hist","histogram","density","none")){
-    stop("\"Xdistr\" must be \"histogram\", \"density\", or \"none\".")
-  }
-  
-  #main
-  if (is.null(main)==FALSE) {
-    main <- as.character(main)[1]
-  }
-  #Ylabel
-  if (is.null(Ylabel)==TRUE) {
-    Ylabel <- Y
-  } else {
-    if (is.character(Ylabel) == FALSE) {
-      stop("\"Ylabel\" is not a string.")
-    } else {
-      Ylabel <- Ylabel[1]
-    }   
-  }
-  #Dlabel  
-  if (is.null(Dlabel)==TRUE) {
-    Dlabel <- D   
-  } else {
-    if (is.character(Dlabel) == FALSE) {
-      stop("\"Dlabel\" is not a string.")
-    } else {
-      Dlabel <- Dlabel[1]
-    }   
-  }
-  #Xlabel
-  if (is.null(Xlabel)==TRUE) {
-    Xlabel <- X   
-  } else {
-    if (is.character(Xlabel) == FALSE) {
-      stop("\"Xlabel\" is not a string.")
-    } else {
-      Xlabel <- Xlabel[1]
-    }   
-  }
-  ## axis labels
-  if(is.null(xlab)==FALSE){
-    if (is.character(xlab) == FALSE) {
-      stop("\"xlab\" is not a string.")
-    }        
-  }
-  if(is.null(ylab)==FALSE){
-    if (is.character(ylab) == FALSE) {
-      stop("\"ylab\" is not a string.")
-    }        
-  }
+	ncols <- treat.info[["ncols"]]  
 
-  ## xlim ylim
-  if (is.null(xlim)==FALSE) {
-    if (is.numeric(xlim)==FALSE) {
-      stop("Some element in \"xlim\" is not numeric.")
-    } else {
-      if (length(xlim)!=2) {
-        stop("\"xlim\" must be of length 2.")
-      }
-    }
-  }
-  if (is.null(ylim)==FALSE) {
-    if (is.numeric(ylim)==FALSE) {
-      stop("Some element in \"ylim\" is not numeric.")
-    } else {
-      if (length(ylim)!=2) {
-        stop("\"ylim\" must be of length 2.")
-      }
-    }
-  }
-  
-  ## theme.bw
-  if (is.logical(theme.bw) == FALSE & is.numeric(theme.bw)==FALSE) {
-    stop("\"theme.bw\" is not a logical flag.")
-  }
-  
-  ## show.grid
-  if (is.logical(show.grid) == FALSE & is.numeric(show.grid)==FALSE) {
-    stop("\"show.grid\" is not a logical flag.")
-  }
-  
-  ## font size
-  if (is.null(cex.main)==FALSE) {
-    if (is.numeric(cex.main)==FALSE) {
-      stop("\"cex.main\" is not numeric.")
-    }
-  }
-  if (is.null(cex.sub)==FALSE) {
-    if (is.numeric(cex.sub)==FALSE) {
-      stop("\"cex.sub\" is not numeric.")
-    }
-  }
-  if (is.null(cex.lab)==FALSE) {
-    if (is.numeric(cex.lab)==FALSE) {
-      stop("\"cex.lab\" is not numeric.")
-    }
-  }
-  if (is.null(cex.axis)==FALSE) {
-    if (is.numeric(cex.axis)==FALSE) {
-      stop("\"cex.axis\" is not numeric.")
-    }    
-  }
-  
-  ## bin.labs
-  if (is.logical(bin.labs) == FALSE & is.numeric(bin.labs)==FALSE) {
-    stop("\"bin.labs\" is not a logical flag.")
-  }
-  
-  # interval
-  if (is.null(interval)==FALSE) {
-	if (is.numeric(interval)==FALSE) {
-      stop("Some element in \"interval\" is not numeric.")
-    } 
-  }
-  
-  # file
-  if (is.null(file)==FALSE) {
-	if (is.character(file)==FALSE) {
-      stop("Wrong file name.")
-    } 
-  }
-  
-  # ncols
-  if (is.null(ncols) == FALSE) {
-    if (is.numeric(ncols)==FALSE) {
-      stop("\"ncols\" is not a positive integer.")
-    } else {
-      ncols <- ncols[1]
-      if (ncols%%1 != 0 | ncols < 1) {
-        stop("\"ncols\" is not a positive number.")
-      }
-    } 
-  }
-  
-  ## pool
-  if (is.logical(pool) == FALSE & is.numeric(pool)==FALSE) {
-    stop("\"pool\" is not a logical flag.")
-  }
-  
-  ## color
-  if(is.null(color)==FALSE){
-	color <- as.character(color)
-	color.in <- c()
-	for(char in color){
-		res <- try(col2rgb(char),silent=TRUE)
-		if(!"try-error"%in%class(res)){
-			color.in <- c(color.in,char)
-		}else{stop(paste0(char," is not one name for a color.\n"))}
+	if(is.null(cl)==FALSE){ ## find clusters
+		clusters<-unique(data[,cl])
+		id.list<-split(1:n,data[,cl])
 	}
-	color <- color.in
-  }
-  
-  ## jitter
-  if (is.logical(jitter) == FALSE & is.numeric(jitter)==FALSE) {
-    stop("\"jitter\" is not a logical flag.")
-  }
-  
-  ## legend.title
-  if (is.null(legend.title)==FALSE) {
-    legend.title <- as.character(legend.title)[1]
-  }
-  
-}
 
-if(TRUE){ # TREAT SETTING
-  show.subtitles <- show.subtitles
-  subtitles <- subtitles
-  
-  ## treat.type check
-  if(is.null(treat.type)==T){
-    if(is.numeric(data[,D])==T){
-      if(length(unique(data[,D]))>5){
-        treat.type <- 'continuous'
-      }
-      else{
-        treat.type <- 'discrete'
-      }
-    }
-    else{
-      treat.type <- 'discrete'
-    }
-  }
-  
-  if (!treat.type %in% c("discrete","continuous") ){
-    stop("\"treat.type\" must be one of the following: \"discrete\",\"continuous\".")
-  }
-  
-  #if treat is discrete
-  if (treat.type=='discrete') {    
-  
-    if(length(unique(data[,D]))>9) {
-      stop("Too many kinds of treatment arms")
-    }
-    data[,D] <- as.character(data[,D])
-    
-    if(is.null(base)==TRUE) {
-      base=sort(unique(data[,D]))[1]
-      f=sprintf("Baseline group not specified; choose treat = %s as the baseline group. \n",base)
-      cat(f)
-    }
-    else {
-      base <- as.character(base)
-      if (!base %in% unique(data[,D])){
-        stop("\"base\" must be one of the treatment arms.")
-      }
-      f=sprintf("Baseline group: treat = %s \n",base)
-      cat(f)
-    }
-    
-	## in case there are special characters in D
-    all.treat=sort(unique(data[,D]))
-	names(all.treat) <- paste("Group",c(1:length(all.treat)),sep  = '.')
-    other.treat <- all.treat[which(all.treat!=base)]
-    other.treat <- sort(other.treat)
-    
-    if(is.null(order)==F){
-	  order <- as.character(order)
-	  
-	  if(length(order)!=length(unique(order))){
-        stop("\"order\" should not contain repeated values.")
-      }
-	  
-      if(length(order)!=length(other.treat)){
-        stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
-      }
-
-      if(sum(!is.element(order,other.treat))!=0 | sum(!is.element(other.treat,order))!=0){
-        stop("\"order\" should include all kinds of treatment arms except for the baseline group.")
-	  }
-      other.treat <- order
-	  colnames.p <- c()
-	  for(char in other.treat){
-		colnames.p <- c(colnames.p,names(all.treat[which(all.treat==char)]))
-	  }
-	  names(other.treat) <- colnames.p
+	if(is.null(FE)==TRUE){
+		use_fe <- 0
+	}else{
+		use_fe <- 1
 	}
+
+	#pcse
+	if(vcov.type=="pcse"){
+		data.cl <- data[,cl]
+		data.time <- data[,time]
+	}
+  
+	X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
 	
-	all.treat.origin <- all.treat
-	other.treat.origin <- other.treat
-	base.origin <- base
-	for(char in names(all.treat)){
-		data[which(data[,D]==all.treat[char]),D] <- char
-	}
-
-	all.treat <- names(all.treat.origin)
-	other.treat <- names(other.treat.origin)
-	base <- names(all.treat.origin[which(all.treat.origin==base.origin)])
-	names(all.treat) <- all.treat.origin
-	names(other.treat) <- other.treat.origin
-
-    if(is.null(subtitles)==F){
-      if(length(subtitles)!=length(other.treat)){
-        stop("The number of elements in \"subtitles\" should be m-1(m is the number of different treatment arms).")
-      }
-    }
+	##----------------------------------------------------------------------
+	##---------The Linear Estimator----------------------------------------
+	##----------------------------------------------------------------------
 	
-    if (is.logical(show.subtitles) == F & is.numeric(show.subtitles)==F & is.null(show.subtitles)==F) {
-      stop("\"show.subtitles\" is not a logical flag.")
-    } 
-  }
-  
-  if (treat.type=='continuous') {
-    if (is.numeric(data[,D])==F) {
-      stop("\"D\" is not a numeric variable")
-    }
-	
-	if(is.null(D.ref)==TRUE){
-    D.sample <- quantile(data[,D],probs = c(0.25,0.5,0.75),na.rm=T)
-	all.treat <- names(D.sample)
-    num.treat <- length(D.sample)
-    labelname <- c()
-    for (targetD in D.sample){
-      labelname <- c(labelname,paste0("D=",round(targetD,2)))
-    }
-    labelname <- paste0(labelname,' (',all.treat,')')
-	} else{
-	if (is.numeric(D.ref)==F) {
-      stop("\"D.ref\" is not a numeric variable")
-    }
-	D.sample <- D.ref
-	labelname <- c()
-    for (targetD in D.sample){
-      labelname <- c(labelname,paste0("D=",round(targetD,2)))
-    }
-	names(D.sample) <- labelname
-	all.treat <- labelname
-    num.treat <- length(D.sample)
-	}
-}
-## TREAT SETTING END
-  
-## number of columns in plots
-if (is.null(ncols) == FALSE) {
-    if (ncols%%1 != 0) {
-      stop("\"ncols\" is not a positive integer.")
-    } else {
-      ncols <- ncols[1]
-    }
-    if (ncols < 1) {
-      stop("\"ncols\" is not a positive integer.")
-    }
-  } else{
-  if(treat.type=="discrete"){
-	ncols <- length(unique(data[,D]))-1
-  }
-  if(treat.type=="continuous"){
-	ncols <- 1
-  }
- }
-}
-  
-if(TRUE){ #Preprocess
-  n<-dim(data)[1]
-  #convert factor covariates to dummy variables
-  to_dummy_var <- c()
-  for(a in Z){
-	if(is.factor(data[,a])==TRUE){
-		to_dummy_var <- c(to_dummy_var,a)
-	}	
-	if(is.character(data[,a])==TRUE){
-		stop("\"Z\" should be numeric or factorial.")
-	}
-  }
-  if(length(to_dummy_var)>0){
-	fnames <- paste("factor(", to_dummy_var, ")", sep = "")
-	contr.list <- rep("contr.sum", length(to_dummy_var))
-	names(contr.list) <- fnames
-	to_dummy_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
-	suppressWarnings(
-	to_dummy_mat <- model.matrix(to_dummy_form, data = data,
-                          contrasts.arg = contr.list)[, -1]
-	)
-	to_dummy_mat <- as.matrix(to_dummy_mat)
-	dummy_colnames <- c()
-	for(i in 1:dim(to_dummy_mat)[2]){
-		dummy_colnames <- c(dummy_colnames,paste0("Dummy.Covariate.",i))
-	}
-	colnames(to_dummy_mat) <- dummy_colnames
-	data <- cbind(data,to_dummy_mat)
-	Z <- Z[!Z %in% to_dummy_var]
-	Z <- c(Z,dummy_colnames)
-  }
-  
-
-  ## fully moderated model
-  if(full==T){
-    cat("Use a fully moderated model.\n")
-    full_names <- names(data)
-    names_Z <- Z
-    for(char in Z){
-      fm_name <- paste0(X,"_",char)
-      names_Z <- c(names_Z,fm_name)
-      full_names <- c(full_names,fm_name)
-      data <- cbind(data,data[,X]*data[,char])
-    }
-    names(data) <- full_names
-    Z <- names_Z
-  }
-  ## fully moderated model END
-  
-  ## transform moderator into uniform
-  if (Xunif == TRUE) {
-    x <- data[, X]
-    data[, X] <- rank(x, ties.method = "average")/length(x)*100
-    Xlabel <- paste(Xlabel,"(Percentile)")
-  }
-  ## transform moderator into uniform END
-  
-  ## change fixed effect variable to factor
-  if (is.null(FE)==FALSE) {
-    if (length(FE) == 1) {
-      data[, FE] <- as.numeric(as.factor(data[, FE]))
-    } else {
-      data[, FE] <- sapply(data[,FE],function(vec){as.numeric(as.factor(vec))})
-    }
-  }
-  ## change fixed effect variable to factor END
-  }
-  
-##  make a vector of the marginal effect of D on Y as X changes
-##X.lvls<-as.numeric(quantile(data[,X], probs=seq(0,1,0.01)))
-X.lvls <- seq(min(data[,X]), max(data[,X]), length.out = 50)
- 
-if(TRUE){ ## linear model formula
-	if (treat.type=="discrete"){
-		data[,D] <- as.factor(data[,D])
-		data[,D] <- relevel(data[,D], ref=base)
+	formula <- paste0(Y,"~",X)
+	if(treat.type=="discrete"){
+		for(char in other.treat){
+			data[,paste0("D",".",char)] <- as.numeric(data[,D]==char)
+			data[,paste0("DX",".",char)] <- as.numeric(data[,D]==char)*data[,X]
+			formula <- paste0(formula,"+",paste0("D",".",char),"+",paste0("DX",".",char))
 		}
-		mod.f<-paste0(Y,"~",D,"+",X,"+",D,"*",X)
-		if (is.null(Z)==FALSE) {
-			mod.f <- paste0(mod.f, "+", paste0(Z,collapse="+"))
+	}
+	else{
+		data[,"DX"] <- data[,D]*data[,X]
+		formula <- paste0(formula,"+",D,"+DX")
+	}
+  
+	if(is.null(Z)==FALSE){
+		formula <- paste0(formula,"+",paste0(Z,collapse="+"))
+		if(full.moderate==TRUE){
+			formula <- paste0(formula,"+",paste0(Z.X,collapse="+"))
 		}
-		if (is.null(FE)==FALSE) {
-			mod.f <- paste0(mod.f, "|",paste0(FE, collapse = "+"))
-			if (vartype=="cluster") {
-				mod.f <- paste0(mod.f, "| 0 |",paste0(cl,collapse = "+"))
+		formula.origin <- formula
+	}
+	else{
+		formula.origin <- formula
+	}
+
+	if (use_fe==1) {
+		formula <- paste0(formula, "|",paste0(FE, collapse = "+"))
+		if (vcov.type=="cluster") {
+			formula <- paste0(formula, "| 0 |",paste0(cl,collapse = "+"))
+		}
+	}
+
+	#iv formula
+	if(!is.null(IV)){
+		if(use_fe==0){
+			#mod2 <- ivreg(Y~D+X+D:X+Z1|W+X+W:X+Z1,data=s1)
+			formula.iv <- X
+			for(sub.iv in IV){
+				data[,paste0(X,".",sub.iv)] <- data[,sub.iv]*data[,X]
+				formula.iv <- paste0(formula.iv,"+",sub.iv)
+				formula.iv <- paste0(formula.iv,"+",paste0(X,".",sub.iv))
+			}
+			if(is.null(Z)==FALSE){
+				formula.iv <- paste0(formula.iv,"+",paste0(Z,collapse="+"))
+				if(full.moderate==TRUE){
+					formula.iv <- paste0(formula.iv,"+",paste0(Z.X,collapse="+"))
 				}
 			}
-		mod.f <- as.formula(mod.f)
-}
+			formula <- paste0(formula,"|",formula.iv)
+		}
+		if(use_fe==1){
+			#mod2 <- felm(Y~X+Z1+Z2|unit+year|(D|DX ~ W+WX)|0,data = s1)
+			formula <- paste0(Y,"~",X)
+			formula.iv <- ""
+			name.update <- c(X)
+			if(is.null(Z)==FALSE){
+				formula <- paste0(formula,"+",paste0(Z,collapse="+"))
+				name.update <- c(name.update,Z)
+				if(full.moderate==TRUE){
+					formula <- paste0(formula,"+",paste0(Z.X,collapse="+"))
+					name.update <- c(name.update,Z.X)
+				}
+			}
+			if(treat.type=="discrete"){
+				for(char in other.treat){
+					formula.iv <- paste0(formula.iv,"|",paste0("D",".",char),"|",paste0("DX",".",char))
+					name.update <- c(name.update,paste0("D",".",char),paste0("DX",".",char))
+				}
+			}
+			else{
+				formula.iv <- paste0(formula.iv,"|",D,"|DX")
+				name.update <- c(name.update,D,"DX")
+			}
+			formula.iv <- substring(formula.iv, 2)
+			formula.iv <- paste0(formula.iv," ~ ")
+
+			for(sub.iv in IV){
+				data[,paste0(X,".",sub.iv)] <- data[,sub.iv]*data[,X]
+				formula.iv <- paste0(formula.iv,"+",sub.iv)
+				formula.iv <- paste0(formula.iv,"+",paste0(X,".",sub.iv))
+			}
+
+			formula <- paste0(formula, "|",paste0(FE, collapse = "+"),"|")
+			formula.iv <- paste0("(",formula.iv,")")
+			formula <- paste0(formula,formula.iv)
+			if (vcov.type=="cluster") {
+				formula <- paste0(formula, "|",paste0(cl,collapse = "+"))
+			}
+		}
+	}
+	formula <- as.formula(formula)
   
-if(TRUE){## binning model cutting points
-		## binning part
+	if(is.null(weights)==TRUE){
+		w <- rep(1,n)
+	}
+	else{
+		w <- data[,weights]
+	}
+	data[['WEIGHTS']] <- w
+
+	## linear part
+	if(use_fe==0 & is.null(IV)){
+		if(method=='linear'){
+			suppressWarnings(
+				model <- glm(formula,data=data,weights=WEIGHTS)
+			)
+		}
+		if(method=='logit'){
+			suppressWarnings(
+				model <- glm(formula,data=data,family=binomial(link = 'logit'),weights=WEIGHTS)
+			)
+		}
+		if(method=='probit'){
+			suppressWarnings(
+				model <- glm(formula,data=data,family=binomial(link = 'probit'),weights=WEIGHTS)
+			)
+		}
+		if(method=='poisson'){
+			suppressWarnings(
+				model <- glm(formula,data=data,family=poisson,weights=WEIGHTS)
+			)
+		}
+		if(method=='nbinom'){
+			suppressWarnings(
+				model <- glm.nb(formula,data=data,weights=WEIGHTS)
+			)
+		}
+		if(model$converged==FALSE){
+			stop("Linear estimator can't converge.")
+		}
+	}
+
+	if(use_fe==TRUE & is.null(IV)){
+		suppressWarnings(
+			model <- felm(formula,data=data,weights=w)
+		)
+	}
+
+	if(!is.null(IV)){
+		if(use_fe==TRUE){
+			suppressWarnings(
+					model <- felm(formula,data=data,weights=w)
+			)
+		}
+		if(use_fe==0){
+			suppressWarnings(
+				model <- ivreg(formula,data=data,weights=WEIGHTS)
+			)
+		}
+	}
+	
+	model.coef <- coef(model)
+	if(!is.null(IV)){
+	  if(use_fe==1){
+	    names(model.coef) <- name.update
+	  }
+    }
+
+	if(use_fe==FALSE){
+		if(vcov.type=="homoscedastic"){
+			model.vcov <- vcov(model)
+		}
+		if(vcov.type=="robust"){
+			model.vcov <- vcovHC(model,type="HC1")
+		}
+		if(vcov.type=="cluster"){
+			model.vcov <- vcovCluster(model,cluster = data[,cl])
+		}
+		if(vcov.type=="pcse"){
+			model.vcov <- pcse(model,pairwise=pairwise,groupN=data.cl,groupT=data.time)$vcov
+			rownames(model.vcov)[1] <- "(Intercept)"
+			colnames(model.vcov)[1] <- "(Intercept)"
+		}
+	}
+
+	if(use_fe==TRUE){
+		if (vcov.type=="homoscedastic") {
+    		model.vcov <- vcov(model, type = "iid")
+    	} 
+		if (vcov.type=="robust") {
+    		model.vcov <- vcov(model, type = "robust") 
+    	} 
+		if (vcov.type=="cluster") {
+    		model.vcov <- vcov(model, type = "cluster") 
+    	}
+	}
+	
+	if(!is.null(IV)){
+		if(use_fe==1){
+	    	rownames(model.vcov) <- colnames(model.vcov) <- name.update
+	  	}
+    }
+	
+	model.df <- model$df.residual
+	model.coef[which(is.na(model.coef))] <- 0
+	model.vcov[which(is.na(model.vcov))] <- 0
+	
+	model.vcov.all <- matrix(0,nrow=length(model.coef),ncol=length(model.coef))
+	colnames(model.vcov.all) <- names(model.coef)
+	rownames(model.vcov.all) <- names(model.coef)
+	for(a1 in rownames(model.vcov)){
+		for(a2 in colnames(model.vcov)){
+			model.vcov.all[a1,a2] <- model.vcov[a1,a2]
+		}
+	}
+	if(isSymmetric.matrix(model.vcov.all,tol = 1e-6)==FALSE){
+		warning(paste0("Option vcov.type==",vcov.type,"leads to unstable standard error in linear estimator, by default use homoscedastic standard error as an alternative.\n"))
+		model.vcov.all <- vcov(model)
+		model.vcov.all[which(is.na(model.vcov.all))] <- 0
+	}
+	model.vcov <- model.vcov.all
+
+
+	##----------------------------------------------------------------------
+	##---------The Binning Estimator----------------------------------------
+	##----------------------------------------------------------------------
+	
 	if(is.null(cutoffs)==TRUE){
 		cuts.X<-quantile(data[,X],probs=seq(0,1,1/nbins))
 		if (length(unique(cuts.X))!=nbins+1) {
@@ -691,1779 +337,2181 @@ if(TRUE){## binning model cutting points
 	## mid points
 	x0<-rep(NA,nbins)
 	for (i in 1:nbins) x0[i] <- median(data[which(groupX==i),X], na.rm=TRUE)
-}
-  
-if(vartype=='bootstrap'){
-	## a function that will return marginal effects and binning coeficients
-	## (predict==T) generate a function that returns predicted value of Y under binning model specifications.
-	## bootstrap
-	## some tests
-	gen_marg <- function(data,nbins,cuts.X,x0,Df=FALSE){
-		if(is.null(weights)==FALSE){
-			dataweights <- data[,weights]
-		}
-		groupX<-cut(data[,X],breaks=cuts.X, labels = FALSE)
-		groupX[which(data[,X]==min(data[,X]))]<-1
-		
-		if(length(unique(groupX))<nbins){
-			return(matrix(NA,nrow=length(X.lvls),ncol=0))
-		}
-		
-		if (is.null(FE)==TRUE) { #OLS
-			if (is.null(weights)==TRUE) {
-				mod.naive<-lm(mod.f,data=data)
-			} 	else {
-				mod.naive<-lm(mod.f,data=data,weights=dataweights)
-			}
-		} else { # FE
-			if (is.null(weights)==TRUE) {
-				mod.naive<-felm(mod.f,data=data)
-			} else {
-				mod.naive<-felm(mod.f,data=data,weights=dataweights)
-			}
-		}
 
-		## coefficients
-		coefs<-summary(mod.naive)$coefficients[,1]
-	
-		if(treat.type=='continuous'){
-			coef.D<-coefs[D]
-			coef.X<-coefs[X]
-			coef.DX<-coefs[paste(D,X,sep=":")] #interaction
-			marg<-coef.D + coef.DX*X.lvls
-			marg[which(is.na(marg))] <- 0
-		}
-  
-		if(treat.type=='discrete'){
-			coef_list <- list()
-			coef_inter_list <- list()
-			marg_list <- list()
-			for(char in other.treat){
-				coef_list[[char]] <- coefs[paste0(D,char)]
-				coef_inter_list[[char]] <- coefs[paste(paste0(D,char),X,sep=":")]
-				temp_marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
-				temp_marg[which(is.na(temp_marg))] <- 0
-				marg_list[[char]] <- temp_marg
-			}
-		}
-		df <- NULL
-		if (treat.type=='continuous') {
-			G<-DG<-GX<-DGX<-matrix(0,n,nbins)
-			for (i in 1:nbins) {
-				G[which(groupX==i),i]<-1
-				DG[,i]<-data[,D]*G[,i]
-				GX[,i]<-G[,i]*(data[,X]-x0[i])
-				DGX[,i]<-DG[,i]*(data[,X]-x0[i])
-			}
-  
-			Gs<-GXs<-DGs<-DGXs<-c()
-			for (i in 1:nbins) {
-				Gs<-c(Gs,paste0("G[,",i,"]"))
-				GXs<-c(GXs,paste0("GX[,",i,"]"))
-				DGs<-c(DGs,paste0("DG[,",i,"]"))
-				DGXs<-c(DGXs,paste0("DGX[,",i,"]"))
-			}
-			
-			Xf<-paste0(Y,"~ -1+",paste0(DGs,collapse="+"),"+",paste0(DGXs,collapse="+"),
-             "+",paste0(Gs,collapse="+"),"+",paste0(GXs,collapse="+"))
-			 
-			if (is.null(Z)==FALSE) {
-				Xf<- paste0(Xf,"+",paste0(Z,collapse="+"))
-			}
-			if (is.null(FE)==FALSE) {
-				Xf <- paste0(Xf, "|",paste0(FE, collapse = "+"))
-			}
-			mod.Xf<-as.formula(Xf)    
-  
-			if (is.null(FE)==TRUE) { #OLS
-				if (is.null(weights)==TRUE) {
-					mod.X<-lm(mod.Xf,data=data)
-				} else {
-					mod.X<-lm(mod.Xf,data=data,weights=dataweights)
-				}
-			} else { # FE
-				if (is.null(weights)==TRUE) {
-					mod.X<-suppressWarnings(felm(mod.Xf,data=data))
-				} else {
-					mod.X<-suppressWarnings(felm(mod.Xf,data=data,weights=dataweights))
-				}
-			}	
-			df <- mod.X$df
-			Xcoefs<-mod.X$coefficients[1:nbins]
-			#Xcoefs[which(is.na(Xcoefs))] <- 0
-			output <- matrix(NA,nrow=length(X.lvls),ncol=2)
-			output[,1] <- marg
-			output[1:length(Xcoefs),2] <- Xcoefs 
-			colnames(output) <- c('ME','BinCoef')
-			}
-	
-		if(treat.type=='discrete'){
-			G<-GX<-matrix(0,n,nbins)
-			for (i in 1:nbins) {
-				G[which(groupX==i),i] <- 1
-				GX[,i] <- G[,i]*(data[,X]-x0[i])
-			}
-			for (char in other.treat) {
-				DG_name <- paste0("DG.",char)
-				DGX_name <- paste0("DGX.",char)
-				DG_matrix <- DGX_matrix <- matrix(0,n,nbins)
-				for (i in 1:nbins) {
-					DG_matrix[,i] <- (data[,D]==char)*G[,i]
-					DGX_matrix[,i] <- DG_matrix[,i]*(data[,X]-x0[i])
-			}
-			assign(DG_name,DG_matrix)
-			assign(DGX_name,DGX_matrix)
-		}
-		Gs<-GXs<-DGs<-DGXs<-c()
-		for (i in 1:nbins)  {
-			Gs<-c(Gs,paste0("G[,",i,"]"))
-			GXs<-c(GXs,paste0("GX[,",i,"]"))
-		for (char in other.treat) {
-			DGs<-c(DGs,paste0("DG.",char,"[,",i,"]"))
-			DGXs<-c(DGXs,paste0("DGX.",char,"[,",i,"]"))
-		}
-		}
-		Xf<-paste0(Y,"~ -1+",paste0(DGs,collapse="+"),"+",paste0(DGXs,collapse="+"),
-               "+",paste0(Gs,collapse="+"),"+",paste0(GXs,collapse="+"))
-		if (is.null(Z)==FALSE) {
-			Xf<- paste0(Xf,"+",paste0(Z,collapse="+"))
-		}
-		if (is.null(FE)==FALSE) {
-			Xf <- paste0(Xf, "|",paste0(FE, collapse = "+"))
-		}
-		mod.Xf<-as.formula(Xf)    
-    
-		## fit
-		if (is.null(FE)==TRUE) { #OLS
-			if (is.null(weights)==TRUE) {
-				mod.X<-lm(mod.Xf,data=data)
-			} else {
-				mod.X<-lm(mod.Xf,data=data,weights=dataweights)
-			}
-		} else { # FE
-			if (is.null(weights)==TRUE) {
-				mod.X<-suppressWarnings(felm(mod.Xf,data=data))
-			} else {
-				mod.X<-suppressWarnings(felm(mod.Xf,data=data,weights=dataweights))
-		}
-		}
-		df <- mod.X$df
-		Xcoefs_list <- list()
-		for (char in other.treat) {
-			DGs <- c()
-			for (i in 1:nbins) {
-				DGs<-c(DGs,paste0("DG.",char,"[, ",i,"]"))
-			}
-			if(is.null(FE)==T){
-				tempcoef <- mod.X$coefficients[DGs]
-			}
-			else{
-				tempcoef <- mod.X$coefficients[DGs,]
-			}
-			#tempcoef[which(is.na(tempcoef))] <- 0
-			Xcoefs_list[[char]] <- tempcoef
-		}
-		
-		output <- matrix(NA,nrow=length(X.lvls),ncol=length(other.treat)*2)
-		k <- 1
-		output_colname <- c()
-		for(char in other.treat){
-			output[,k] <- marg_list[[char]]
-			output_colname <- c(output_colname,paste0("ME.",char))
-			k <- k + 1
-			output[1:nbins,k] <- Xcoefs_list[[char]]
-			output_colname <- c(output_colname,paste0("BinCoef.",char))
-			k <- k + 1
-		}
-		colnames(output) <- output_colname
-	}
-
- if(Df==FALSE){
-	return(output)
- }
- if(Df==TRUE) {
-	return(list(output=output,df=df))
- }
- }
-	output.list <- gen_marg(data=data,nbins=nbins,cuts.X=cuts.X,x0=x0,Df=TRUE)
-	output <- output.list$output
-	df.X <- output.list$df
-	if(predict==TRUE){
-		data.demean <- data
-		if(is.null(FE)==FALSE){
-			data.touse <- as.matrix(data[,Y])
-			data.fe <- as.matrix(data[,FE])
-			if(is.null(weights)==FALSE){
-				w <- as.matrix(data[,weights])
-			}else{w <- rep(1,dim(data.touse)[1])}
-			fastplm_demean <- fastplm(data = data.touse, FE = data.fe,
-									  weight = w, FEcoefs = 0)
-			data.demean[,Y] <- fastplm_demean$residuals
-		}
-		if(treat.type=='continuous'){
-			    gen_Ey <- function(data,Y,D,X,FE,weights,Z=NULL,nbins,cuts.X,x0){
-									n<-dim(data)[1]
-									data_touse <- data
-									if(is.null(weights)==F){
-										weight_touse <- as.matrix(data[,weights])
-									}
-									else{
-										weight_touse <- as.matrix(rep(1,n))
-									}
-									groupX<-cut(data[,X],breaks=cuts.X, labels = FALSE)
-									groupX[which(data[,X]==min(data[,X]))]<-1
-									if(length(unique(groupX))<nbins){
-										return(matrix(NA,nrow=length(X.lvls),ncol=0))
-									}
-									data1 <- as.data.frame(data_touse[,Y])
-									colnames <- c("Y")
-									formula <- "Y ~ -1"
-									for(char in Z){
-										data1 <- cbind(data1,data_touse[,char])
-										colnames <- c(colnames,char)
-										formula <- paste(formula,char,sep = "+")
-									}
-									for (i in 1:nbins){
-										data1 <- cbind(data1,as.numeric(groupX==i))
-										colnames <- c(colnames,paste0("G.",i))
-										formula <- paste(formula,paste0("G.",i),sep = "+")
-									}
-									for (i in 1:nbins){
-										data1 <- cbind(data1,as.numeric(groupX==i)*data_touse[,D])
-										colnames <- c(colnames,paste0("G.",i,".D"))
-										formula <- paste(formula,paste0("G.",i,".D"),sep="+")
-									}
-									for (i in 1:nbins){
-										data1 <- cbind(data1,as.numeric(groupX==i)*(data_touse[,X]-x0[i]))
-										colnames <- c(colnames,paste0("G.",i,".X"))
-										formula <- paste(formula,paste0("G.",i,".X"),sep = "+")
-									}
-									for (i in 1:nbins){
-										data1 <- cbind(data1,as.numeric(groupX==i)*data_touse[,D]*(data_touse[,X]-x0[i]))
-										colnames <- c(colnames,paste0("G.",i,".DX"))
-										formula <- paste(formula,paste0("G.",i,".DX"),sep="+")
-									}
-		
-									if (is.null(FE)==FALSE) {
-										formula <- paste0(formula, "|",paste0(FE, collapse = "+"))
-										data1 <- cbind(data1,data_touse[,FE])
-										colnames <- c(colnames,FE)
-									}
-		
-									colnames(data1) <- colnames
-									formula <- as.formula(formula)
-									if(is.null(FE)==TRUE){
-										binning_fit <- lm(formula=formula,data=data1,weights = weight_touse)
-									}
-									if(is.null(FE)==FALSE){
-										suppressWarnings(binning_fit <- felm(formula=formula,data=data1,weights = weight_touse))
-									}
-	  
-									binning_coef <- binning_fit$coefficients
-									binning_coef[which(is.na(binning_coef))] <- 0
-									binning_coef <- as.matrix(binning_coef)
-	  
-									npred <- length(X.pred)
-									x_predict <- X.pred
-									data_predict_start <- matrix(NA,nrow = npred,ncol = 0)
-									for (char in Z){
-										data_predict_start <- cbind(data_predict_start,mean(data_touse[,char]))
-									}
-									Ey_all <- matrix(NA,nrow=npred,ncol=0)
-									groupX_predict<-cut(x_predict,breaks=cuts.X, labels = FALSE)
-									groupX_predict[which(x_predict==min(x_predict))]<-1
-									for(target.D in D.sample){
-										data_predict <- data_predict_start
-										for(i in 1:nbins){
-											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i))
-										}
-										for(i in 1:nbins){
-											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*target.D)
-										}
-										for(i in 1:nbins){
-											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*(x_predict-x0[i]))
-										}
-										for(i in 1:nbins){
-											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*target.D*(x_predict-x0[i]))
-										}
-										output <- as.double(data_predict%*%binning_coef)
-										Ey_all <- cbind(Ey_all,output)
-									}	
-									colnames(Ey_all) <- names(D.sample)
-									return(Ey_all)
-									}
-		}
-		if(treat.type=='discrete'){
-			gen_Ey <- function(data,Y,D,X,FE,weights,Z=NULL,nbins,cuts.X,x0){
-								n <- dim(data)[1]
-								
-
-								data_touse <- data
-								if(is.null(weights)==F){
-									weight_touse <- as.matrix(data[,weights])
-								}
-								else{
-									weight_touse <- as.matrix(rep(1,n))
-								}
-	  
-								groupX<-cut(data[,X],breaks=cuts.X, labels = FALSE)
-								groupX[which(data[,X]==min(data[,X]))]<-1
-								if(length(unique(groupX))<nbins){
-									return(matrix(NA,nrow=length(X.pred),ncol=0))
-								}
-  
-								all.treat.new <- sort(unique(data[,D]))
-								if(length(all.treat.new)<length(all.treat)){ # in case some kinds of treatments are not in bootstrap samples
-									return(matrix(NA,nrow=length(X.pred),ncol=0))
-								}
-    
-								data1 <- as.data.frame(data_touse[,Y])
-								colnames <- c("Y")
-								formula <- "Y ~ -1"
-    
-								for(char in Z){
-									data1 <- cbind(data1,data_touse[,char])
-									colnames <- c(colnames,char)
-									formula <- paste(formula,char,sep = "+")
-								}
-    
-								for (i in 1:nbins){
-									data1 <- cbind(data1,as.numeric(groupX==i))
-									colnames <- c(colnames,paste0("G.",i))
-									formula <- paste(formula,paste0("G.",i),sep = "+")
-								}
-    
-								for (i in 1:nbins){
-									for(char in other.treat){
-										data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char))
-										colnames <- c(colnames,paste0("G.",i,".D.",char))
-										formula <- paste(formula,paste0("G.",i,".D.",char),sep="+")
-									}
-								}
-    
-								for (i in 1:nbins){
-									data1 <- cbind(data1,as.numeric(groupX==i)*(data_touse[,X]-x0[i]))
-									colnames <- c(colnames,paste0("G.",i,".X"))
-									formula <- paste(formula,paste0("G.",i,".X"),sep = "+")
-								}
-    
-								for (i in 1:nbins){
-									for(char in other.treat){
-										data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char)*(data_touse[,X]-x0[i]))
-										colnames <- c(colnames,paste0("G.",i,".D.",char,".X"))
-										formula <- paste(formula,paste0("G.",i,".D.",char,".X"),sep="+")
-									}
-								}
-	
-								if (is.null(FE)==FALSE) {
-									formula <- paste0(formula, "|",paste0(FE, collapse = "+"))
-									data1 <- cbind(data1,data_touse[,FE])
-									colnames <- c(colnames,FE)
-								}
-								colnames(data1) <- colnames
-								formula <- as.formula(formula)
-								if(is.null(FE)==TRUE){
-									binning_fit <- lm(formula=formula,data=data1,weights = weight_touse)
-								}
-								if(is.null(FE)==FALSE){
-									suppressWarnings(binning_fit <- felm(formula=formula,data=data1,weights = weight_touse))
-								}
-	
-								binning_coef <- binning_fit$coefficients
-								binning_coef[which(is.na(binning_coef))] <- 0
-								binning_coef <- as.matrix(binning_coef)
-    
-								x_predict <- X.pred
-								npred <- length(X.pred)
-								data_predict_start <- matrix(NA,nrow = npred,ncol = 0)
-								for (char in Z){
-									data_predict_start <- cbind(data_predict_start,mean(data_touse[,char]))
-								}
-    
-								Ey_all <- matrix(NA,nrow=npred,ncol=0)
-								groupX_predict<-cut(x_predict,breaks=cuts.X, labels = FALSE)
-								groupX_predict[which(x_predict==min(x_predict))] <- 1
-    
-								for(target_treat in all.treat){
-									data_predict <- data_predict_start
-									for(i in 1:nbins){
-										data_predict <- cbind(data_predict,as.numeric(groupX_predict==i))
-									}
-									for(i in 1:nbins){
-										for(char in other.treat){
-											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat))
-										}
-									}
-									for(i in 1:nbins){
-										data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*(x_predict-x0[i]))
-									}
-									for(i in 1:nbins){
-										for(char in other.treat){
-											data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat)*(x_predict-x0[i]))
-										}
-									}
-									output <- as.double(data_predict%*%binning_coef)
-									Ey_all <- cbind(Ey_all,output)
-								}
-								colnames(Ey_all) <- all.treat
-								return(Ey_all)
-								}		
-		}
-		X.pred <- seq(min(data[,X]),max(data[,X]),length.out=length(X.lvls))
-		predict_Ey <- gen_Ey(data=data.demean,Y=Y,D=D,X=X,FE=NULL,weights=weights,Z=Z,nbins=nbins,cuts.X=cuts.X,x0=x0)
-	}
-	
-    if (is.null(cl)==FALSE) { ## find clusters
-      clusters<-unique(data[,cl])
-      id.list<-split(1:n,data[,cl])
-    }
- 
-	one.boot <- function(){
-      if (is.null(cl)==TRUE) {
-        smp<-sample(1:n,n,replace=TRUE)
-      } else { ## block bootstrap
-        cluster.boot<-sample(clusters,length(clusters),replace=TRUE)
-        smp<-unlist(id.list[match(cluster.boot,clusters)])
-      }   
-      s<-data[smp,]
-	  
-	  if(treat.type=='discrete'){
-        if(length(unique(s[,D]))<length(unique(data[,D]))){
-          return(matrix(NA,length(X.lvls),0))
-        }
-      }
-	  
-	  runflag <- try(output <- gen_marg(data=s,nbins=nbins,cuts.X=cuts.X,x0=x0),silent=T)
-	  
-	  if(class(runflag)=='try-error'){
-		return(matrix(NA,length(X.lvls),0))
-	  }
-	  
-	  if(predict==TRUE){
-		ss<-data.demean[smp,]
-		runflag2 <- try(output2 <- gen_Ey(data=ss,Y=Y,D=D,X=X,FE=NULL,Z=Z,weights=weights,
-										  nbins=nbins,cuts.X=cuts.X,x0=x0),silent=T)
-		if(class(runflag2)=='try-error'){
-			return(matrix(NA,length(X.lvls),0))
-		}
-		if(dim(output2)[2]==0){
-			return(matrix(NA,length(X.lvls),0))
-		}
-		colnames(output2) <- paste0("pred.",colnames(output2))
-		output <- cbind(output,output2)
-	  }
-	  return(output)
-	}
-	
-	if (parallel==TRUE){
-	   requireNamespace("doParallel")
-		## require(iterators)
-		maxcores <- detectCores()
-		cores <- min(maxcores, cores)
-		pcl<-makeCluster(cores)  
-		doParallel::registerDoParallel(pcl)
-		cat("Parallel computing with", cores,"cores...\n") 
-
-      suppressWarnings(
-        bootout <- foreach (i=1:nboots, .combine=cbind,
-                            .export=c("one.boot"),.packages=c("lfe"),
-                            .inorder=FALSE) %dopar% {one.boot()}
-      ) 
-	  suppressWarnings(stopCluster(pcl))
-      cat("\r")
-    } 
-    else {
-        bootout<-matrix(NA,length(X.lvls),0)
-        for (i in 1:nboots) {
-          tempdata <- one.boot()
-          if(is.null(tempdata)==F){
-            bootout<- cbind(bootout,tempdata)
-          }
-          if (i%%50==0) cat(i) else cat(".")
-        }
-      cat("\r")
-	}
-
-if(dim(bootout)[2]==0){
-	stop("Bootstrap standard error is not stable, try another vartype.")
-}
-
-
- if(treat.type=='discrete'){
-	marg.list <- list()
-	bincoef.list <- list()
-	bin.var.list <- list()
-	pred.list <- list()
-	for(char in other.treat){
-		marg.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
-		bincoef.list[[char]] <- matrix(NA,nrow=nbins,ncol=0)
-	}
-	for(char in all.treat){
-			pred.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
-	}
-	if(predict==TRUE){
-			kcol <- 2*length(other.treat)+length(all.treat)
-	}
-	if(predict==FALSE){
-			kcol <- 2*length(other.treat)
-	}
-	trueboot <- dim(bootout)[2]/kcol
-	for(k in 0:(trueboot-1)){
-		start <- kcol*k+1
-		end <- kcol*(k+1)
-		bootout_seg <- bootout[,start:end]
-		
-		for(char in other.treat){
-			tempmarg <- marg.list[[char]]
-			tempmarg <- cbind(tempmarg,bootout_seg[,paste0("ME.",char)])
-			marg.list[[char]] <- tempmarg 
-			tempbincoef <- bincoef.list[[char]]
-			tempbincoef <- cbind(tempbincoef,bootout_seg[,paste0("BinCoef.",char)][1:nbins])
-			bincoef.list[[char]] <- tempbincoef
-		}
-		
-		if(predict==TRUE){
-			for(char in all.treat){
-					temppred <- pred.list[[char]]
-					temppred <- cbind(temppred,bootout_seg[,paste0("pred.",char)])
-					pred.list[[char]] <- temppred
-				}
-		}
-	}	
-	for(char in other.treat){
-		bin.var.list[[char]] <- var(t(bincoef.list[[char]]),na.rm=TRUE)
-	}	
- }
- 
- 
- if(treat.type=='continuous'){
-	marg.con <- matrix(NA,nrow=length(X.lvls),ncol=0)
-	coef.con <- matrix(NA,nrow=nbins,ncol=0)
-	pred.list <- list()
-	for(char in all.treat){
-			pred.list[[char]] <- matrix(NA,nrow=length(X.lvls),ncol=0)
-	}
-	if(predict==TRUE){
-			kcol <- 2+length(all.treat)
-	}
-	if(predict==FALSE){
-			kcol <- 2
-	}
-	
-	trueboot <- dim(bootout)[2]/kcol
-		
-	for(k in 0:(trueboot-1)){
-		start <- kcol*k+1
-		end <- kcol*(k+1)
-		bootout_seg <- bootout[,start:end]
-		marg.con <- cbind(marg.con,bootout_seg[,"ME"])
-		coef.con <- cbind(coef.con,bootout_seg[,"BinCoef"][1:nbins])
-	
-		if(predict==TRUE){
-			for(char in all.treat){
-				temppred <- pred.list[[char]]
-				temppred <- cbind(temppred,bootout_seg[,paste0("pred.",char)])
-				pred.list[[char]] <- temppred
-			}
-		}
-	}
-		bin.var <- var(t(coef.con),na.rm=TRUE)
- }
- 
- CI.lvl <- c((1-0.95)/2, (1-(1-0.95)/2))
- if(treat.type=='discrete'){
-	est.lin <- list()
-	est.bin <- list()
-	est.matrix <- list()
-	for(char in other.treat){
-		marg <- output[,paste0("ME.",char)]
-		marg.ci <- t(apply(marg.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
-		
-		se <- apply(marg.list[[char]],1,sd,na.rm=TRUE)
-		lb <- marg.ci[,1]
-		ub <- marg.ci[,2]
-		tempest <- data.frame(X.lvls,marg,se,lb,ub)
-		tempest[,'Treatment']<- rep(other.treat.origin[char],dim(tempest)[1])
-		est.lin[[other.treat.origin[char]]] <- tempest
-		est.matrix[[other.treat.origin[char]]] <- cov(t(marg.list[[char]]))
-		
-		bin.coef <- output[,paste0("BinCoef.",char)][1:nbins]
-		bin.coef.ci <- t(apply(bincoef.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
-		bin.coef.se <- apply(bincoef.list[[char]],1,sd,na.rm=TRUE)
-		bin.coef.lb <- bin.coef.ci[,1]
-		bin.coef.ub <- bin.coef.ci[,2]
-		tempbin <- data.frame(x0,coef=bin.coef,se=bin.coef.se,CI_lower=bin.coef.lb,CI_upper=bin.coef.ub)
-		rownames(tempbin) <- gp.lab
-		est.bin[[other.treat.origin[char]]] <- tempbin
-	}
- }
- 
- if(treat.type=='continuous'){
-	marg <- output[,"ME"]
-	marg.ci <- t(apply(marg.con, 1, quantile, CI.lvl))
-	se <- apply(marg.con,1,sd)
-	lb <- marg.ci[,1]
-	ub <- marg.ci[,2]
-	tempest <- data.frame(X.lvls,marg,se,lb,ub)
-	est.lin <- tempest
-	est.matrix <- cov(t(marg.con))
-	
-	bin.coef <- output[,"BinCoef"][1:nbins]
-	bin.coef.ci <- t(apply(coef.con, 1, quantile, CI.lvl, na.rm=TRUE))
-	bin.coef.se <- apply(coef.con,1,sd, na.rm=TRUE)
-	bin.coef.lb <- bin.coef.ci[,1]
-	bin.coef.ub <- bin.coef.ci[,2]
-	tempbin <- data.frame(x0,coef=bin.coef,se=bin.coef.se,CI_lower=bin.coef.lb,CI_upper=bin.coef.ub)
-	rownames(tempbin) <- gp.lab
-	est.bin <- tempbin
- }
- 
- 	if(predict==TRUE){
-	est.predict.binning <- list()
-		for(char in all.treat){
-			fit <- predict_Ey[,char]
-			pred.ci <- t(apply(pred.list[[char]], 1, quantile, CI.lvl,na.rm=TRUE))
-			se.fit <- apply(pred.list[[char]],1,sd,na.rm=TRUE)
-			lb <- pred.ci[,1]
-			ub <- pred.ci[,2]
-			
-			if(treat.type=='discrete'){
-				est.predict.binning[[all.treat.origin[char]]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(all.treat.origin[char],length(X.lvls)),
-                                           CI_lower=lb, CI_upper=ub
-                                           )						   
-			}						   
-			
-			if(treat.type=='continuous'){
-				est.predict.binning[[char]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(char,length(X.lvls)),
-                                           CI_lower=lb, CI_upper=ub
-                                           )
-			}
-			}
-	}
- 
- ################### testing  ###############################
-   if(treat.type=="continuous" & nbins>1){
-	varD<-c()
-	for (i in 1:nbins) {
-		varD<-c(varD,var(data[groupX==i,D]/mean(data[groupX==i,D])))
-	}
-  
-	## if the signs are correct
-	## nbins!=3
-	correctorder<-NULL
-	if(nbins==3){
-		correctOrder<-ifelse(as.numeric((bin.coef[1]-bin.coef[2])*(bin.coef[2]-bin.coef[3]))>0,TRUE,FALSE) 
-	}
-
-	## p values
-	pvalue <- function(i,j){
-		stat <- (bin.coef[i]-bin.coef[j])/sqrt(bin.var[i,i]+bin.var[j,j]-2*bin.var[i,j])
-		p <- (1-pt(abs(stat),df.X))*2
-		return(p)
-	}
-	p.twosided<-NULL
-	if (nbins==3) {
-		p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digits=4)
-		names(p.twosided)<-c("p.1v2","p.2v3","p.1v3")
-		names(bin.coef)<-c("X_low","X_med","X_high")
-	} else if (nbins==2) {
-		p.twosided<-round(pvalue(1,2),digits=4)
-		names(p.twosided)<-c("p.LvH")
-		names(bin.coef)<-c("X_low","X_high")
-  } else if (nbins==4) {
-		names(bin.coef)<-c("X_low","X_med1","X_med2","X_high")
-  }
-}
-
-   if(treat.type=="discrete" & nbins > 1){
-	group.Xcoefs <- list()
-    group.p.twosided <- list()
-    correctOrder.group <- list()
-    
-    for(char in other.treat) {
-	  Xcoefs <- est.bin[[other.treat.origin[char]]][,"coef"]
-      X.v <- bin.var.list[[char]]
-      #correct order
-      correctorder<-NULL
-      if(nbins==3){
-        correctOrder<-ifelse(as.numeric((Xcoefs[1]-Xcoefs[2])*(Xcoefs[2]-Xcoefs[3]))>0,TRUE,FALSE) 
-        correctOrder.group[[other.treat.origin[char]]] <- correctOrder
-      }
-      pvalue<-function(i,j){
-        stat<-(Xcoefs[i]-Xcoefs[j])/sqrt(X.v[i,i]+X.v[j,j]-2*X.v[i,j])
-        p<-(1-pt(abs(stat),df.X))*2
-        return(p)
-      }
-      p.twosided<-NULL
-      if (nbins==3) {
-        p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digits=4)
-        names(p.twosided)<-c("p.1v2","p.2v3","p.1v3")
-        names(Xcoefs)<-c("X_low","X_med","X_high")
-      } else if (nbins==2) {
-        p.twosided<-round(pvalue(1,2),digits=4)
-        names(p.twosided)<-c("p.LvH")
-        names(Xcoefs)<-c("X_low","X_high")
-      } else if (nbins==4) {
-        names(Xcoefs)<-c("X_low","X_med1","X_med2","X_high")
-      }
-      group.Xcoefs[[other.treat.origin[char]]] <- Xcoefs
-      group.p.twosided[[other.treat.origin[char]]] <- p.twosided
-    }
-	}
-	p.wald <- NULL
- }
- 
-if(vartype!='bootstrap'){
-  # if vartype!='bootstrap'
-  ## estimate coefficients -> estimate covariance matrix 
-  ## -> (predict==T) estimate expected value of Y 
-  ## some tests
-  if(TRUE){ #linear estimator
-  if (is.null(FE)==TRUE) { #OLS
-    if (is.null(weights)==TRUE) {
-      mod.naive<-lm(mod.f,data=data)
-    } else {
-      mod.naive<-lm(mod.f,data=data,weights=dataweights)
-    }
-  } else { # FE
-    if (is.null(weights)==TRUE) {
-      mod.naive<-felm(mod.f,data=data)
-    } else {
-      mod.naive<-felm(mod.f,data=data,weights=dataweights)
-    }
-  }
-  
-  ## coefficients
-  coefs<-summary(mod.naive)$coefficients[,1]
-  if(treat.type=='continuous'){
-  coef.D<-coefs[D]
-  coef.X<-coefs[X]
-  coef.DX<-coefs[paste(D,X,sep=":")] #interaction
-  }
-  
-  if(treat.type=='discrete'){
-    coef_list <- list()
-	coef_inter_list <- list()
-    for(char in other.treat){
-	  coef_list[[char]] <- coefs[paste0(D,char)]
-	  coef_inter_list[[char]] <- coefs[paste(paste0(D,char),X,sep=":")]
-    }
-  }
-  
-  ## # variance    
-  if (is.null(FE)==TRUE) { #OLS
-    if (vartype=="homoscedastic") {
-      v<-vcov(mod.naive)
-    } else if (vartype=="robust") {
-      requireNamespace("sandwich")
-      v<-vcovHC(mod.naive,type="HC1") # White with small sample correction
-    } else if (vartype=="cluster") {
-      v<-vcovCluster(mod.naive,cluster = data[,cl])
-    } else if (vartype=="pcse") {
-      requireNamespace("pcse")
-      v<-pcse(mod.naive,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
-    }
-  } else { # FE
-    if (vartype=="homoscedastic") {
-      v<-vcov(mod.naive, type = "iid")
-    } else if (vartype=="robust") {
-      v<-vcov(mod.naive, type="robust") 
-    } else if (vartype=="cluster") {
-      v<-vcov(mod.naive, type = "cluster") 
-    }
-  }
-  v[which(is.na(v))] <- 0
-  
-  if(treat.type=='continuous'){ ## get variance
-    if (vartype=="pcse") {
-      var.D<-v[D,D]
-      var.DX<-v[paste(D,X,sep="."),paste(D,X,sep=".")]
-      cov.DX<-v[D,paste(D,X,sep=".")]
-    } 
-    else {
-      var.D<-v[D,D]
-      var.DX<-v[paste(D,X,sep=":"),paste(D,X,sep=":")]
-      cov.DX<-v[D,paste(D,X,sep=":")]
-    }
-  }
-  
-  if(treat.type=='discrete'){ ## get variance
-	var_list <- list()
-	varinter_list <- list()
-	cov_list <- list()
-    if (vartype=="pcse") {
-      for(char in other.treat){
-		var_list[[char]] <- v[paste0(D,char),paste0(D,char)]
-		varinter_list[[char]] <- v[paste(paste0(D,char),X,sep="."),paste(paste0(D,char),X,sep=".")]
-		cov_list[[char]] <- v[paste0(D,char),paste(paste0(D,char),X,sep=".")]
-      }
-    } 
-    else {
-      for(char in other.treat){
-		var_list[[char]] <- v[paste0(D,char),paste0(D,char)]
-		varinter_list[[char]] <- v[paste(paste0(D,char),X,sep=":"),paste(paste0(D,char),X,sep=":")]
-		cov_list[[char]] <- v[paste0(D,char),paste(paste0(D,char),X,sep=":")]
-      }
-    }
-  }
-  
- 
-  if (treat.type=='continuous'){
-    marg<-coef.D + coef.DX*X.lvls
-	marg[which(is.na(marg))] <- 0
-    ## the variance is var(B1_D) + X^2*var(B_3) + 2*inst*cov(D, X)
-    se<-sqrt(var.D +  X.lvls^2*var.DX + 2*X.lvls*cov.DX)
-    df<-mod.naive$df.residual
-    crit<-abs(qt(.025, df=df)) # critical values
-  
-    ##make 95% confidence bands. 
-    lb<-marg-crit*se
-    ub<-marg+crit*se
-    est.lin<-data.frame(X.lvls, marg,se, lb, ub)
-	
-	# var-cov matrix
-	gen_matrix <- function(colvec,x0){
-		output <- var.D + (x0+colvec)*cov.DX + x0*colvec*var.DX
-		return(output)
-	}
-	cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
-	est.matrix <- cov_matrix
-  }
-  
-  if (treat.type=='discrete'){
-    df <- mod.naive$df.residual
-    crit<-abs(qt(.025, df=df))
-    est.lin<-list()
-    est.matrix <- list()
-	
-    for(char in other.treat) {
-	  marg <- coef_list[[char]] + coef_inter_list[[char]]*X.lvls
-	  marg[which(is.na(marg))] <- 0
-      se <- sqrt(var_list[[char]] + X.lvls^2*varinter_list[[char]]+2*X.lvls*cov_list[[char]])
-      lb <- marg-crit*se
-      ub <- marg+crit*se
-      tempest <- data.frame(X.lvls,marg,se,lb,ub)
-      tempest[,'Treatment']<- rep(other.treat.origin[char],dim(tempest)[1])
-      est.lin[[other.treat.origin[char]]] <- tempest
-	  
-	  # var-cov matrix
-	  gen_matrix <- function(colvec,x0){
-		output <- var_list[[char]] + (x0+colvec)*cov_list[[char]] + x0*colvec*varinter_list[[char]]
-		return(output)
-	  }
-	  cov_matrix <- as.matrix(sapply(X.lvls,function(x0){gen_matrix(X.lvls,x0)}))
-	  est.matrix[[other.treat.origin[char]]] <- cov_matrix
-    }
-  }
-
-  }
-  
-
- ##################################################
-
-  if(TRUE){ # binning estimator
-  if (treat.type=='continuous') {
-  G<-DG<-GX<-DGX<-matrix(0,n,nbins)
-  for (i in 1:nbins) {
-    G[which(groupX==i),i]<-1
-    DG[,i]<-data[,D]*G[,i]
-    GX[,i]<-G[,i]*(data[,X]-x0[i])
-    DGX[,i]<-DG[,i]*(data[,X]-x0[i])
-  }
-  
-  ## formula and esitmation
-  Gs<-GXs<-DGs<-DGXs<-c()
-  for (i in 1:nbins) {
-    Gs<-c(Gs,paste0("G[,",i,"]"))
-    GXs<-c(GXs,paste0("GX[,",i,"]"))
-    DGs<-c(DGs,paste0("DG[,",i,"]"))
-    DGXs<-c(DGXs,paste0("DGX[,",i,"]"))
-  }
-  Xf<-paste0(Y,"~ -1+",paste0(DGs,collapse="+"),"+",paste0(DGXs,collapse="+"),
-             "+",paste0(Gs,collapse="+"),"+",paste0(GXs,collapse="+"))
-  if (is.null(Z)==FALSE) {
-    Xf<- paste0(Xf,"+",paste0(Z,collapse="+"))
-  }
-  if (is.null(FE)==FALSE) {
-    Xf <- paste0(Xf, "|",paste0(FE, collapse = "+"))
-    if (vartype=="cluster") {
-      Xf <- paste0(Xf, "| 0 |",paste0(cl,collapse = "+"))
-    }
-  }
-  mod.Xf<-as.formula(Xf)    
-  
-  ## fit
-  if (is.null(FE)==TRUE) { #OLS
-    if (is.null(weights)==TRUE) {
-      mod.X<-lm(mod.Xf,data=data)
-    } else {
-      mod.X<-lm(mod.Xf,data=data,weights=dataweights)
-    }
-  } else { # FE
-    if (is.null(weights)==TRUE) {
-      mod.X<-suppressWarnings(felm(mod.Xf,data=data))
-    } else {
-      mod.X<-suppressWarnings(felm(mod.Xf,data=data,weights=dataweights))
-    }
-  }
-  
-  ## coefficients and CIs
-  if (is.null(FE)==TRUE) { #OLS
-    if (vartype=="homoscedastic") {
-      X.v<-vcov(mod.X)
-    } else if (vartype=="robust") {
-      X.v<-vcovHC(mod.X,type="HC1") ## White with small sample correction
-    } else if (vartype=="cluster") {
-      X.v<-vcovCluster(mod.X,cluster=data[,cl])
-    } else if (vartype=="pcse") {
-      if (is.null(Z)==FALSE) {
-        exclude<-names(which(is.na(mod.X$coefficients)==TRUE))  ## drop colinear variables
-        Z.ex<-setdiff(Z,exclude)
-        Xf<-paste(Y,"~ -1+",paste(DGs,collapse="+"),"+",paste(DGXs,collapse="+"),
-                  "+",paste(Gs,collapse="+"),"+",paste(GXs,collapse="+"),"+",paste(Z.ex,collapse="+"),sep="")
-		Z <- Z.ex
-        mod.X<-lm(as.formula(Xf),data=data)
-      }
-      X.v<-pcse(mod.X,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
-    }
-  } else { # FE
-    if (vartype=="homoscedastic") {
-      X.v<-vcov(mod.X, type = "iid")
-    } else if (vartype=="robust") {
-      X.v<-vcov(mod.X, type="robust") 
-    } else if (vartype=="cluster") {
-      X.v<-vcov(mod.X, type = "cluster") 
-    }
-  }
-  
-  # X.v should be checked by name  
-  DGs <- c()
-  for (i in 1:nbins){
-      DGs<-c(DGs,paste0("DG[, ",i,"]"))
-  }
-  if(is.null(FE)==T){
-        Xcoefs <- mod.X$coefficients[DGs]
-  }
-  else{
-        Xcoefs <- mod.X$coefficients[DGs,]
-  }
-  
-  if(vartype=='pcse'){
-    pcse_DGs <- c()
-    for (i in 1:nbins) {
-         pcse_DGs<-c(pcse_DGs,paste0("DG","...",i,"."))
-    }
-         X.v <- X.v[pcse_DGs,pcse_DGs]
-  }else{
-        X.v <- X.v[DGs,DGs]
-  }
-
-  X.se<-sqrt(diag(as.matrix(X.v,drop=FALSE)))
-  X.se[which(is.na(Xcoefs))]<-NA
-  df.X<-mod.X$df.residual
-  crit.X<-abs(qt(.025, df=df.X))
-  lb.X<-Xcoefs-crit.X*X.se
-  ub.X<-Xcoefs+crit.X*X.se
-  
-  est.bin <- data.frame(x0, Xcoefs, X.se, lb.X, ub.X)
-  colnames(est.bin) <- c("x0", "coef", "se", "CI_lower", "CI_upper")
-  rownames(est.bin) <- gp.lab
-  }
-  
-  if(treat.type=="discrete"){ # discrete
-    G<-GX<-matrix(0,n,nbins)
-    for (i in 1:nbins) {
-      G[which(groupX==i),i] <- 1
-      GX[,i] <- G[,i]*(data[,X]-x0[i])
-    }
-    
-    for (char in other.treat) {
-      DG_name <- paste0("DG.",char)
-      DGX_name <- paste0("DGX.",char)
-      DG_matrix <- DGX_matrix <- matrix(0,n,nbins)
-      for (i in 1:nbins) {
-        DG_matrix[,i] <- (data[,D]==char)*G[,i]
-        DGX_matrix[,i] <- DG_matrix[,i]*(data[,X]-x0[i])
-      }
-      assign(DG_name,DG_matrix)
-      assign(DGX_name,DGX_matrix)
-    }
-    
-    Gs<-GXs<-DGs<-DGXs<-c()
-    for (i in 1:nbins)  {
-      Gs<-c(Gs,paste0("G[,",i,"]"))
-      GXs<-c(GXs,paste0("GX[,",i,"]"))
-      for (char in other.treat) {
-        DGs<-c(DGs,paste0("DG.",char,"[,",i,"]"))
-        DGXs<-c(DGXs,paste0("DGX.",char,"[,",i,"]"))
-      }
-    }
-    
-    Xf<-paste0(Y,"~ -1+",paste0(DGs,collapse="+"),"+",paste0(DGXs,collapse="+"),
-               "+",paste0(Gs,collapse="+"),"+",paste0(GXs,collapse="+"))
-    
-    if (is.null(Z)==FALSE) {
-      Xf<- paste0(Xf,"+",paste0(Z,collapse="+"))
-    }
-    if (is.null(FE)==FALSE) {
-      Xf <- paste0(Xf, "|",paste0(FE, collapse = "+"))
-      if (vartype=="cluster") {
-        Xf <- paste0(Xf, "| 0 |",paste0(cl,collapse = "+"))
-      }
-    }
-    mod.Xf<-as.formula(Xf)    
-    
-    ## fit
-    if (is.null(FE)==TRUE) { #OLS
-      if (is.null(weights)==TRUE) {
-        mod.X<-lm(mod.Xf,data=data)
-      } else {
-        mod.X<-lm(mod.Xf,data=data,weights=dataweights)
-      }
-    } else { # FE
-      if (is.null(weights)==TRUE) {
-        mod.X<-suppressWarnings(felm(mod.Xf,data=data))
-      } else {
-        mod.X<-suppressWarnings(felm(mod.Xf,data=data,weights=dataweights))
-      }
-    }
-    
-    ## variance
-    if (is.null(FE)==TRUE) { #OLS
-      if (vartype=="homoscedastic") {
-        X.v_all<-vcov(mod.X)
-      } else if (vartype=="robust") {
-        X.v_all<-vcovHC(mod.X,type="HC1") ## White with small sample correction
-      } else if (vartype=="cluster") {
-        X.v_all<-vcovCluster(mod.X,cluster=data[,cl])
-      } else if (vartype=="pcse") {
-        if (is.null(Z)==FALSE) {
-          exclude<-names(which(is.na(mod.X$coefficients)==TRUE))  ## drop colinear variables
-          Z.ex<-setdiff(Z,exclude)
-          Xf<-paste(Y,"~ -1+",paste(DGs,collapse="+"),"+",paste(DGXs,collapse="+"),
-                    "+",paste(Gs,collapse="+"),"+",paste(GXs,collapse="+"),"+",paste(Z.ex,collapse="+"),sep="")
-		  Z <- Z.ex
-          mod.X<-lm(as.formula(Xf),data=data)
-        }
-        X.v_all<-pcse(mod.X,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
-      }
-    } else { # FE
-      if (vartype=="homoscedastic") {
-        X.v_all<-vcov(mod.X, type = "iid")
-      } else if (vartype=="robust") {
-        X.v_all<-vcov(mod.X, type="robust") 
-      } else if (vartype=="cluster") {
-        X.v_all<-vcov(mod.X, type = "cluster") 
-      }
-    }
-    
-    est.bin=list()
-    df.X <- mod.X$df.residual
-    crit.X <- abs(qt(.025,df=df.X))
-    
-    for (char in other.treat) {
-      DGs <- c()
-      for (i in 1:nbins) {
-        DGs<-c(DGs,paste0("DG.",char,"[, ",i,"]"))
-      }
-      
-      if(is.null(FE)==T){
-        Xcoefs <- mod.X$coefficients[DGs]
-        }
-      else{
-        Xcoefs <- mod.X$coefficients[DGs,]
-      }
-      
-      if(vartype=='pcse') {
-        pcse_DGs <- c()
-        for (i in 1:nbins) {
-          pcse_DGs<-c(pcse_DGs,paste0("DG.",char,"...",i,"."))
-        }
-        X.v <- X.v_all[pcse_DGs,pcse_DGs]
-      }
-      else {
-        X.v <- X.v_all[DGs,DGs]
-      }
-      
-      X.se <- sqrt(diag(as.matrix(X.v,drop=F)))
-      X.se[which(is.na(Xcoefs))] <- NA
-      lb.X <- Xcoefs-crit.X*X.se
-      ub.X <- Xcoefs+crit.X*X.se
-      est_bin <- data.frame(x0,Xcoefs,X.se,lb.X,ub.X)
-      colnames(est_bin) <- c("x0", "coef", "se", "CI_lower", "CI_upper")
-      rownames(est_bin) <- gp.lab
-      est.bin[[other.treat.origin[char]]] <- est_bin
-    }
-  }
-
-  }
-  
-  
-  if(predict==TRUE){
-		data.old <- data
-		FE.old <- FE
-		if(is.null(FE)==FALSE){
-								data.touse <- as.matrix(data[,Y])
-								data.fe <- as.matrix(data[,FE])
-								if(is.null(weights)==FALSE){
-									w <- as.matrix(data[,weights])
-								}else{w <- rep(1,dim(data.touse)[1])}
-										fastplm_demean <- fastplm(data = data.touse, FE = data.fe,
-															  weight = w, FEcoefs = 0)
-								data[,Y] <- fastplm_demean$residuals
-								FE <- NULL
-		}
-  
-	X.pred <- seq(min(data[,X]),max(data[,X]),length.out=length(X.lvls))
-	est.predict.binning <- list()
-	if(treat.type=='continuous'){
-		n<-dim(data)[1]
-		data_touse <- data
-		if(is.null(weights)==F){
-			weight_touse <- as.matrix(data_touse[,weights])
-		}
-		else{
-			weight_touse <- as.matrix(rep(1,n))
-		}
-
-		data1 <- as.data.frame(data_touse[,Y])
-		colnames <- c("Y")
-		formula <- "Y ~ -1"
-		for(char in Z){
-			data1 <- cbind(data1,data_touse[,char])
-			colnames <- c(colnames,char)
-			formula <- paste(formula,char,sep = "+")
-		}
-		for (i in 1:nbins){
-			data1 <- cbind(data1,as.numeric(groupX==i))
-			colnames <- c(colnames,paste0("G.",i))
-			formula <- paste(formula,paste0("G.",i),sep = "+")
-		}
-		for (i in 1:nbins){
-			data1 <- cbind(data1,as.numeric(groupX==i)*data_touse[,D])
-			colnames <- c(colnames,paste0("G.",i,".D"))
-			formula <- paste(formula,paste0("G.",i,".D"),sep="+")
-		}
-		for (i in 1:nbins){
-			data1 <- cbind(data1,as.numeric(groupX==i)*(data_touse[,X]-x0[i]))
-			colnames <- c(colnames,paste0("G.",i,".X"))
-			formula <- paste(formula,paste0("G.",i,".X"),sep = "+")
-		}
-		for (i in 1:nbins){
-			data1 <- cbind(data1,as.numeric(groupX==i)*data_touse[,D]*(data_touse[,X]-x0[i]))
-			colnames <- c(colnames,paste0("G.",i,".DX"))
-			formula <- paste(formula,paste0("G.",i,".DX"),sep="+")
-		}
-			
-		if (is.null(FE)==FALSE) {
-			formula <- paste0(formula, "|",paste0(FE, collapse = "+"))
-			data1 <- cbind(data1,data_touse[,FE])
-			colnames <- c(colnames,FE)
-			if(vartype=='cluster'){
-				formula <- paste0(formula, "| 0 |",paste0(cl,collapse = "+"))
-				if(!cl%in%FE){
-					data1 <- cbind(data1,data_touse[,cl])
-					colnames <- c(colnames,cl)
-				}
-			}
-		}
-		
-		colnames(data1) <- colnames
-		formula <- as.formula(formula)
-		if(is.null(FE)==TRUE){
-			binning_fit <- lm(formula=formula,data=data1,weights = weight_touse)
-		}
-		if(is.null(FE)==FALSE){
-			suppressWarnings(binning_fit <- felm(formula=formula,data=data1,weights = weight_touse))
-		}
-	  
-		#coef
-		binning_coef <- binning_fit$coefficients
-		binning_coef[which(is.na(binning_coef))] <- 0
-		binning_coef <- as.matrix(binning_coef)
-		
-		#var
-		if (is.null(FE)==TRUE) { #OLS
-		  if (vartype=="homoscedastic") {
-				v<-vcov(binning_fit)
-		} else if (vartype=="robust") {
-			requireNamespace("sandwich")
-			v<-vcovHC(binning_fit,type="HC1") # White with small sample correction
-		} else if (vartype=="cluster") {
-			v<-vcovCluster(binning_fit,cluster = data[,cl])
-		} else if (vartype=="pcse") {
-			requireNamespace("pcse")
-			v<-pcse(binning_fit,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
-		}
-		} else { # FE
-			if (vartype=="homoscedastic") {
-				v<-vcov(binning_fit, type = "iid")
-			} else if (vartype=="robust") {
-				v<-vcov(binning_fit, type="robust") 
-			} else if (vartype=="cluster") {
-				v<-vcov(binning_fit, type = "cluster") 
-		}
-		}
-		v[which(is.na(v))] <- 0
-		#newdata
-		npred <- length(X.pred)
-		x_predict <- X.pred
-		data_predict_start <- matrix(NA,nrow = npred,ncol = 0)
-		for (char in Z){
-			data_predict_start <- cbind(data_predict_start,mean(data_touse[,char]))
-		}
-
-		groupX_predict<-cut(x_predict,breaks=cuts.X, labels = FALSE)
-		groupX_predict[which(x_predict==min(x_predict))]<-1
-		
-		
-		for(char in all.treat){
-			target.D <- D.sample[char]
-			data_predict <- data_predict_start
-			for(i in 1:nbins){
-				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i))
-			}
-			for(i in 1:nbins){
-				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*target.D)
-			}
-			for(i in 1:nbins){
-				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*(x_predict-x0[i]))
-			}
-			for(i in 1:nbins){
-				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*target.D*(x_predict-x0[i]))
-			}
-			
-			m.mat <- as.matrix(data_predict)
-			fit <- as.vector(m.mat %*% binning_coef)
-			se.fit <- sqrt(diag(m.mat%*%v%*%t(m.mat)))
-			df2 <- binning_fit$df
-			CI.lvl <- c((1-0.95)/2, (1-(1-0.95)/2))
-			crit<-abs(qt(CI.lvl[1], df=df2))
-			lb<-fit-crit*se.fit
-			ub<-fit+crit*se.fit
-			est.predict.binning[[char]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=char,
-                                           CI_lower=lb, CI_upper=ub
-                                           )
-		}
+	## binning formula
+	formula.binning <- paste0(Y,"~-1")
+	data.touse <- data
+	for(i in 1:nbins){
+		data.touse[,paste0('G.',i)] <- as.numeric(groupX==i)
+		data.touse[,paste0('GX.',i)] <- as.numeric(groupX==i)*(data.touse[,X]-x0[i])
+		formula.binning <- paste0(formula.binning,'+',paste0('G.',i),'+',paste0('GX.',i))
 	}
 	
 	if(treat.type=='discrete'){
-		n <- dim(data)[1]
-		data_touse <- data
-		if(is.null(weights)==F){
-			weight_touse <- as.matrix(data[,weights])
-		}
-		else{
-			weight_touse <- as.matrix(rep(1,n))
-		}
-	    
-		data1 <- as.data.frame(data_touse[,Y])
-		colnames <- c("Y")
-		formula <- "Y ~ -1"
-		for(char in Z){
-			data1 <- cbind(data1,data_touse[,char])
-									colnames <- c(colnames,char)
-									formula <- paste(formula,char,sep = "+")
-		}
-    
-		for (i in 1:nbins){
-			data1 <- cbind(data1,as.numeric(groupX==i))
-			colnames <- c(colnames,paste0("G.",i))
-			formula <- paste(formula,paste0("G.",i),sep = "+")
-		}
-    
-		for (i in 1:nbins){
-				for(char in other.treat){
-						data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char))
-						colnames <- c(colnames,paste0("G.",i,".D.",char))
-						formula <- paste(formula,paste0("G.",i,".D.",char),sep="+")
-				}
+		for(char in other.treat){
+			for(i in 1:nbins){
+				data.touse[,paste0('D.',char,'.','G.',i)] <- as.numeric(groupX==i)*as.numeric(data.touse[,D]==char)
+				data.touse[,paste0('D.',char,'.','GX.',i)] <- as.numeric(groupX==i)*as.numeric(data.touse[,D]==char)*(data.touse[,X]-x0[i])
+				formula.binning <- paste0(formula.binning,'+',paste0('D.',char,'.','G.',i),'+',paste0('D.',char,'.','GX.',i))
 			}
-    
-		for (i in 1:nbins){
-				data1 <- cbind(data1,as.numeric(groupX==i)*(data_touse[,X]-x0[i]))
-				colnames <- c(colnames,paste0("G.",i,".X"))
-				formula <- paste(formula,paste0("G.",i,".X"),sep = "+")
-			}
-    
-		for (i in 1:nbins){
-				for(char in other.treat){
-						data1 <- cbind(data1,as.numeric(groupX==i)*as.numeric(data_touse[,D]==char)*(data_touse[,X]-x0[i]))
-						colnames <- c(colnames,paste0("G.",i,".D.",char,".X"))
-						formula <- paste(formula,paste0("G.",i,".D.",char,".X"),sep="+")
-				}
-			}
+		}
+	}
 	
-		if (is.null(FE)==FALSE) {
-			formula <- paste0(formula, "|",paste0(FE, collapse = "+"))
-			data1 <- cbind(data1,data_touse[,FE])
-			colnames <- c(colnames,FE)
-			if(vartype=='cluster'){
-				formula <- paste0(formula, "| 0 |",paste0(cl,collapse = "+"))
-				if(!cl%in%FE){
-					data1 <- cbind(data1,data_touse[,cl])
-					colnames <- c(colnames,cl)
+	if(treat.type=='continuous'){
+		for(i in 1:nbins){
+			data.touse[,paste0('D.G.',i)] <- as.numeric(groupX==i)*data.touse[,D]
+			data.touse[,paste0('D.GX.',i)] <- as.numeric(groupX==i)*data.touse[,D]*(data.touse[,X]-x0[i])
+			formula.binning <- paste0(formula.binning,'+',paste0('D.G.',i),'+',paste0('D.GX.',i))
+		}
+	}
+	
+	if(is.null(Z)==FALSE){
+		if(full.moderate==FALSE){
+			formula.binning <- paste0(formula.binning,"+",paste0(Z,collapse="+"))
+		}
+		if(full.moderate==TRUE){
+			for(a in Z){
+				for(i in 1:nbins){
+					data.touse[,paste0(a,'.G.',i)] <- as.numeric(groupX==i)*data.touse[,a]
+					data.touse[,paste0(a,'.GX.',i)] <- as.numeric(groupX==i)*data.touse[,a]*(data.touse[,X]-x0[i])
+					formula.binning <- paste0(formula.binning,'+',paste0(a,'.G.',i),'+',paste0(a,'.GX.',i))
 				}
 			}
 		}
-		colnames(data1) <- colnames
-		formula <- as.formula(formula)
-		if(is.null(FE)==TRUE){
-			binning_fit <- lm(formula=formula,data=data1,weights = weight_touse)
-		}
-		if(is.null(FE)==FALSE){
-			suppressWarnings(binning_fit <- felm(formula=formula,data=data1,weights = weight_touse))
-		}
-	
-		binning_coef <- binning_fit$coefficients
-		binning_coef[which(is.na(binning_coef))] <- 0
-		binning_coef <- as.matrix(binning_coef)
-    
-		#var
-		if (is.null(FE)==TRUE) { #OLS
-		  if (vartype=="homoscedastic") {
-				v<-vcov(binning_fit)
-		} else if (vartype=="robust") {
-			requireNamespace("sandwich")
-			v<-vcovHC(binning_fit,type="HC1") # White with small sample correction
-		} else if (vartype=="cluster") {
-			v<-vcovCluster(binning_fit,cluster = data[,cl])
-		} else if (vartype=="pcse") {
-			requireNamespace("pcse")
-			v<-pcse(binning_fit,groupN=data[,cl],groupT=data[,time],pairwise=pairwise)$vcov
-		}
-		} else { # FE
-			if (vartype=="homoscedastic") {
-				v<-vcov(binning_fit, type = "iid")
-			} else if (vartype=="robust") {
-				v<-vcov(binning_fit, type="robust") 
-			} else if (vartype=="cluster") {
-				v<-vcov(binning_fit, type = "cluster") 
-		}
-		}
-		v[which(is.na(v))] <- 0
-	
+	}
 
-		x_predict <- X.pred
-		npred <- length(X.pred)
-		data_predict_start <- matrix(NA,nrow = npred,ncol = 0)
-		for (char in Z){
-			data_predict_start <- cbind(data_predict_start,mean(data_touse[,char]))
+	if (use_fe==1) {
+		formula.binning <- paste0(formula.binning, "|",paste0(FE, collapse = "+"))
+		if (vcov.type=="cluster") {
+			formula.binning <- paste0(formula.binning, "| 0 |",paste0(cl,collapse = "+"))
+		}
+	}
+
+	## iv regression
+	if(!is.null(IV) & use_fe==FALSE){
+		# use ivreg
+		#Y ~ -1 + G.1 + GX.1 + G.2 + GX.2 + G.3 + GX.3 + D*G.1 + 
+        #D*GX.1 + D*G.2 + D*GX.2 + D*G.3 + D*GX.3|
+		#-1 + G.1 + GX.1 + G.2 + GX.2 + G.3 + GX.3 + W*G.1 + 
+        #W*GX.1 + W*G.2 + W*GX.2 + W*G.3 + W*GX.3
+		formula.binning.iv <- "-1"
+		for(i in 1:nbins){
+			formula.binning.iv <- paste0(formula.binning.iv,'+',paste0('G.',i),'+',paste0('GX.',i))
+		}
+		for(sub.iv in IV){
+			for(i in 1:nbins){
+				data.touse[,paste0(sub.iv,'.','G.',i)] <- as.numeric(groupX==i)*as.numeric(data.touse[,sub.iv])
+				data.touse[,paste0(sub.iv,'.','GX.',i)] <- as.numeric(groupX==i)*as.numeric(data.touse[,sub.iv])*(data.touse[,X]-x0[i])
+				formula.binning.iv <- paste0(formula.binning.iv,'+',paste0(sub.iv,'.','G.',i),'+',paste0(sub.iv,'.','GX.',i))
+			}
+		}
+		if(is.null(Z)==FALSE){
+			if(full.moderate==FALSE){
+				formula.binning.iv <- paste0(formula.binning.iv,"+",paste0(Z,collapse="+"))
+			}
+			if(full.moderate==TRUE){
+				for(a in Z){
+					for(i in 1:nbins){
+						formula.binning.iv <- paste0(formula.binning.iv,'+',paste0(a,'.G.',i),'+',paste0(a,'.GX.',i))
+					}
+				}
+			}
+		}
+		formula.binning <- paste0(formula.binning,"|",formula.binning.iv)
+	}
+
+	if(!is.null(IV) & use_fe==TRUE){
+		# use felm
+		# Y ~ -1 + G.1 + GX.1 + G.2 + GX.2 + G.3 + GX.3 + Z1 + Z2
+		# |unit+year
+		# |(D*G.1|D*GX.1|D*G.2|D*GX.2|D*G.3|D*GX.3 ~ 
+		# W*G.1+W*GX.1+W*G.2+W*GX.2+W*G.3+W*GX.3)|cluster
+
+		formula.binning.part1 <- "Y ~ -1"
+		formula.binning.part2 <- ""
+		iv.reg.name <- c()
+		for(i in 1:nbins){
+			formula.binning.part1 <- paste0(formula.binning.part1,'+',paste0('G.',i),'+',paste0('GX.',i))
+			iv.reg.name <- c(iv.reg.name,paste0('G.',i),paste0('GX.',i))
+		}
+		if(is.null(Z)==FALSE){
+			if(full.moderate==FALSE){
+				formula.binning.part1 <- paste0(formula.binning.part1,"+",paste0(Z,collapse="+"))
+				iv.reg.name <- c(iv.reg.name,Z)
+			}
+			if(full.moderate==TRUE){
+				for(a in Z){
+					for(i in 1:nbins){
+						formula.binning.part1 <- paste0(formula.binning.part1,'+',paste0(a,'.G.',i),'+',paste0(a,'.GX.',i))
+						iv.reg.name <- c(iv.reg.name,paste0(a,'.G.',i),paste0(a,'.GX.',i))
+					}
+				}
+			}
 		}
 
-		groupX_predict<-cut(x_predict,breaks=cuts.X, labels = FALSE)
-		groupX_predict[which(x_predict==min(x_predict))] <- 1
-    
-		for(target_treat in all.treat){
-			data_predict <- data_predict_start
-			for(i in 1:nbins){
-				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i))
+		if(treat.type=='discrete'){
+			for(char in other.treat){
+				for(i in 1:nbins){
+					formula.binning.part2 <- paste0(formula.binning.part2,'|',paste0('D.',char,'.','G.',i),'|',paste0('D.',char,'.','GX.',i))
+					iv.reg.name <- c(iv.reg.name,paste0('D.',char,'.','G.',i),paste0('D.',char,'.','GX.',i))
+				}
 			}
+		}
+
+		if(treat.type=='continuous'){
 			for(i in 1:nbins){
-				for(char in other.treat){
-						data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat))
+				formula.binning.part2 <- paste0(formula.binning.part2,'|',paste0('D.G.',i),'|',paste0('D.GX.',i))
+				iv.reg.name <- c(iv.reg.name,paste0('D.G.',i),paste0('D.GX.',i))
+			}
+		}
+
+		formula.binning.part2 <- paste0(formula.binning.part2,"~")
+
+		for(sub.iv in IV){
+			for(i in 1:nbins){
+				data.touse[,paste0(sub.iv,'.','G.',i)] <- as.numeric(groupX==i)*as.numeric(data.touse[,sub.iv])
+				data.touse[,paste0(sub.iv,'.','GX.',i)] <- as.numeric(groupX==i)*as.numeric(data.touse[,sub.iv])*(data.touse[,X]-x0[i])
+				formula.binning.part2 <- paste0(formula.binning.part2,'+',paste0(sub.iv,'.','G.',i),'+',paste0(sub.iv,'.','GX.',i))
+			}
+		}
+
+		formula.binning.part2 <- substring(formula.binning.part2, 2)
+		formula.binning.part1 <- paste0(formula.binning.part1, "|",paste0(FE, collapse = "+"),"|")
+		formula.binning.part2 <- paste0("(",formula.binning.part2,")")
+		formula.binning <- paste0(formula.binning.part1,formula.binning.part2)
+		if (vcov.type=="cluster") {
+			formula.binning <- paste0(formula.binning, "|",paste0(cl,collapse = "+"))
+		}
+	}
+
+	## binning fit
+	formula.binning <- as.formula(formula.binning)
+
+	if(use_fe==FALSE & is.null(IV)){
+		if(method=='linear'){
+			suppressWarnings(
+				model.binning <- glm(formula.binning,data=data.touse,weights=WEIGHTS)
+			)
+		}
+		if(method=='logit'){
+			suppressWarnings(
+				model.binning <- glm(formula.binning,data=data.touse,family=binomial(link = 'logit'),weights=WEIGHTS)
+			)
+		}
+		if(method=='probit'){
+			suppressWarnings(
+				model.binning <- glm(formula.binning,data=data.touse,family=binomial(link = 'probit'),weights=WEIGHTS)
+			)
+		}
+		if(method=='poisson'){
+			suppressWarnings(
+				model.binning <- glm(formula.binning,data=data.touse,family=poisson,weights=WEIGHTS)
+			)
+		}
+		if(method=='nbinom'){
+			suppressWarnings(
+				model.binning <- glm.nb(formula.binning,data=data.touse,weights=WEIGHTS)
+			)
+		}
+		
+		if(model.binning$converged==FALSE){
+			stop("Binning estimator can't converge.")
+		}
+	}
+
+
+	if(use_fe==FALSE & !is.null(IV)){
+		suppressWarnings(
+			model.binning <- ivreg(formula.binning,data=data.touse,weights=WEIGHTS)
+		)
+	}
+
+	if(use_fe==TRUE){
+		w <- data.touse[,'WEIGHTS']
+		suppressWarnings(
+			model.binning <- felm(formula.binning,data=data.touse,weights=w)
+		)
+	}
+	
+	model.binning.df <- model.binning$df.residual
+	model.binning.coef <- coef(model.binning) #keep the NaN(s) in coefficient 
+	if(!is.null(IV) & use_fe==TRUE){
+		names(model.binning.coef) <- iv.reg.name
+	}
+
+	if(use_fe==FALSE){
+		if(vcov.type=="homoscedastic"){
+			model.binning.vcov <- vcov(model.binning)
+		}
+		if(vcov.type=="robust"){
+			model.binning.vcov <- vcovHC(model.binning,type="HC1")
+		} 
+		if(vcov.type=="cluster"){
+			model.binning.vcov <- vcovCluster(model.binning,cluster = data[,cl])
+		}
+		if(vcov.type=="pcse"){
+			model.binning.vcov <- pcse(model.binning,pairwise=pairwise,groupN=data.cl,groupT=data.time)$vcov
+		}
+	}
+
+	if(use_fe==TRUE){
+		if (vcov.type=="homoscedastic") {
+    		model.binning.vcov <- vcov(model.binning, type = "iid")
+    	} 
+		if (vcov.type=="robust") {
+    		model.binning.vcov <- vcov(model.binning, type = "robust") 
+    	} 
+		if (vcov.type=="cluster") {
+    		model.binning.vcov <- vcov(model.binning, type = "cluster") 
+    	}
+	}
+	if(!is.null(IV) & use_fe==TRUE){
+		rownames(model.binning.vcov) <- colnames(model.binning.vcov) <- iv.reg.name
+	}
+	
+	model.binning.vcov[which(is.na(model.binning.vcov))] <- 0
+	model.binning.vcov.all <- matrix(0,nrow=length(model.binning.coef),ncol=length(model.binning.coef))
+	colnames(model.binning.vcov.all) <- names(model.binning.coef)
+	rownames(model.binning.vcov.all) <- names(model.binning.coef)
+	for(a1 in rownames(model.binning.vcov)){
+		for(a2 in colnames(model.binning.vcov)){
+			model.binning.vcov.all[a1,a2] <- model.binning.vcov[a1,a2]
+		}
+	}
+	if(isSymmetric.matrix(model.binning.vcov.all,tol = 1e-6)==FALSE){
+		warning(paste0("Option vcov.type==",vcov.type,"leads to unstable standard error in binning estimator, by default use homoscedastic standard error as an alternative.\n"))
+		#return(model.binning.vcov.all)
+		model.binning.vcov.all <- vcov(model.binning)
+		if(!is.null(IV) & use_fe==TRUE){
+			rownames(model.binning.vcov.all) <- colnames(model.binning.vcov.all) <- iv.reg.name
+		}
+		model.binning.vcov.all[which(is.na(model.binning.vcov.all))] <- 0
+	}
+	model.binning.vcov <- model.binning.vcov.all
+
+
+	##Function A.1 (linear)
+	#1, estimate treatment effects/marginal effects given model.coef
+	#2, input: model.coef; char(discrete)/D.ref(continuous);
+	#3, output: marginal effects/treatment effects
+	gen.general.TE <- function(model.coef,char=NULL,D.ref=NULL){
+	if(is.null(char)==TRUE){
+		treat.type='continuous'
+	}
+	if(is.null(D.ref)==TRUE){
+		treat.type='discrete'
+	}
+	
+	gen.TE <- function(model.coef,X.eval){
+		neval <- length(X.eval)
+		if(treat.type=='discrete'){
+			link.1 <- model.coef['(Intercept)'] + X.eval*model.coef[X] + 1*model.coef[paste0('D.',char)] + X.eval*model.coef[paste0('DX.',char)]
+			link.0 <- model.coef['(Intercept)'] + X.eval*model.coef[X]
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+					target.Z <- Z.ref[a]
+					link.1 <- link.1 + target.Z*model.coef[a]
+					link.0 <- link.0 +target.Z*model.coef[a]
+					if(full.moderate==TRUE){
+						link.1 <- link.1 + target.Z*model.coef[paste0(a,'.X')]*X.eval
+						link.0 <- link.0 + target.Z*model.coef[paste0(a,'.X')]*X.eval
+					}
+				}
+			}
+			if(method=='linear'){
+				TE <- link.1-link.0
+				E.pred <- link.1
+				E.base <- link.0
+			}
+		
+			if(method=='logit'){
+				E.pred <- E.prob.1 <- exp(link.1)/(1+exp(link.1))
+				E.base <- E.prob.0 <- exp(link.0)/(1+exp(link.0))
+				TE <- E.prob.1-E.prob.0
+			}
+	
+			if(method=='probit'){
+				E.pred <- E.prob.1 <- pnorm(link.1,0,1)
+				E.base <- E.prob.0 <- pnorm(link.0,0,1)
+				TE <- E.prob.1-E.prob.0
+			}
+		
+			if(method=='poisson' | method=="nbinom"){
+				E.pred <- E.y.1 <- exp(link.1)
+				E.base <- E.y.0 <- exp(link.0)
+				TE <- E.y.1-E.y.0
+			}
+				names(TE) <- rep(paste0("TE.",char),neval)
+				names(E.pred) <- rep(paste0("Predict.",char),neval)
+				names(E.base) <- rep(paste0("Predict.",base),neval)
+				gen.TE.output <- list(TE=TE,E.pred=E.pred,E.base=E.base)
+		}
+
+		if(treat.type=='continuous'){
+			link <- model.coef["(Intercept)"] + X.eval*model.coef[X] + model.coef[D]*D.ref + model.coef["DX"]*X.eval*D.ref
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+					target.Z <- Z.ref[a]
+					link <- link + target.Z*model.coef[a]
+					if(full.moderate==TRUE){
+						link <- link + target.Z*model.coef[paste0(a,'.X')]*X.eval
+					}
+				}
+			}
+			if(method=='logit'){
+				ME <- exp(link)/(1+exp(link))^2*(model.coef[D]+model.coef["DX"]*X.eval)
+				E.pred <- exp(link)/(1+exp(link))
+			}
+			if(method=='probit'){
+				ME <- (model.coef[D]+model.coef["DX"]*X.eval)*dnorm(link)
+				E.pred <- pnorm(link,0,1)
+			}
+			if(method=='linear'){
+				ME <- model.coef[D]+model.coef["DX"]*X.eval
+				E.pred <- link
+			}
+			if(method=='poisson'|method=='nbinom'){
+				ME <- exp(link)*(model.coef[D]+model.coef["DX"]*X.eval)
+				E.pred <- exp(link)
+			}
+				names(ME) <- rep(paste0("ME.",names(D.sample)[D.sample == D.ref]),neval)
+				names(E.pred) <- rep(paste0("Predict.",names(D.sample)[D.sample == D.ref]),neval)
+				gen.TE.output <- list(ME=ME,E.pred=E.pred)
+		}
+		return(gen.TE.output)
+	}
+
+	gen.TE.fe <- function(model.coef,X.eval){
+		neval <- length(X.eval)
+		if(treat.type=='discrete'){
+			TE <- model.coef[paste0('D.',char)] + X.eval*model.coef[paste0('DX.',char)]
+			names(TE) <- rep(paste0("TE.",char),neval)
+			E.pred <- rep(0,neval) #doesn't return prediction value for fixed effects
+			E.base <- rep(0,neval)
+			gen.TE.output <- list(TE=TE,E.pred=E.pred,E.base=E.base)
+		}
+		if(treat.type=='continuous'){
+			ME <- model.coef[D] + model.coef["DX"]*X.eval
+			names(ME) <- rep(paste0("ME.",names(D.sample)[D.sample == D.ref]),neval)
+			E.pred <- rep(0,neval)
+			gen.TE.output <- list(ME=ME,E.pred=E.pred)
+		}
+		return(gen.TE.output)
+	}
+
+	if(use_fe==0){
+		gen.TE.output <- gen.TE(model.coef=model.coef,X.eval=X.eval)
+	}
+	if(use_fe==1){
+		gen.TE.output <- gen.TE.fe(model.coef=model.coef,X.eval=X.eval)
+	}
+		
+	if(treat.type=='discrete'){
+		return(list(TE=gen.TE.output$TE,
+					E.pred=gen.TE.output$E.pred,
+					E.base=gen.TE.output$E.base))
+	}
+	
+	if(treat.type=='continuous'){
+		return(list(ME=gen.TE.output$ME,
+					E.pred=gen.TE.output$E.pred))
+	}
+  }
+  
+
+	#  #Function A.2 (linear delta)
+	#1, estimate sd of treatment effects/marginal effects using delta method
+	#2, input: model.coef; model.vcov; char(discrete)/D.ref(continuous);
+	#3, output: sd of TE/ME;
+	gen.delta.TE <- function(model.coef,model.vcov,char=NULL,D.ref=NULL){
+	if(is.null(char)==TRUE){
+		treat.type <- 'continuous'
+		flag <- 1
+	}
+	if(is.null(D.ref)==TRUE){
+		treat.type <- 'discrete'
+		if(char==base){
+			flag=0
+		}else{
+			flag=1
+		}
+	}
+	
+	#sd for TE/ME
+	#sd for TE/ME
+	gen.sd.fe <- function(x,to.diff=FALSE){
+		if(treat.type=='discrete'){
+			target.slice <- c(paste0('D.',char),paste0('DX.',char))
+			vec.1 <- c(1,x)
+			vec.0 <- c(0,0)
+			vec <- vec.1-vec.0
+			temp.vcov.matrix <- model.vcov[target.slice,target.slice]	
+			if(to.diff==TRUE){
+				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
+			}		
+			delta.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+			return(delta.sd)
+		}
+		
+		if(treat.type=='continuous'){
+			target.slice <- c(D,'DX')
+			vec <- c(1,x)
+			temp.vcov.matrix <- model.vcov[target.slice,target.slice]
+			if(to.diff==TRUE){
+				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
+			}
+					
+			delta.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+			return(delta.sd)
+		}
+	}
+
+	gen.sd <- function(x,to.diff=FALSE){
+		if(use_fe==TRUE){
+			return(gen.sd.fe(x=x,to.diff=to.diff))
+		}
+
+		if(treat.type=='discrete'){
+			link.1 <- model.coef['(Intercept)'] + x*model.coef[X] + 1*model.coef[paste0('D.',char)] + x*model.coef[paste0('DX.',char)]
+			link.0 <- model.coef['(Intercept)'] + x*model.coef[X]
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+						target.Z <- Z.ref[a]
+						link.1 <- link.1 + target.Z*model.coef[a]
+						link.0 <- link.0 +target.Z*model.coef[a]
+						if(full.moderate==TRUE){
+							link.1 <- link.1 + target.Z*model.coef[paste0(a,'.X')]*x
+							link.0 <- link.0 + target.Z*model.coef[paste0(a,'.X')]*x
+						}
 					}
 			}
-			for(i in 1:nbins){
-				data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*(x_predict-x0[i]))
+			if(is.null(Z)==FALSE){
+				if(full.moderate==FALSE){
+					vec.1 <- c(1,x,1,x,Z.ref)
+					vec.0 <- c(1,x,0,0,Z.ref)
+					target.slice <- c('(Intercept)',X,paste0('D.',char),paste0('DX.',char),Z)
+				}
+				if(full.moderate==TRUE){
+					vec.1 <- c(1,x,1,x,Z.ref,x*Z.ref)
+					vec.0 <- c(1,x,0,0,Z.ref,x*Z.ref)
+					target.slice <- c('(Intercept)',X,paste0('D.',char),paste0('DX.',char),Z,Z.X)
+				}
 			}
-			for(i in 1:nbins){
-				for(char in other.treat){
-					data_predict <- cbind(data_predict,as.numeric(groupX_predict==i)*as.numeric(char==target_treat)*(x_predict-x0[i]))
+			else{
+				vec.1 <- c(1,x,1,x)
+				vec.0 <- c(1,x,0,0)
+				target.slice <- c('(Intercept)',X,paste0('D.',char),paste0('DX.',char))
+			}		
+			temp.vcov.matrix <- model.vcov[target.slice,target.slice]
+			if(method=='logit'){
+				vec <- vec.1*exp(link.1)/(1+exp(link.1))^2 - vec.0*exp(link.0)/(1+exp(link.0))^2
+			}
+			if(method=='probit'){
+				vec <- vec.1*dnorm(link.1) - vec.0*dnorm(link.0)
+			}
+			if(method=='poisson' | method=='nbinom'){
+				vec <- vec.1*exp(link.1) - vec.0*exp(link.0)
+			}
+			if(method=='linear'){
+				vec <- vec.1-vec.0
+			}		
+			if(to.diff==TRUE){
+				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
+			}
+					
+			delta.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+			return(delta.sd)
+		}
+		
+		if(treat.type=='continuous'){
+			link <- model.coef["(Intercept)"] + x*model.coef[X] + model.coef[D]*D.ref + model.coef["DX"]*x*D.ref
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+					target.Z <- Z.ref[a]
+					link <- link + target.Z*model.coef[a]
+					if(full.moderate==TRUE){
+						link <- link + x*target.Z*model.coef[paste0(a,'.X')]
 					}
+				}
+			}
+				
+			if(is.null(Z)==FALSE){
+				if(full.moderate==FALSE){
+					vec1 <- c(1,x,D.ref,D.ref*x,Z.ref)
+					vec0 <- c(0,0,1,x,rep(0,length(Z)))
+					target.slice <- c('(Intercept)',X,D,'DX',Z)
+				}
+				if(full.moderate==TRUE){
+					vec1 <- c(1,x,D.ref,D.ref*x,Z.ref,Z.ref*x)
+					vec0 <- c(0,0,1,x,rep(0,2*length(Z)))
+					target.slice <- c('(Intercept)',X,D,'DX',Z,Z.X)
+				}
+			}
+			else{
+				vec1 <- c(1,x,D.ref,D.ref*x)
+				vec0 <- c(0,0,1,x)
+				target.slice <- c('(Intercept)',X,D,'DX')
+			}
+			temp.vcov.matrix <- model.vcov[target.slice,target.slice]
+
+			if(method=='logit'){
+				vec <- -(model.coef[D]+x*model.coef['DX'])*(exp(link)-exp(-link))/(2+exp(link)+exp(-link))^2*vec1 + exp(link)/(1+exp(link))^2*vec0
+			}
+			if(method=='probit'){
+				vec <- dnorm(link)*vec0-(model.coef[D]+x*model.coef['DX'])*link*dnorm(link)*vec1
+			}
+			if(method=='poisson'|method=='nbinom'){
+				vec <- (model.coef[D]+x*model.coef['DX'])*exp(link)*vec1+exp(link)*vec0
+			}
+			if(method=='linear'){
+				vec <- vec0
+			}
+					
+			if(to.diff==TRUE){
+				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
+			}
+					
+			delta.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+			return(delta.sd)
+		}
+		}
+	
+	if(flag==1){
+		TE.sd <- c(sapply(X.eval,function(x) gen.sd(x)))
+	}
+	else{
+		TE.sd <- NULL
+	}
+	
+	if(treat.type=='discrete' & is.null(TE.sd)==FALSE){
+		names(TE.sd) <- rep(paste0("sd.",char),neval)
+	}		
+	
+	if(treat.type=='continuous'){
+		names(TE.sd) <- rep(paste0("sd.",names(D.sample)[D.sample == D.ref]),neval)
+	}
+	
+	#output
+	if(treat.type=='discrete'){
+		return(list(TE.sd=TE.sd))
+	}
+	if(treat.type=='continuous'){
+		return(list(ME.sd=TE.sd))
+	}
+		
+}
+
+
+	##Function B.1 (bining estimator)
+	#1. estimate treatment effects/marginal effects at different binning points
+	#2. input: model.binning.coef(can have NaN); char(discrete)/D.ref(continuous)
+	#3. output: marginal effects/treatments effects
+
+	gen.binning.TE.fe <- function(model.binning.coef,char=NULL,D.ref=NULL){
+		if(treat.type=='discrete'){
+			binning.output <- c()
+			for(i in 1:nbins){
+				TE.bin <- model.binning.coef[paste0('D.',char,'.','G.',i)]
+				TE.bin <- c(TE.bin)
+				names(TE.bin) <- paste0("G.",i)
+				binning.output <- c(binning.output,TE.bin) #can have NaN
+			}
+		}
+
+		if(treat.type=='continuous'){
+			binning.output <- c()
+			for(i in 1:nbins){
+				ME.bin <- model.binning.coef[paste0('D.G.',i)]
+				ME.bin <- c(ME.bin)
+				names(ME.bin) <- paste0("G.",i)
+				binning.output <- c(binning.output,ME.bin) #can have NaN
+			}
+		}
+		return(binning.output)
+	}
+
+
+	gen.binning.TE <- function(model.binning.coef,char=NULL,D.ref=NULL){
+		if(is.null(char)==TRUE){
+			treat.type <- 'continuous'
+		}
+		if(is.null(D.ref)==TRUE){
+			treat.type <- 'discrete'
+		}
+
+		if(use_fe==TRUE){
+			return(gen.binning.TE.fe(model.binning.coef=model.binning.coef,char=char,D.ref=D.ref))
+		}
+				
+		if(treat.type=='discrete'){
+			binning.output <- c()
+			for(i in 1:nbins){
+				link.bin.1 <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.',char,'.','G.',i)]
+				link.bin.0 <- model.binning.coef[paste0("G.",i)]
+				if(is.null(Z)==FALSE){
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							if(is.na(model.binning.coef[a])==TRUE){
+								model.binning.coef[a] <- 0
+							}
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
+							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
+						}
+						if(full.moderate==TRUE){
+							if(is.na(model.binning.coef[paste0(a,".G.",i)])==TRUE){
+								model.binning.coef[paste0(a,".G.",i)] <- 0
+							}
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]
+							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[paste0(a,".G.",i)]
+						}
+					}
+				}
+			
+				if(method=='linear'){
+					TE.bin <- link.bin.1-link.bin.0
+				}
+				
+				if(method=='logit'){
+					E.pred <- E.prob.1 <- exp(link.bin.1)/(1+exp(link.bin.1))
+					E.base <- E.prob.0 <- exp(link.bin.0)/(1+exp(link.bin.0))
+					TE.bin <- E.prob.1-E.prob.0
+				}
+	
+				if(method=='probit'){
+					E.pred <- E.prob.1 <- pnorm(link.bin.1,0,1)
+					E.base <- E.prob.0 <- pnorm(link.bin.0,0,1)
+					TE.bin <- E.prob.1-E.prob.0
+				}
+		
+				if(method=='poisson' | method=="nbinom"){
+					E.pred <- E.y.1 <- exp(link.bin.1)
+					E.base <- E.y.0 <- exp(link.bin.0)
+					TE.bin <- E.y.1-E.y.0
+				}
+				TE.bin <- c(TE.bin)
+				names(TE.bin) <- paste0("G.",i)
+				binning.output <- c(binning.output,TE.bin) #can have NaN
+			}
+		}
+		
+		if(treat.type=='continuous'){
+			binning.output <- c()
+			for(i in 1:nbins){
+				link.bin <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.G.',i)]*D.ref
+				if(is.null(Z)==FALSE){
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							if(is.na(model.binning.coef[a])==TRUE){
+								model.binning.coef[a] <- 0
+							}
+							link.bin <- link.bin + target.Z*model.binning.coef[a]
+						}
+						if(full.moderate==TRUE){
+							if(is.na(model.binning.coef[paste0(a,".G.",i)])==TRUE){
+								model.binning.coef[paste0(a,".G.",i)] <- 0
+							}
+							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]
+						}
+					}
+				}
+			
+				if(method=='logit'){
+					ME.bin <- exp(link.bin)/(1+exp(link.bin))^2*model.binning.coef[paste0('D.G.',i)]
+				}
+				if(method=='probit'){
+					ME.bin <- model.binning.coef[paste0('D.G.',i)]*dnorm(link.bin)
+				}
+				if(method=='linear'){
+					ME.bin <- model.binning.coef[paste0('D.G.',i)]
+				}
+				if(method=='poisson'|method=='nbinom'){
+					ME.bin <- exp(link.bin)*model.binning.coef[paste0('D.G.',i)]
+				}
+				ME.bin <- c(ME.bin)
+				names(ME.bin) <- paste0("G.",i)
+				binning.output <- c(binning.output,ME.bin) #can have NaN
+			}
+		}
+		return(binning.output)
+	}
+	
+	
+	
+	##  Function B.2 (binning estimator delta)
+	#1. estimate sd of binning treatment effects/marginal effects using delta method
+	#2. input: model.binning.coef; model.binning.vcov; char(discrete)/D.ref(continuous)
+	#3. output: sd of binning treatment effects/marginal effects using delta method
+	
+	gen.binning.delta.TE.fe <- function(model.binning.coef, model.binning.vcov, char=NULL, D.ref=NULL){
+		model.binning.coef[which(is.na(model.binning.coef))] <- 0
+		binning.sd.output <- c()
+		if(treat.type=='discrete'){
+			for(i in 1:nbins){
+				vec.1 <- c(1,1)
+				vec.0 <- c(1,0)
+				vec <- vec.1-vec.0
+				target.slice <- c(paste0("G.",i),paste0('D.',char,'.','G.',i))
+				vcov.binning.temp <- model.binning.vcov[target.slice,target.slice]
+				delta.sd.bin <- sqrt((t(vec)%*%vcov.binning.temp%*%vec)[1,1])
+				delta.sd.bin <- c(delta.sd.bin)
+				names(delta.sd.bin) <- paste0("sd.G.",i)
+				binning.sd.output <- c(binning.sd.output,delta.sd.bin)
+			}
+		}
+		if(treat.type=='continuous'){
+			for(i in 1:nbins){
+				vec <- vec0 <- c(0,1)
+				target.slice <- c(paste0("G.",i),paste0('D.G.',i))
+				vcov.binning.temp <- model.binning.vcov[target.slice,target.slice]
+				delta.sd.bin <- sqrt((t(vec)%*%vcov.binning.temp%*%vec)[1,1])
+				delta.sd.bin <- c(delta.sd.bin)
+				names(delta.sd.bin) <- paste0("sd.G.",i)
+				binning.sd.output <- c(binning.sd.output,delta.sd.bin)
+			}
+		}
+		return(binning.sd.output)
+	}
+
+	gen.binning.delta.TE <- function(model.binning.coef, model.binning.vcov, char=NULL, D.ref=NULL){
+		if(is.null(char)==TRUE){
+			treat.type='continuous'
+		}
+		if(is.null(D.ref)==TRUE){
+			treat.type='discrete'
+		}
+
+		if(use_fe==TRUE){
+			return(gen.binning.delta.TE.fe(model.binning.coef=model.binning.coef, model.binning.vcov=model.binning.vcov, char=char, D.ref=D.ref))
+		}
+
+		model.binning.coef[which(is.na(model.binning.coef))] <- 0
+		binning.sd.output <- c()
+		
+		if(treat.type=='discrete'){
+			for(i in 1:nbins){
+				link.bin.1 <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.',char,'.','G.',i)]
+				link.bin.0 <- model.binning.coef[paste0("G.",i)]
+				
+				if(is.null(Z)==FALSE){
+					vec.1 <- c(1,1,Z.ref)
+					vec.0 <- c(1,0,Z.ref)
+					if(full.moderate==FALSE){
+						target.slice <- c(paste0("G.",i),paste0('D.',char,'.','G.',i),Z)
+					}
+
+					if(full.moderate==TRUE){
+						target.slice <- c(paste0("G.",i),paste0('D.',char,'.','G.',i))
+					}
+
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
+							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
+						}
+
+						if(full.moderate==TRUE){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]
+							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[paste0(a,".G.",i)]
+							target.slice <- c(target.slice, paste0(a,".G.",i))
+						}
+					}
+				}
+				else{
+					vec.1 <- c(1,1)
+					vec.0 <- c(1,0)
+					target.slice <- c(paste0("G.",i),paste0('D.',char,'.','G.',i))
+				}
+
+				vcov.binning.temp <- model.binning.vcov[target.slice,target.slice]
+			
+				if(method=='logit'){
+					vec <- vec.1*exp(link.bin.1)/(1+exp(link.bin.1))^2 - vec.0*exp(link.bin.0)/(1+exp(link.bin.0))^2
+				}
+				if(method=='probit'){
+					vec <- vec.1*dnorm(link.bin.1) - vec.0*dnorm(link.bin.0)
+				}
+				if(method=='poisson' | method=='nbinom'){
+					vec <- vec.1*exp(link.bin.1) - vec.0*exp(link.bin.0)
+				}
+				if(method=='linear'){
+					vec <- vec.1-vec.0
+				}
+			
+				delta.sd.bin <- sqrt((t(vec)%*%vcov.binning.temp%*%vec)[1,1])
+				delta.sd.bin <- c(delta.sd.bin)
+				names(delta.sd.bin) <- paste0("sd.G.",i)
+				binning.sd.output <- c(binning.sd.output,delta.sd.bin)
+			}
+		}
+		
+		if(treat.type=='continuous'){
+			for(i in 1:nbins){
+				link.bin <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.G.',i)]*D.ref
+				if(is.null(Z)==FALSE){
+					vec1 <- c(1,D.ref,Z.ref)
+					vec0 <- c(0,1,rep(0,length(Z)))
+
+					if(full.moderate==FALSE){
+						target.slice <- c(paste0("G.",i),paste0('D.G.',i),Z)
+					}
+
+					if(full.moderate==TRUE){
+						target.slice <- c(paste0("G.",i),paste0('D.G.',i))
+					}
+
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							link.bin <- link.bin + target.Z*model.binning.coef[a]
+						}
+
+						if(full.moderate==TRUE){
+							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]
+							target.slice <- c(target.slice, paste0(a,".G.",i))
+						}
+					}
+				}
+				else{
+					vec1 <- c(1,D.ref)
+					vec0 <- c(0,1)
+					target.slice <- c(paste0("G.",i),paste0('D.G.',i))
+				}
+				vcov.binning.temp <- model.binning.vcov[target.slice,target.slice]
+			
+				if(method=='logit'){
+					vec <- -model.binning.coef[paste0('D.G.',i)]*(exp(link.bin)-exp(-link.bin))/(2+exp(link.bin)+exp(-link.bin))^2*vec1 + exp(link.bin)/(1+exp(link.bin))^2*vec0
+				}
+				if(method=='probit'){
+					vec <- dnorm(link.bin)*vec0-model.binning.coef[paste0('D.G.',i)]*link.bin*dnorm(link.bin)*vec1
+				}
+				if(method=='poisson'|method=='nbinom'){
+					vec <- model.binning.coef[paste0('D.G.',i)]*exp(link.bin)*vec1+exp(link.bin)*vec0
+				}
+				if(method=='linear'){
+					vec <- vec0
+				}
+			
+				delta.sd.bin <- sqrt((t(vec)%*%vcov.binning.temp%*%vec)[1,1])
+				delta.sd.bin <- c(delta.sd.bin)
+				names(delta.sd.bin) <- paste0("sd.G.",i)
+				binning.sd.output <- c(binning.sd.output,delta.sd.bin)
+			}
+		}
+		return(binning.sd.output)
+	}
+	
+	## Function B.3a (link predict)
+	gen.link.binning <- function(model.binning.coef, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
+		if(is.null(char)==TRUE){
+			treat.type='continuous'
+		}
+		if(is.null(D.ref)==TRUE){
+			treat.type=='discrete'
+		}
+
+		if(use_fe==TRUE){
+			if(treat.type=='discrete'){
+				link.1 <- link.0 <- rep(0,length(X.eval))
+				return(list(link.1=link.1,link.0=link.0))
+			}
+			if(treat.type=='continuous'){
+				link <- rep(0,length(X.eval))
+				return(list(link=link))
+			}
+		}
+
+		model.binning.coef[which(is.na(model.binning.coef))] <- 0
+		group.X.eval <- cut(X.eval,breaks=cuts.X, labels = FALSE)
+		group.X.eval[which(X.eval==min(X.eval))] <- 1
+
+		if(treat.type=='discrete'){
+			link.bin.1 <- 0
+			link.bin.0 <- 0
+
+			for(i in 1:nbins){
+				link.bin.1 <- link.bin.1 +
+							  model.binning.coef[paste0("G.",i)]*as.numeric(group.X.eval==i) + 
+							  model.binning.coef[paste0("GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i]) +
+							  model.binning.coef[paste0('D.',char,'.','G.',i)]*as.numeric(group.X.eval==i) +
+							  model.binning.coef[paste0('D.',char,'.','GX.',i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+					
+				link.bin.0 <- link.bin.0 +
+							  model.binning.coef[paste0("G.",i)]*as.numeric(group.X.eval==i) + 
+							  model.binning.coef[paste0("GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+			
 			}
 			
-			m.mat <- as.matrix(data_predict)
-			fit <- as.vector(m.mat %*% binning_coef)
-			se.fit <- sqrt(diag(m.mat%*%v%*%t(m.mat)))
-			df2 <- binning_fit$df
-			CI.lvl <- c((1-0.95)/2, (1-(1-0.95)/2))
-			crit<-abs(qt(CI.lvl[1], df=df2))
-			lb<-fit-crit*se.fit
-			ub<-fit+crit*se.fit
-			est.predict.binning[[all.treat.origin[target_treat]]] <- cbind.data.frame(X = X.pred, EY = fit, 
-                                           SE = se.fit ,Treatment=rep(all.treat.origin[target_treat],length(x_predict)),
-                                           CI_lower=lb, CI_upper=ub
-                                           )
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+					target.Z <- Z.ref[a]
+					if(full.moderate==FALSE){
+						link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
+						link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
+					}
+					if(full.moderate==TRUE){
+						for(i in 1:nbins){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
+										  target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+
+							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
+										  target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+						}
+					}
+				}
 			}
-	}
-	data <- data.old
-	FE <- FE.old
-  }
-  
-  
-  ################### testing  ###############################
-  
-  ## variance of treatment in each group 
-  if(treat.type=="continuous" & nbins>1){
-	varD<-c()
-	for (i in 1:nbins) {
-		varD<-c(varD,var(data[groupX==i,D]/mean(data[groupX==i,D])))
-	}
-  
-	## if the signs are correct
-	## nbins!=3
-	correctorder<-NULL
-	if(nbins==3){
-		correctOrder<-ifelse(as.numeric((Xcoefs[1]-Xcoefs[2])*(Xcoefs[2]-Xcoefs[3]))>0,TRUE,FALSE) 
+			return(list(link.1=link.bin.1,link.0=link.bin.0))
+		}
+		
+		if(treat.type=='continuous'){
+			link.bin <- 0
+			for(i in 1:nbins){
+				link.bin <- link.bin + 
+							model.binning.coef[paste0("G.",i)]*as.numeric(group.X.eval==i) + 
+							model.binning.coef[paste0("GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i]) +
+							model.binning.coef[paste0('D.G.',i)]*as.numeric(group.X.eval==i)*D.ref + 
+							model.binning.coef[paste0('D.GX.',i)]*as.numeric(group.X.eval==i)*D.ref*(X.eval-x0[i])
+			}
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+					target.Z <- Z.ref[a]
+					if(full.moderate==FALSE){
+						link.bin <- link.bin + target.Z*model.binning.coef[a]
+					}
+					if(full.moderate==TRUE){
+						for(i in 1:nbins){
+							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
+										target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+						}
+					}
+				}
+			}
+			return(list(link=link.bin))
+		}
 	}
 
-	#print(X.v)
-	## p values
-	pvalue<-function(i,j){
-		stat<-(Xcoefs[i]-Xcoefs[j])/sqrt(X.v[i,i]+X.v[j,j]-2*X.v[i,j])
-		p<-(1-pt(abs(stat),df.X))*2
-		return(p)
-	}
-  
-	p.twosided<-NULL
-  
-	if (nbins==3) {
-		p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digits=4)
-		names(p.twosided)<-c("p.1v2","p.2v3","p.1v3")
-		names(Xcoefs)<-c("X_low","X_med","X_high")
-	} else if (nbins==2) {
-		p.twosided<-round(pvalue(1,2),digits=4)
-		names(p.twosided)<-c("p.LvH")
-		names(Xcoefs)<-c("X_low","X_high")
-	} else if (nbins==4) {
-		names(Xcoefs)<-c("X_low","X_med1","X_med2","X_high")
-  }
-}
-  
-  if(treat.type=="discrete" & nbins > 1){
-  	
-    group.Xcoefs <- list()
-    group.p.twosided <- list()
-    correctOrder.group <- list()
-    
-    for(char in other.treat) {
-      
-      DGs <- c()
-      for (i in 1:nbins) {
-        DGs<-c(DGs,paste0("DG.",char,"[, ",i,"]"))
-      }
-      
-      if(is.null(FE)==T){
-        Xcoefs <- mod.X$coefficients[DGs]
-      }
-      else{
-        Xcoefs <- mod.X$coefficients[DGs,]
-      }
-      
-      if(vartype=='pcse') {
-        pcse_DGs <- c()
-        for (i in 1:nbins) {
-          pcse_DGs<-c(pcse_DGs,paste0("DG.",char,"...",i,"."))
-        }
-        X.v <- X.v_all[pcse_DGs,pcse_DGs]
-      }
-      else {
-        X.v <- X.v_all[DGs,DGs]
-      }
-      	  
-      #correct order
-      correctorder<-NULL
-      if(nbins==3){
-        correctOrder<-ifelse(as.numeric((Xcoefs[1]-Xcoefs[2])*(Xcoefs[2]-Xcoefs[3]))>0,TRUE,FALSE) 
-        correctOrder.group[[other.treat.origin[char]]] <- correctOrder
-      }
 
-      pvalue<-function(i,j){
-        stat<-(Xcoefs[i]-Xcoefs[j])/sqrt(X.v[i,i]+X.v[j,j]-2*X.v[i,j])
-        p<-(1-pt(abs(stat),df.X))*2
-        return(p)
-      }
-      p.twosided<-NULL
-      if (nbins==3) {
-        p.twosided<-round(c(pvalue(1,2),pvalue(2,3),pvalue(1,3)),digits=4)
-        names(p.twosided)<-c("p.1v2","p.2v3","p.1v3")
-        names(Xcoefs)<-c("X_low","X_med","X_high")
-      } else if (nbins==2) {
-        p.twosided<-round(pvalue(1,2),digits=4)
-        names(p.twosided)<-c("p.LvH")
-        names(Xcoefs)<-c("X_low","X_high")
-      } else if (nbins==4) {
-        names(Xcoefs)<-c("X_low","X_med1","X_med2","X_high")
-      }
-      
-      group.Xcoefs[[other.treat.origin[char]]] <- Xcoefs
-      group.p.twosided[[other.treat.origin[char]]] <- p.twosided
-      
-    }
-	}
-    
-  ##############  Wald Test #####################
-  if(wald==TRUE & nbins==1){
-    wald <- FALSE
-  }
+									 	
+	## Function B.3 (binning predict)
+	#1. estimate predicted value of binning estimator
+	#2. input: model.binning.coef, X.eval, cuts.X, x0
+	#3. output: predicted value using binning estimator
+	gen.pred.binning <- function(model.binning.coef, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
+		if(is.null(char)==TRUE){
+			treat.type='continuous'
+		}
+		if(is.null(D.ref)==TRUE){
+			treat.type=='discrete'
+		}
 
-  
-  if (wald == TRUE & treat.type=='continuous') { 
-    ## formula
-    formula0 <- paste(Y,"~",D,"+",X,"+",D,"*",X)
-    ## create dummies for bins and interactions
-    ## G -- a matrix of group dummies
-    ## DG -- a matrix of interactions
-    G<-DG<-GX<-DGX<-matrix(0,n,(nbins-1))
-    for (i in 1:(nbins-1)) {
-      G[which(groupX==(i+1)),i]<-1
-      DG[,i]<-data[,D]*G[,i]
-      GX[,i]<-data[,X]*G[,i]
-      DGX[,i]<-data[,D]*data[,X]*G[,i]
-    } 
-    ## formula and esitmation
-    Gs<-GXs<-DGs<-DGXs<-c()
-    for (i in 2:nbins)  {
-      Gs<-c(Gs,paste("G",i,sep=""))
-      GXs<-c(GXs,paste("GX",i,sep=""))
-      DGs<-c(DGs,paste("DG",i,sep=""))
-      DGXs<-c(DGXs,paste("DGX",i,sep=""))
-    }
-    colnames(G) <- Gs
-    colnames(DG) <- DGs
-    colnames(GX) <- GXs
-    colnames(DGX) <- DGXs
-    data.aug <- cbind.data.frame(data, G, DG, GX, DGX)
-    formula1<-paste(formula0,
-                    "+",paste(Gs,collapse=" + "),
-                    "+",paste(GXs,collapse=" + "),
-                    "+",paste(DGs,collapse=" + "),
-                    "+",paste(DGXs,collapse=" + "))
-    if (is.null(Z)==FALSE) {
-      formula0 <- paste0(formula0, "+",paste(Z,collapse=" + "))
-      formula1 <- paste0(formula1, "+",paste(Z,collapse=" + "))
-    } 
-    if (is.null(FE)==FALSE) {
-      formula0 <- paste0(formula0, "|",paste0(FE, collapse=" + "))
-      formula1 <- paste0(formula1, "|",paste0(FE, collapse = "+"))
-      if (vartype=="cluster") {
-        formula0 <- paste0(formula0, "| 0 |",paste0(cl,collapse = "+"))
-        formula1 <- paste0(formula1, "| 0 |",paste0(cl,collapse = "+"))
-      }
-    }
-    mod.formula0<-as.formula(formula0)
-    mod.formula1<-as.formula(formula1)    
-    
-    ## fit
-    if (is.null(FE)==TRUE) { #OLS
-      ## fit
-      if (is.null(weights)==TRUE) {
-        mod.re<-lm(mod.formula0,data=data.aug)
-        mod.un<-lm(mod.formula1,data=data.aug)
-      } else {
-        mod.re<-lm(mod.formula0,data=data.aug,weights=dataweights)
-        mod.un<-lm(mod.formula1,data=data.aug,weights=dataweights)
-      }
-      
-      ## vcov
-      if (is.null(vartype)==TRUE) {vartype <- "homoscedastic"}
-      if (vartype=="homoscedastic") {
-        v<-vcov(mod.un)
-      } else if (vartype=="robust") {
-        v<-vcovHC(mod.un,type="HC1") # White with small sample correction
-      } else if (vartype=="cluster") {
-        v<-vcovCluster(mod.un,cluster = data.aug[,cl])
-      } else if (vartype=="pcse") {
-        v<-pcse(mod.un,
-                groupN=data.aug[,cl],
-                groupT=data.aug[,time],
-                pairwise=pairwise)$vcov
-      }
-	  
-	  ## wald test
-      requireNamespace("lmtest")
+		if(use_fe==TRUE){
+			if(treat.type=='discrete'){
+				link.1 <- link.0 <- E.base <- E.pred <- rep(0,length(X.eval))
+				return(list(E.pred=E.pred,E.base=E.base,link.1=link.1,link.0=link.0))
+			}
+		
+			if(treat.type=='continuous'){
+				link <- E.pred <- rep(0,length(X.eval))
+				return(list(E.pred=E.pred,link=link))
+			}
+		}
 
-      wald.out <- tryCatch(
-        p.wald <- round(lmtest::waldtest(mod.re, mod.un,test="Chisq", vcov=v)[[4]][2],4),
-        error = function(e){return(NULL)}
-      )   
-      ## warning
-      if (is.null(wald.out)==TRUE) {
-        p.wald <- NULL
-        warning("Var-cov matrix nearly singular in the Wald test.")
-      }  
-    } else { # FE
-      requireNamespace("lfe")
-      ## fit
-      if (is.null(weights)==TRUE) {
-        mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug))
-      } else {
-        mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug,weights=dataweights))
-      }
-      ## wald test
-      constraints <- as.formula(paste0("~",paste0(c(Gs,GXs,DGs,DGXs), collapse = "|")))            
-      if (vartype=="homoscedastic") {
-        p.wald <- lfe::waldtest(mod.un, constraints, type = "default")[1]
-      } else if (vartype=="robust") {
-        p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
-      } else {
-        p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
-      }
-      names(p.wald) <- NULL            
-      p.wald <- round(p.wald,4)        
-    }
- }
-  
-  if(wald==TRUE & treat.type=='discrete') { #discrete wald test
-    formula0 <- paste(Y,"~",D,"+",X,"+",D,"*",X)
-    G<-GX<-matrix(0,n,nbins-1)
-    
-    for (i in 1:(nbins-1)) {
-      G[which(groupX==(i+1)),i] <- 1
-      GX[,i] <- G[,i]*(data[,X])
-    }
-    Gs<-GXs<-c()
-    for (i in 1:(nbins-1))  {
-      Gs<-c(Gs,paste0("G.",i))
-      GXs<-c(GXs,paste0("GX.",i))
-    }
-    colnames(G) <- Gs
-    colnames(GX) <- GXs
-    
-    for (char in other.treat) {
-      
-      DG_name <- paste0("DG.",char)
-      DGX_name <- paste0("DGX.",char)
-      DG_matrix <- DGX_matrix <- matrix(0,n,nbins-1)
-      DGs <- c()
-      DGXs <- c()
-      for (i in 1:(nbins-1)) {
-        DG_matrix[,i] <- (data[,D]==char)*G[,i]
-        DGX_matrix[,i] <- DG_matrix[,i]*(data[,X])
-        DGs <- c(DGs,paste0("DG.",char,".",i))
-        DGXs <- c(DGXs,paste0("DGX.",char,".",i))
-      }
-      colnames(DG_matrix) <- DGs
-      colnames(DGX_matrix) <- DGXs
-      assign(DG_name,DG_matrix)
-      assign(DGX_name,DGX_matrix)
-    }
-    
-    data.aug <- cbind.data.frame(data, G, GX)
-    
-    for (char in other.treat) {
-      DG_name <- paste0("DG.",char)
-      data.aug <- cbind.data.frame(data.aug, get(DG_name)) 
-    }
-    
-    for (char in other.treat) {
-      DGX_name <- paste0("DGX.",char)
-      data.aug <- cbind.data.frame(data.aug, get(DGX_name)) 
-    }
-    
-    Gs<-GXs<-DGs<-DGXs<-c()
-    for (i in 1:(nbins-1))  {
-      Gs<-c(Gs,paste0("G.",i))
-      GXs<-c(GXs,paste0("GX.",i))
-      for (char in other.treat) {
-        DGs<-c(DGs,paste0("DG.",char,".",i))
-        DGXs<-c(DGXs,paste0("DGX.",char,".",i))
-      }
-    }
-    
-    formula1<-paste(formula0,
-                    "+",paste(Gs,collapse=" + "),
-                    "+",paste(GXs,collapse=" + "),
-                    "+",paste(DGs,collapse=" + "),
-                    "+",paste(DGXs,collapse=" + "))
+		model.binning.coef[which(is.na(model.binning.coef))] <- 0
+		group.X.eval <- cut(X.eval,breaks=cuts.X, labels = FALSE)
+		group.X.eval[which(X.eval==min(X.eval))] <- 1
+
+		if(treat.type=='discrete'){
+			link.bin.1 <- 0
+			link.bin.0 <- 0
+
+			for(i in 1:nbins){
+				link.bin.1 <- link.bin.1 +
+							  model.binning.coef[paste0("G.",i)]*as.numeric(group.X.eval==i) + 
+							  model.binning.coef[paste0("GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i]) +
+							  model.binning.coef[paste0('D.',char,'.','G.',i)]*as.numeric(group.X.eval==i) +
+							  model.binning.coef[paste0('D.',char,'.','GX.',i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
 					
-    if (is.null(Z)==FALSE) {
-      formula0 <- paste0(formula0, "+",paste(Z,collapse=" + "))
-      formula1 <- paste0(formula1, "+",paste(Z,collapse=" + "))
-    } 
-    if (is.null(FE)==FALSE) {
-      formula0 <- paste0(formula0, "|",paste0(FE, collapse=" + "))
-      formula1 <- paste0(formula1, "|",paste0(FE, collapse = "+"))
-      if (vartype=="cluster") {
-        formula0 <- paste0(formula0, "| 0 |",paste0(cl,collapse = "+"))
-        formula1 <- paste0(formula1, "| 0 |",paste0(cl,collapse = "+"))
-      }
-    }
-    mod.formula0<-as.formula(formula0)
-    mod.formula1<-as.formula(formula1)
-    
-    if (is.null(FE)==TRUE) { #OLS
-      ## fit
-      if (is.null(weights)==TRUE) {
-        mod.re<-lm(mod.formula0,data=data.aug)
-        mod.un<-lm(mod.formula1,data=data.aug)
-      } else {
-        mod.re<-lm(mod.formula0,data=data.aug,weights=dataweights)
-        mod.un<-lm(mod.formula1,data=data.aug,weights=dataweights)
-      }
-      ## vcov
-      if (is.null(vartype)==TRUE) {vartype <- "homoscedastic"}
-      if (vartype=="homoscedastic") {
-        v<-vcov(mod.un)
-      } else if (vartype=="robust") {
-        v<-vcovHC(mod.un,type="HC1") # White with small sample correction
-      } else if (vartype=="cluster") {
-        v<-vcovCluster(mod.un,cluster = data.aug[,cl])
-      } else if (vartype=="pcse") {
-        v<-pcse(mod.un,
-                groupN=data.aug[,cl],
-                groupT=data.aug[,time],
-                pairwise=pairwise)$vcov
-      }
-      ## wald test
-      requireNamespace("lmtest")
-      wald.out <- tryCatch(
-        p.wald <- round(lmtest::waldtest(mod.re, mod.un,test="Chisq", vcov=v)[[4]][2],4),
-        error = function(e){return(NULL)}
-      )   
-      ## warning
-      if (is.null(wald.out)==TRUE) {
-        p.wald <- NULL
-        warning("Var-cov matrix nearly singular in the Wald test.")
-      }  
-    } else { # FE
-      requireNamespace("lfe")
-      ## fit
-      if (is.null(weights)==TRUE) {
-        mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug))
-      } else {
-        mod.un<-suppressWarnings(felm(mod.formula1,data=data.aug,weights=dataweights))
-      }
-      
-      ## wald test
-      constraints <- as.formula(paste0("~",paste0(c(Gs,GXs,DGs,DGXs), collapse = "|")))  
-      
-      if (vartype=="homoscedastic") {
-        p.wald <- lfe::waldtest(mod.un, constraints, type = "default")[1]
-      } else if (vartype=="robust") {
-        p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
-      } else {
-        p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
-      }
-      names(p.wald) <- NULL            
-      p.wald <- round(p.wald,4)        
-    }
-  }
-  # end of Wald test
-}  
-    
-if(TRUE){## get densities and histogram
-  if (treat.type=='discrete') { ## discrete D
+				link.bin.0 <- link.bin.0 +
+							  model.binning.coef[paste0("G.",i)]*as.numeric(group.X.eval==i) + 
+							  model.binning.coef[paste0("GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+			
+			}
+			
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+					target.Z <- Z.ref[a]
+					if(full.moderate==FALSE){
+						link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
+						link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
+					}
+					if(full.moderate==TRUE){
+						for(i in 1:nbins){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
+										  target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+
+							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
+										  target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+						}
+					}
+				}
+			}
+			
+			if(method=='linear'){
+				E.pred <- link.bin.1
+				E.base <- link.bin.0
+			}
+		
+			if(method=='logit'){
+				E.pred <- E.prob.1 <- exp(link.bin.1)/(1+exp(link.bin.1))
+				E.base <- E.prob.0 <- exp(link.bin.0)/(1+exp(link.bin.0))
+			}
+	
+			if(method=='probit'){
+				E.pred <- E.prob.1 <- pnorm(link.bin.1,0,1)
+				E.base <- E.prob.0 <- pnorm(link.bin.0,0,1)
+			}
+		
+			if(method=='poisson' | method=="nbinom"){
+				E.pred <- E.y.1 <- exp(link.bin.1)
+				E.base <- E.y.0 <- exp(link.bin.0)
+			}
+			return(list(E.pred=E.pred,E.base=E.base,link.1=link.bin.1,link.0=link.bin.0))
+		}
+		
+		if(treat.type=='continuous'){
+			link.bin <- 0
+			for(i in 1:nbins){
+				link.bin <- link.bin + 
+							model.binning.coef[paste0("G.",i)]*as.numeric(group.X.eval==i) + 
+							model.binning.coef[paste0("GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i]) +
+							model.binning.coef[paste0('D.G.',i)]*as.numeric(group.X.eval==i)*D.ref + 
+							model.binning.coef[paste0('D.GX.',i)]*as.numeric(group.X.eval==i)*D.ref*(X.eval-x0[i])
+			}
+			if(is.null(Z)==FALSE){
+				for(a in Z){
+					target.Z <- Z.ref[a]
+					if(full.moderate==FALSE){
+						link.bin <- link.bin + target.Z*model.binning.coef[a]
+					}
+					if(full.moderate==TRUE){
+						for(i in 1:nbins){
+							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
+										target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
+						}
+					}
+				}
+			}
+			if(method=='logit'){
+				E.pred <- exp(link.bin)/(1+exp(link.bin))
+			}
+			if(method=='probit'){
+				E.pred <- pnorm(link.bin,0,1)
+			}
+			if(method=='linear'){
+				E.pred <- link.bin
+			}
+			if(method=='poisson'|method=='nbinom'){
+				E.pred <- exp(link.bin)
+			}
+			return(list(E.pred=E.pred,link=link.bin))
+		}
+	}
+
+	## Function B.4a (binning link delta)
+	gen.link.binning.delta <- function(model.binning.coef, model.binning.vcov, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
+		if(is.null(char)==TRUE){
+			treat.type='continuous'
+		}
+		if(is.null(D.ref)==TRUE){
+			treat.type=='discrete'
+		}
+		model.binning.coef[which(is.na(model.binning.coef))] <- 0
+
+		gen.link.binning.delta.sd <- function(x){
+			if(use_fe==TRUE){
+				return(0)
+			}
+			group.xx <- cut(x,breaks=cuts.X, labels = FALSE,include.lowest = TRUE)
+			if(is.na(group.xx)==TRUE){
+				return(NA)
+			}
+			if(treat.type=='discrete'){			
+				if(char!=base){
+					link.bin.1 <- model.binning.coef[paste0("G.",group.xx)]+ 
+								  model.binning.coef[paste0("GX.",group.xx)]*(x-x0[group.xx]) +
+								  model.binning.coef[paste0('D.',char,'.','G.',group.xx)] +
+								  model.binning.coef[paste0('D.',char,'.','GX.',group.xx)]*(x-x0[group.xx])
+					target.slice <- c(paste0("G.",group.xx),
+									  paste0("GX.",group.xx),
+									  paste0('D.',char,'.','G.',group.xx),
+								      paste0('D.',char,'.','GX.',group.xx))
+				}
+				if(char==base){
+					link.bin.1 <- model.binning.coef[paste0("G.",group.xx)]+ 
+								  model.binning.coef[paste0("GX.",group.xx)]*(x-x0[group.xx]) 			  
+					target.slice <- c(paste0("G.",group.xx),
+									  paste0("GX.",group.xx))
+				}
+				
+				if(is.null(Z)==FALSE){
+					if(full.moderate==FALSE){
+						target.slice <- c(target.slice,Z)
+						if(char!=base){
+							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx],Z.ref)
+						}
+						if(char==base){
+							vec <- c(1,x-x0[group.xx],Z.ref)
+						}
+					}
+					if(full.moderate==TRUE){
+						if(char!=base){
+							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx])
+						}
+						if(char==base){
+							vec <- c(1,x-x0[group.xx])
+						}
+					}
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
+						}	
+						if(full.moderate==TRUE){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
+							target.slice <- c(target.slice, paste0(a,".G.",group.xx), paste0(a,".GX.",group.xx))
+							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
+						}
+					}
+				}
+				else{
+					if(char!=base){
+						vec <- c(1,x-x0[group.xx],1,x-x0[group.xx])
+					}
+					if(char==base){
+						vec <- c(1,x-x0[group.xx])
+					}
+				}
+								
+				temp.vcov.matrix <- model.binning.vcov[target.slice,target.slice]
+				predict.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+				return(predict.sd)
+			}
+			
+			if(treat.type=='continuous'){
+				target.slice <- c(paste0("G.",group.xx),
+								  paste0("GX.",group.xx),
+								  paste0('D.G.',group.xx),
+								  paste0('D.GX.',group.xx))
+				
+				link.bin <- model.binning.coef[paste0("G.",group.xx)]+ 
+							  model.binning.coef[paste0("GX.",group.xx)]*(x-x0[group.xx]) +
+							  model.binning.coef[paste0('D.G.',group.xx)]*D.ref +
+							  model.binning.coef[paste0('D.GX.',group.xx)]*(x-x0[group.xx])*D.ref
+
+				if(is.null(Z)==FALSE){
+					if(full.moderate==FALSE){
+						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref,Z.ref)
+						target.slice <- c(target.slice,Z)
+					}
+
+					if(full.moderate==TRUE){
+						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref)
+					}
+
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							link.bin <- link.bin + target.Z*model.binning.coef[a]
+						}	
+						if(full.moderate==TRUE){
+							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
+							target.slice <- c(target.slice,paste0(a,".G.",group.xx),paste0(a,".GX.",group.xx))
+							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
+						}
+					}
+				}
+				else{
+					vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref)
+				}
+				temp.vcov.matrix <- model.binning.vcov[target.slice,target.slice]
+				predict.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+				return(predict.sd)
+			}
+		}
+
+		binning.link.delta.sd <- c(sapply(X.eval,function(x) gen.link.binning.delta.sd(x)))
+		names(binning.link.delta.sd) <- NULL
+		return(binning.link.delta.sd)
+	}
+
+	## Function B.4 (binning predict delta)
+	#1. estimate sd of predicted value(binning) using delta method 
+	#2. input: model.binning.coef, model.binning.vcov, X.eval, cuts.X, x0, char(discrete), D.ref(continuous)
+	#3. output: sd of predicted value(binning)
+	gen.pred.binning.delta <- function(model.binning.coef, model.binning.vcov, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
+		if(is.null(char)==TRUE){
+			treat.type='continuous'
+		}
+		if(is.null(D.ref)==TRUE){
+			treat.type=='discrete'
+		}
+		model.binning.coef[which(is.na(model.binning.coef))] <- 0
+		
+		gen.pred.binning.delta.sd <- function(x){
+			if(use_fe==TRUE){
+				return(0)
+			}
+
+			group.xx <- cut(x,breaks=cuts.X, labels = FALSE,include.lowest = TRUE)
+			if(is.na(group.xx)==TRUE){
+				return(NA)
+			}
+			if(treat.type=='discrete'){
+						
+				if(char!=base){
+					link.bin.1 <- model.binning.coef[paste0("G.",group.xx)]+ 
+								  model.binning.coef[paste0("GX.",group.xx)]*(x-x0[group.xx]) +
+								  model.binning.coef[paste0('D.',char,'.','G.',group.xx)] +
+								  model.binning.coef[paste0('D.',char,'.','GX.',group.xx)]*(x-x0[group.xx])
+					
+					target.slice <- c(paste0("G.",group.xx),
+									  paste0("GX.",group.xx),
+									  paste0('D.',char,'.','G.',group.xx),
+								      paste0('D.',char,'.','GX.',group.xx))
+				}
+				
+				if(char==base){
+					link.bin.1 <- model.binning.coef[paste0("G.",group.xx)]+ 
+								  model.binning.coef[paste0("GX.",group.xx)]*(x-x0[group.xx]) 
+								  
+					target.slice <- c(paste0("G.",group.xx),
+									  paste0("GX.",group.xx))
+				
+				}
+				
+				if(is.null(Z)==FALSE){
+					if(full.moderate==FALSE){
+						target.slice <- c(target.slice,Z)
+						if(char!=base){
+							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx],Z.ref)
+						}
+						if(char==base){
+							vec <- c(1,x-x0[group.xx],Z.ref)
+						}
+					}
+
+					if(full.moderate==TRUE){
+						if(char!=base){
+							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx])
+						}
+						if(char==base){
+							vec <- c(1,x-x0[group.xx])
+						}
+					}
+
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
+						}	
+						if(full.moderate==TRUE){
+							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
+							target.slice <- c(target.slice, paste0(a,".G.",group.xx), paste0(a,".GX.",group.xx))
+							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
+						}
+					}
+				}
+				else{
+					if(char!=base){
+						vec <- c(1,x-x0[group.xx],1,x-x0[group.xx])
+					}
+					if(char==base){
+						vec <- c(1,x-x0[group.xx])
+					}
+				}
+				
+				if(method=='logit'){
+					vec <- vec*exp(link.bin.1)/(1+exp(link.bin.1))^2 
+				}
+				if(method=='probit'){
+					vec <- vec*dnorm(link.bin.1)
+				}
+				if(method=='poisson' | method=='nbinom'){
+					vec <- vec*exp(link.bin.1)
+				}
+				if(method=='linear'){
+					vec <- vec
+				}
+				
+				temp.vcov.matrix <- model.binning.vcov[target.slice,target.slice]
+				predict.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+				return(predict.sd)
+				
+			}
+			
+			if(treat.type=='continuous'){
+				target.slice <- c(paste0("G.",group.xx),
+								  paste0("GX.",group.xx),
+								  paste0('D.G.',group.xx),
+								  paste0('D.GX.',group.xx))
+				
+				link.bin <- model.binning.coef[paste0("G.",group.xx)]+ 
+							  model.binning.coef[paste0("GX.",group.xx)]*(x-x0[group.xx]) +
+							  model.binning.coef[paste0('D.G.',group.xx)]*D.ref +
+							  model.binning.coef[paste0('D.GX.',group.xx)]*(x-x0[group.xx])*D.ref
+
+				if(is.null(Z)==FALSE){
+					if(full.moderate==FALSE){
+						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref,Z.ref)
+						target.slice <- c(target.slice,Z)
+					}
+
+					if(full.moderate==TRUE){
+						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref)
+					}
+
+					for(a in Z){
+						target.Z <- Z.ref[a]
+						if(full.moderate==FALSE){
+							link.bin <- link.bin + target.Z*model.binning.coef[a]
+						}	
+						if(full.moderate==TRUE){
+							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
+							target.slice <- c(target.slice,paste0(a,".G.",group.xx),paste0(a,".GX.",group.xx))
+							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
+						}
+					}
+				}
+				else{
+					vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref)
+				}
+				
+				temp.vcov.matrix <- model.binning.vcov[target.slice,target.slice]
+				if(method=='logit'){
+					vec <- vec*exp(link.bin)/(1+exp(link.bin))^2 
+				}
+				if(method=='probit'){
+					vec <- vec*dnorm(link.bin)
+				}
+				if(method=='poisson' | method=='nbinom'){
+					vec <- vec*exp(link.bin)
+				}
+				if(method=='linear'){
+					vec <- vec
+				}
+				predict.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
+				return(predict.sd)
+			}
+		}
+		
+		binning.pred.delta.sd <- c(sapply(X.eval,function(x) gen.pred.binning.delta.sd(x)))
+		names(binning.pred.delta.sd) <- NULL
+		return(binning.pred.delta.sd)
+	
+	}
+	
+	
+	#vartype: simulate
+	if(vartype=='simu'){
+		#simu
+		M <- nsimu
+		simu.coef <- rmvnorm(M, model.coef, model.vcov)
+		simu.binning.coef <- rmvnorm(M, model.binning.coef, model.binning.vcov)
+		
+		if(treat.type=='discrete'){
+			TE.output.all.list <- list()
+			TE.binning.output.all.list <- list()
+			pred.output.all.list <- list()
+			link.output.all.list <- list()
+			for(char in other.treat){
+				gen.general.TE.output <- gen.general.TE(model.coef=model.coef,char=char)
+				TE.output <- gen.general.TE.output$TE
+				TE.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+													char=char)
+				pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+														X.eval=X.eval, 
+														cuts.X=cuts.X, 
+														x0=x0, 
+														char=char)
+				
+				#simu
+				one.simu1.output <- function(model.coef){
+					one.simu.TE.output <- gen.general.TE(model.coef=model.coef,char=char)
+					output <- one.simu.TE.output$TE
+					names(output) <- rep("TE",length(output))
+					return(output)
+				}
+				
+				one.simu2.output <- function(model.binning.coef){
+					simu.TE.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+															 char=char)
+					simu.pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+																 X.eval=X.eval, 
+																 cuts.X=cuts.X, 
+																 x0=x0, 
+																 char=char)
+					
+					output <- c(simu.TE.binning.output,simu.pred.binning.output$E.pred,simu.pred.binning.output$E.base,
+								simu.pred.binning.output$link.1,simu.pred.binning.output$link.0)
+
+					names(output) <- c(rep("bins.est",nbins),rep("pred.bin",length(X.eval)),rep("base.bin",length(X.eval)),
+									   rep("link.1",length(X.eval)),rep("link.0",length(X.eval)))
+
+					return(output)
+				}
+				
+				TE.simu.matrix <- apply(simu.coef, 1, function(x) one.simu1.output(model.coef=x))
+				binning.simu.matrix <- apply(simu.binning.coef,1,function(x) one.simu2.output(model.binning.coef=x))
+				pred.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="pred.bin",]
+				base.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="base.bin",]
+				link.1.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="link.1",]
+				link.0.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="link.0",]
+
+				est.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="bins.est",]
+				
+				TE.simu.sd <- apply(TE.simu.matrix, 1, sd, na.rm=TRUE)
+				pred.simu.sd <- apply(pred.simu.matrix, 1, sd, na.rm=TRUE)
+				base.simu.sd <- apply(base.simu.matrix, 1, sd, na.rm=TRUE)
+				link.1.simu.sd <- apply(link.1.simu.matrix, 1, sd, na.rm=TRUE)
+				link.0.simu.sd <- apply(link.0.simu.matrix, 1, sd, na.rm=TRUE)
+				est.simu.sd <- apply(est.simu.matrix, 1, sd, na.rm=TRUE)
+				
+				TE.simu.CI <- t(apply(TE.simu.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				pred.simu.CI <- t(apply(pred.simu.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				base.simu.CI <- t(apply(base.simu.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				link.1.simu.CI <- t(apply(link.1.simu.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				link.0.simu.CI <- t(apply(link.0.simu.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				est.simu.CI <- t(apply(est.simu.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+
+				TE.output.all <- cbind(X.eval,TE.output,TE.simu.sd,TE.simu.CI[,1],TE.simu.CI[,2])
+				colnames(TE.output.all) <- c("X","TE","sd","lower CI(95%)","upper CI(95%)")
+				rownames(TE.output.all) <- NULL
+				TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
+				
+				TE.binning.all <- cbind(x0,TE.binning.output,est.simu.sd,est.simu.CI[,1],est.simu.CI[,2])
+				colnames(TE.binning.all) <- c('x0',"coef","sd","CI.lower","CI.upper")
+				rownames(TE.binning.all) <- gp.lab
+				TE.binning.output.all.list[[other.treat.origin[char]]] <- TE.binning.all
+				
+				pred.output.all <- cbind(X.eval,pred.binning.output$E.pred,pred.simu.sd,pred.simu.CI[,1],pred.simu.CI[,2])
+				colnames(pred.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(pred.output.all) <- NULL
+				pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
+
+				link.output.all <- cbind(X.eval,pred.binning.output$link.1,link.1.simu.sd,link.1.simu.CI[,1],link.1.simu.CI[,2])
+				colnames(link.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(link.output.all) <- NULL
+				link.output.all.list[[other.treat.origin[char]]] <- link.output.all
+				
+			}
+			
+			#base
+			base.output.all <- cbind(X.eval,pred.binning.output$E.base,base.simu.sd,base.simu.CI[,1],base.simu.CI[,2])
+			colnames(base.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+			rownames(base.output.all) <- NULL
+			pred.output.all.list[[all.treat.origin[base]]] <- base.output.all	
+
+			link.0.output.all <- cbind(X.eval,pred.binning.output$link.0,link.0.simu.sd,link.0.simu.CI[,1],link.0.simu.CI[,2])
+			colnames(link.0.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+			rownames(link.0.output.all) <- NULL
+			link.output.all.list[[all.treat.origin[base]]] <- link.0.output.all	
+		}
+		
+		if(treat.type=='continuous'){
+			ME.output.all.list <- list()
+			ME.binning.output.all.list <- list()
+			pred.output.all.list <- list()
+			link.output.all.list <- list()
+			k <- 1
+			for(D.ref in D.sample){
+				gen.general.ME.output <- gen.general.TE(model.coef=model.coef,D.ref=D.ref)
+				ME.output <- gen.general.ME.output$ME
+				ME.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+													D.ref=D.ref)
+				pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+														X.eval=X.eval, 
+														cuts.X=cuts.X, 
+														x0=x0, 
+														D.ref=D.ref)
+				#simu
+				one.simu1.output <- function(model.coef){
+					one.simu.ME.output <- gen.general.TE(model.coef=model.coef,D.ref=D.ref)
+					output <- one.simu.ME.output$ME
+					names(output) <- rep("ME",length(output))
+					return(output)
+				}
+				
+				one.simu2.output <- function(model.binning.coef){
+					simu.ME.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+															 D.ref=D.ref)
+					simu.pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+																 X.eval=X.eval, 
+																 cuts.X=cuts.X, 
+																 x0=x0, 
+																 D.ref=D.ref)
+					output <- c(simu.ME.binning.output,simu.pred.binning.output$E.pred,simu.pred.binning.output$link)
+					names(output) <- c(rep("bins.est",nbins),rep("pred.bin",length(X.eval)),rep("link",length(X.eval)))
+					return(output)
+				}
+				
+				ME.simu.matrix <- apply(simu.coef, 1, function(x) one.simu1.output(model.coef=x))
+				binning.simu.matrix <- apply(simu.binning.coef,1,function(x) one.simu2.output(model.binning.coef=x))
+				
+				pred.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="pred.bin",]
+				est.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="bins.est",]
+				link.simu.matrix <- binning.simu.matrix[rownames(binning.simu.matrix)=="link",]
+				
+				ME.simu.sd <- apply(ME.simu.matrix, 1, sd)
+				pred.simu.sd <- apply(pred.simu.matrix, 1, sd)
+				link.simu.sd <- apply(link.simu.matrix, 1, sd)
+				est.simu.sd <- apply(est.simu.matrix, 1, sd)
+				
+				ME.simu.CI <- t(apply(ME.simu.matrix, 1, quantile, c(0.025,0.975)))
+				pred.simu.CI <- t(apply(pred.simu.matrix, 1, quantile, c(0.025,0.975)))
+				link.simu.CI <- t(apply(link.simu.matrix, 1, quantile, c(0.025,0.975)))
+				est.simu.CI <- t(apply(est.simu.matrix, 1, quantile, c(0.025,0.975)))
+
+				ME.output.all <- cbind(X.eval,ME.output,ME.simu.sd,ME.simu.CI[,1],ME.simu.CI[,2])
+				colnames(ME.output.all) <- c("X","ME","sd","lower CI(95%)","upper CI(95%)")
+				rownames(ME.output.all) <- NULL
+				ME.output.all.list[[label.name[k]]] <- ME.output.all
+				
+				ME.binning.all <- cbind(x0,ME.binning.output,est.simu.sd,est.simu.CI[,1],est.simu.CI[,2])
+				colnames(ME.binning.all) <- c('x0',"coef","sd","CI.lower","CI.upper")
+				rownames(ME.binning.all) <- gp.lab
+				ME.binning.output.all.list[[label.name[k]]] <- ME.binning.all
+				
+				pred.output.all <- cbind(X.eval,pred.binning.output$E.pred,pred.simu.sd,pred.simu.CI[,1],pred.simu.CI[,2])
+				colnames(pred.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(pred.output.all) <- NULL
+				pred.output.all.list[[label.name[k]]] <- pred.output.all
+
+				link.output.all <- cbind(X.eval,pred.binning.output$link,link.simu.sd,link.simu.CI[,1],link.simu.CI[,2])
+				colnames(link.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(link.output.all) <- NULL
+				link.output.all.list[[label.name[k]]] <- link.output.all
+
+				k <- k + 1
+			}			
+		}	
+	}
+	
+	#vartype: delta
+	if(vartype=='delta'){
+		crit.lin <- abs(qt(.025, df=model.df))
+		crit.bin <- abs(qt(.025, df=model.binning.df))
+
+		if(treat.type=='discrete'){
+			TE.output.all.list <- list()
+			TE.binning.output.all.list <- list()
+			pred.output.all.list <- list()
+			link.output.all.list <- list()
+			for(char in other.treat){
+				gen.general.TE.output <- gen.general.TE(model.coef=model.coef,char=char)
+				TE.output <- gen.general.TE.output$TE
+				TE.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+													char=char)
+				pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+														X.eval=X.eval, 
+														cuts.X=cuts.X, 
+														x0=x0, 
+														char=char)
+				
+				TE.delta.sd <- gen.delta.TE(model.coef=model.coef,model.vcov=model.vcov,char=char)$TE.sd
+				TE.binning.delta.sd <- gen.binning.delta.TE(model.binning.coef=model.binning.coef, 
+															model.binning.vcov=model.binning.vcov, 
+															char=char)
+
+				pred.binning.delta.sd <- gen.pred.binning.delta(model.binning.coef=model.binning.coef, 
+															    model.binning.vcov=model.binning.vcov, 
+																X.eval=X.eval, 
+																cuts.X=cuts.X, 
+																x0=x0, 
+																char=char)
+
+				link.binning.delta.sd <- gen.link.binning.delta(model.binning.coef=model.binning.coef, 
+															    model.binning.vcov=model.binning.vcov, 
+																X.eval=X.eval, 
+																cuts.X=cuts.X, 
+																x0=x0, 
+																char=char)
+				
+				TE.output.all <- cbind(X.eval,TE.output,TE.delta.sd,TE.output-crit.lin*TE.delta.sd,TE.output+crit.lin*TE.delta.sd)
+				colnames(TE.output.all) <- c("X","TE","sd","lower CI(95%)","upper CI(95%)")
+				rownames(TE.output.all) <- NULL
+				TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
+				
+				E.pred.output <- pred.binning.output$E.pred
+				pred.output.all <- cbind(X.eval, E.pred.output, pred.binning.delta.sd, E.pred.output-crit.bin*pred.binning.delta.sd, E.pred.output+crit.bin*pred.binning.delta.sd)
+				colnames(pred.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(pred.output.all) <- NULL
+				pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
+
+				link.output <- pred.binning.output$link.1
+				link.output.all <- cbind(X.eval, link.output, link.binning.delta.sd, link.output-crit.bin*link.binning.delta.sd, link.output+crit.bin*link.binning.delta.sd)
+				colnames(link.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(link.output.all) <- NULL
+				link.output.all.list[[other.treat.origin[char]]] <- link.output.all
+				
+				TE.binning.all <- cbind(x0,TE.binning.output,TE.binning.delta.sd,TE.binning.output-crit.bin*TE.binning.delta.sd,
+										TE.binning.output+crit.bin*TE.binning.delta.sd)
+				colnames(TE.binning.all) <- c('x0',"coef","sd","CI.lower","CI.upper")
+				rownames(TE.binning.all) <- gp.lab
+				TE.binning.output.all.list[[other.treat.origin[char]]] <- TE.binning.all 
+			}
+			
+			#base
+			E.base.output <- pred.binning.output$E.base
+			E.base.delta.sd <- gen.pred.binning.delta(model.binning.coef=model.binning.coef, 
+													  model.binning.vcov=model.binning.vcov, 
+													  X.eval=X.eval, 
+													  cuts.X=cuts.X, 
+													  x0=x0, 
+													  char=base)
+			base.output.all <- cbind(X.eval, E.base.output, E.base.delta.sd, E.base.output-crit.bin*E.base.delta.sd, E.base.output+crit.bin*E.base.delta.sd)
+			colnames(base.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+			rownames(base.output.all) <- NULL
+			pred.output.all.list[[all.treat.origin[base]]] <- base.output.all
+
+			link.0.output <- pred.binning.output$link.0
+			link.0.delta.sd <- gen.link.binning.delta(model.binning.coef=model.binning.coef, 
+													  model.binning.vcov=model.binning.vcov, 
+													  X.eval=X.eval, 
+													  cuts.X=cuts.X, 
+													  x0=x0, 
+													  char=base)
+			link.0.output.all <- cbind(X.eval, link.0.output, link.0.delta.sd, link.0.output-crit.bin*link.0.delta.sd, link.0.output+crit.bin*link.0.delta.sd)
+			colnames(link.0.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+			rownames(link.0.output.all) <- NULL
+			link.output.all.list[[all.treat.origin[base]]] <- link.0.output.all
+		}
+	
+		if(treat.type=='continuous'){
+			ME.output.all.list <- list()
+			ME.binning.output.all.list <- list()
+			pred.output.all.list <- list()
+			link.output.all.list <- list()
+			k <- 1
+			for(D.ref in D.sample){
+				gen.general.ME.output <- gen.general.TE(model.coef=model.coef,D.ref=D.ref)
+				ME.output <- gen.general.ME.output$ME
+				ME.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+													D.ref=D.ref)
+				pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+														X.eval=X.eval, 
+														cuts.X=cuts.X, 
+														x0=x0, 
+														D.ref=D.ref)
+				
+				ME.delta.sd <- gen.delta.TE(model.coef=model.coef,model.vcov=model.vcov,D.ref=D.ref)$ME.sd
+				ME.binning.delta.sd <- gen.binning.delta.TE(model.binning.coef=model.binning.coef, 
+															model.binning.vcov=model.binning.vcov, 
+															D.ref=D.ref)
+				pred.binning.delta.sd <- gen.pred.binning.delta(model.binning.coef=model.binning.coef, 
+															    model.binning.vcov=model.binning.vcov, 
+																X.eval=X.eval, 
+																cuts.X=cuts.X, 
+																x0=x0, 
+																D.ref=D.ref)
+
+				link.binning.delta.sd <- gen.link.binning.delta(model.binning.coef=model.binning.coef, 
+															    model.binning.vcov=model.binning.vcov, 
+																X.eval=X.eval, 
+																cuts.X=cuts.X, 
+																x0=x0, 
+																D.ref=D.ref)
+
+				
+				ME.output.all <- cbind(X.eval,ME.output,ME.delta.sd, ME.output-crit.lin*ME.delta.sd, ME.output+crit.lin*ME.delta.sd)
+				colnames(ME.output.all) <- c("X","ME","sd","lower CI(95%)","upper CI(95%)")
+				rownames(ME.output.all) <- NULL
+				ME.output.all.list[[label.name[k]]] <- ME.output.all
+				
+				E.pred.output <- pred.binning.output$E.pred
+				pred.output.all <- cbind(X.eval, E.pred.output, pred.binning.delta.sd, E.pred.output-crit.bin*pred.binning.delta.sd, E.pred.output+crit.bin*pred.binning.delta.sd)
+				colnames(pred.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(pred.output.all) <- NULL
+				pred.output.all.list[[label.name[k]]] <- pred.output.all
+
+				link.output <- pred.binning.output$link
+				link.output.all <- cbind(X.eval, link.output, link.binning.delta.sd, link.output-crit.bin*link.binning.delta.sd, link.output+crit.bin*link.binning.delta.sd)
+				colnames(link.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(link.output.all) <- NULL
+				link.output.all.list[[label.name[k]]] <- link.output.all
+				
+				ME.binning.all <- cbind(x0,ME.binning.output,ME.binning.delta.sd,ME.binning.output-crit.bin*ME.binning.delta.sd,
+										ME.binning.output+crit.bin*ME.binning.delta.sd)
+				colnames(ME.binning.all) <- c('x0',"coef","sd","CI.lower","CI.upper")
+				rownames(ME.binning.all) <- gp.lab
+				ME.binning.output.all.list[[label.name[k]]] <- ME.binning.all
+				k <- k+1
+			}
+		}	
+	}
+	
+	
+	#vartype: bootstrap
+	#when conducting binning estimation, use cuts.X and x0 in the original estimation
+	if(vartype=='bootstrap'){
+		if(treat.type=='discrete'){
+			all.length <- neval*length(other.treat) + #TE
+						  neval*length(all.treat) + #pred
+						  neval*length(all.treat) + #link
+						  nbins*length(other.treat)
+		}
+		
+		if(treat.type=='continuous'){
+			all.length <- neval*length(label.name) + #ME
+						  neval*length(label.name) + #pred
+						  neval*length(label.name) + #link
+						  nbins*length(label.name) # 
+		}
+		
+		one.boot <- function(){
+			if (is.null(cl)==TRUE){
+				smp <- sample(1:n,n,replace=TRUE)
+			} else{ ## block bootstrap
+				cluster.boot<-sample(clusters,length(clusters),replace=TRUE)
+				smp<-unlist(id.list[match(cluster.boot,clusters)])
+			}   
+			data.boot <- data[smp,]
+			
+			boot.out <- matrix(NA,nrow=all.length,ncol=0)
+		
+			### check input...
+			if(treat.type=='discrete'){
+				if(length(unique(data.boot[,D]))!=length(unique(data[,D]))){
+					return(boot.out)
+				}
+			}
+			
+			if(use_fe==FALSE & is.null(IV)){
+				## Linear Part
+				if(method=='linear'){
+					suppressWarnings(
+						model.boot <- glm(formula,data=data.boot,weights=WEIGHTS)
+					)
+				}
+				if(method=='logit'){
+					suppressWarnings(
+						model.boot <- glm(formula,data=data.boot,family=binomial(link = 'logit'),weights=WEIGHTS)
+					)
+				}
+				if(method=='probit'){
+					suppressWarnings(
+						model.boot <- glm(formula,data=data.boot,family=binomial(link = 'probit'),weights=WEIGHTS)
+					)
+				}
+				if(method=='poisson'){
+					suppressWarnings(
+						model.boot <- glm(formula,data=data.boot,family=poisson,weights=WEIGHTS)
+					)
+				}
+				if(method=='nbinom'){
+					suppressWarnings(
+						model.boot <- glm.nb(formula,data=data.boot,weights=WEIGHTS)
+					)
+				}
+			
+				#### check converge...
+				if(model.boot$converged==FALSE){
+					return(boot.out)
+				}
+			}
+
+			if(use_fe==TRUE & is.null(IV)){
+				w.boot <- data.boot[,'WEIGHTS']
+				suppressWarnings(
+					model.boot <- felm(formula,data=data.boot,weights=w.boot)
+				)
+			}
+
+			if(use_fe==FALSE & !is.null(IV)){
+				suppressWarnings(
+					model.boot <- ivreg(formula,data=data.boot,weights=WEIGHTS)
+				)
+			}
+
+			if(use_fe==TRUE & !is.null(IV)){
+				w.boot <- data.boot[,'WEIGHTS']
+				suppressWarnings(
+					model.boot <- felm(formula,data=data.boot,weights=w.boot)
+				)
+			}
+			
+			coef.boot <- coef(model.boot)
+			if(!is.null(IV)){
+	  			if(use_fe==1){
+	    			names(coef.boot) <- name.update
+	  			}
+  			}
+			
+			## Binning Part
+			groupX.boot <- cut(data.boot[,X],breaks=cuts.X,labels=FALSE,include.lowest = TRUE)
+			
+			data.boot.binning <- data.boot
+			for(i in 1:nbins){
+				data.boot.binning[,paste0('G.',i)] <- as.numeric(groupX.boot==i)
+				data.boot.binning[,paste0('GX.',i)] <- as.numeric(groupX.boot==i)*(data.boot[,X]-x0[i])
+			}
+	
+			if(treat.type=='discrete'){
+				for(char in other.treat){
+					for(i in 1:nbins){
+						data.boot.binning[,paste0('D.',char,'.','G.',i)] <- as.numeric(groupX.boot==i)*as.numeric(data.boot[,D]==char)
+						data.boot.binning[,paste0('D.',char,'.','GX.',i)] <- as.numeric(groupX.boot==i)*as.numeric(data.boot[,D]==char)*(data.boot[,X]-x0[i])
+					}
+				}
+			}
+	
+			if(treat.type=='continuous'){
+				for(i in 1:nbins){
+					data.boot.binning[,paste0('D.G.',i)] <- as.numeric(groupX.boot==i)*data.boot[,D]
+					data.boot.binning[,paste0('D.GX.',i)] <- as.numeric(groupX.boot==i)*data.boot[,D]*(data.boot[,X]-x0[i])
+				}
+			}
+
+			if(full.moderate==TRUE){
+				#formula.binning <- paste0(formula.binning,"+",paste0(Z.X,collapse="+"))
+				for(a in Z){
+					for(i in 1:nbins){
+						data.boot.binning[,paste0(a,'.G.',i)] <- as.numeric(groupX.boot==i)*data.boot[,a]
+						data.boot.binning[,paste0(a,'.GX.',i)] <- as.numeric(groupX.boot==i)*data.boot[,a]*(data.boot[,X]-x0[i])
+					}
+				}
+			}
+
+			if(!is.null(IV)){
+				for(sub.iv in IV){
+					for(i in 1:nbins){
+						data.boot.binning[,paste0(sub.iv,'.','G.',i)] <- as.numeric(groupX.boot==i)*as.numeric(data.boot[,sub.iv])
+						data.boot.binning[,paste0(sub.iv,'.','GX.',i)] <- as.numeric(groupX.boot==i)*as.numeric(data.boot[,sub.iv])*(data.boot[,X]-x0[i])
+					}
+				}
+			}
+
+			if(use_fe==FALSE & is.null(IV)){
+				if(method=='linear'){
+					suppressWarnings(
+						model.boot.binning <- glm(formula.binning,data=data.boot.binning,weights=WEIGHTS)
+					)
+				}
+				if(method=='logit'){
+					suppressWarnings(
+						model.boot.binning <- glm(formula.binning,data=data.boot.binning,family=binomial(link = 'logit'),weights=WEIGHTS)
+					)
+				}
+				if(method=='probit'){
+					suppressWarnings(
+						model.boot.binning <- glm(formula.binning,data=data.boot.binning,family=binomial(link = 'probit'),weights=WEIGHTS)
+					)
+				}
+				if(method=='poisson'){
+					suppressWarnings(
+						model.boot.binning <- glm(formula.binning,data=data.boot.binning,family=poisson,weights=WEIGHTS)
+					)
+				}
+				if(method=='nbinom'){
+					suppressWarnings(
+						model.boot.binning <- glm.nb(formula.binning,data=data.boot.binning,weights=WEIGHTS)
+					)
+				}
+				
+				if(model.binning$converged==FALSE){
+					no.converge <- 1
+					model.binning.coef.boot <- NULL
+				}else{
+					no.converge <- 0
+					model.binning.coef.boot <- coef(model.boot.binning) #keep the NaN(s) in coefficient
+				}
+			}
+			
+			if(use_fe==TRUE & is.null(IV)){
+				suppressWarnings(
+					model.boot.binning <- felm(formula.binning,data=data.boot.binning,weights=w.boot)
+				)
+				model.binning.coef.boot <- coef(model.boot.binning)
+				no.converge <- 0
+			}
+
+			if(use_fe==FALSE & !is.null(IV)){
+				suppressWarnings(
+					model.boot.binning <- ivreg(formula.binning,data=data.boot.binning,weights=WEIGHTS)
+				)
+				model.binning.coef.boot <- coef(model.boot.binning)
+				no.converge <- 0
+			}
+
+			if(use_fe==TRUE & !is.null(IV)){
+				suppressWarnings(
+					model.boot.binning <- felm(formula.binning,data=data.boot.binning,weights=w.boot)
+				)
+				model.binning.coef.boot <- coef(model.boot.binning)
+				names(model.binning.coef.boot) <- iv.reg.name
+				no.converge <- 0
+			}
+			
+			boot.one.round <- c()
+		
+			if(treat.type=='discrete'){
+				for(char in other.treat){
+					gen.general.TE.output <- gen.general.TE(model.coef=coef.boot,char=char)
+					TE.output <- gen.general.TE.output$TE
+					names(TE.output) <- rep(paste0("TE.",char),neval)
+					
+					if(no.converge==0){
+						TE.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef.boot,
+															char=char)
+													
+						pred.binning.output.list <- gen.pred.binning(model.binning.coef=model.binning.coef.boot, 
+																X.eval=X.eval, 
+																cuts.X=cuts.X, 
+																x0=x0, 
+																char=char)
+						pred.binning.output <- pred.binning.output.list$E.pred
+						base.binning.output <- pred.binning.output.list$E.base
+						link.1.binning.output <- pred.binning.output.list$link.1
+						link.0.binning.output <- pred.binning.output.list$link.0
+					}else{
+						TE.binning.output <- rep(NA,nbins)
+						pred.binning.output <- rep(NA,length(X.eval))
+						base.binning.output <- rep(NA,length(X.eval))
+						link.1.binning.output <- rep(NA,length(X.eval))
+						link.0.binning.output <- rep(NA,length(X.eval))
+					}
+					names(TE.binning.output) <- rep(paste0("bin.est.",char),nbins)
+					names(pred.binning.output) <- rep(paste0("bin.pred.",char),neval)
+					names(link.1.binning.output) <- rep(paste0("link.",char),neval)
+					boot.one.round <- c(boot.one.round,TE.output,TE.binning.output,pred.binning.output,link.1.binning.output)
+				}
+				names(base.binning.output) <- rep(paste0("bin.pred.",base),neval)
+				boot.one.round <- c(boot.one.round,base.binning.output)
+				names(link.0.binning.output) <- rep(paste0("link.",base),neval)
+				boot.one.round <- c(boot.one.round,link.0.binning.output)
+			}
+			
+			if(treat.type=='continuous'){
+				k <- 1
+				for(D.ref in D.sample){
+					gen.general.ME.output <- gen.general.TE(model.coef=coef.boot,D.ref=D.ref)
+					ME.output <- gen.general.ME.output$ME
+					names(ME.output) <- rep(paste0("ME.",label.name[k]),neval)
+					if(no.converge==0){
+						ME.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef.boot,
+															D.ref=D.ref)
+													
+						pred.binning.output.list <- gen.pred.binning(model.binning.coef=model.binning.coef.boot, 
+																	 X.eval=X.eval, 
+																	 cuts.X=cuts.X, 
+																	 x0=x0, 
+																	 D.ref=D.ref)
+																	 
+						pred.binning.output <- pred.binning.output.list$E.pred
+						link.binning.output <- pred.binning.output.list$link
+						
+					}else{
+						ME.binning.output <- rep(NA,nbins)
+						pred.binning.output <- rep(NA,length(X.eval))
+						link.binning.output <- rep(NA,length(X.eval))
+					}
+					names(ME.binning.output) <- rep(paste0("bin.est.",label.name[k]),nbins)
+					names(pred.binning.output) <- rep(paste0("bin.pred.",label.name[k]),neval)
+					names(link.binning.output) <- rep(paste0("link.",label.name[k]),neval)
+					boot.one.round <- c(boot.one.round,ME.output,ME.binning.output,pred.binning.output,link.binning.output)	
+					k <- k + 1
+				}
+			}
+			boot.out <- cbind(boot.out,boot.one.round)
+			rownames(boot.out) <- names(boot.one.round)
+			colnames(boot.out) <- NULL
+			return(boot.out)
+		}
+		
+		
+		if(parallel==TRUE){
+			requireNamespace("doParallel")
+			## require(iterators)
+			maxcores <- detectCores()
+			cores <- min(maxcores, cores)
+			pcl <-future::makeClusterPSOCK(cores)  
+			doParallel::registerDoParallel(pcl)
+			cat("Parallel computing with", cores,"cores...\n") 
+
+			suppressWarnings(
+				bootout <- foreach (i=1:nboots, .combine=cbind,
+									.export=c("one.boot"),.packages=c('lfe','AER'),
+									.inorder=FALSE) %dopar% {one.boot()}
+			) 
+			suppressWarnings(stopCluster(pcl))
+			cat("\r")
+		}	 
+		else{
+			bootout<-matrix(NA,all.length,0)
+			for(i in 1:nboots){
+				tempdata <- one.boot()
+				if(is.null(tempdata)==FALSE){
+					bootout<- cbind(bootout,tempdata)
+				}
+				if (i%%50==0) cat(i) else cat(".")
+			}
+			cat("\r")
+		}
+
+		if(treat.type=='discrete'){
+			TE.output.all.list <- list()
+			TE.binning.output.all.list <- list()
+			pred.output.all.list <- list()
+			link.output.all.list <- list()
+			for(char in other.treat){
+				gen.general.TE.output <- gen.general.TE(model.coef=model.coef,char=char)
+				TE.output <- gen.general.TE.output$TE
+				TE.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+													char=char)
+				pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+														X.eval=X.eval, 
+														cuts.X=cuts.X, 
+														x0=x0,char=char)
+				
+				TE.boot.matrix <- bootout[rownames(bootout)==paste0("TE.",char),]
+				TE.binning.boot.matrix <- bootout[rownames(bootout)==paste0("bin.est.",char),]
+				pred.boot.matrix <- bootout[rownames(bootout)==paste0("bin.pred.",char),]
+				base.boot.matrix <- bootout[rownames(bootout)==paste0("bin.pred.",base),]
+				link.boot.matrix <- bootout[rownames(bootout)==paste0("link.",char),]
+				link0.boot.matrix <- bootout[rownames(bootout)==paste0("link.",base),]
+				
+				TE.boot.sd <- apply(TE.boot.matrix, 1, sd, na.rm=TRUE)
+				TE.binning.sd <- apply(TE.binning.boot.matrix, 1, sd, na.rm=TRUE)
+				pred.boot.sd <- apply(pred.boot.matrix, 1, sd, na.rm=TRUE)
+				base.boot.sd <- apply(base.boot.matrix, 1, sd, na.rm=TRUE)
+				link.boot.sd <- apply(link.boot.matrix, 1, sd, na.rm=TRUE)
+				link0.boot.sd <- apply(link0.boot.matrix, 1, sd, na.rm=TRUE)
+				
+				TE.boot.CI <- t(apply(TE.boot.matrix, 1, quantile, c(0.025,0.975), na.rm=TRUE))
+				TE.binning.CI <- t(apply(TE.binning.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				pred.boot.CI <- t(apply(pred.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				base.boot.CI <- t(apply(base.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				link0.boot.CI <- t(apply(link0.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				
+				TE.output.all <- cbind(X.eval,TE.output,TE.boot.sd,TE.boot.CI[,1],TE.boot.CI[,2])
+				colnames(TE.output.all) <- c("X","TE","sd","lower CI(95%)","upper CI(95%)")
+				rownames(TE.output.all) <- NULL
+				TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
+				
+				E.pred.output <- pred.binning.output$E.pred
+				pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[,1], pred.boot.CI[,2])
+				colnames(pred.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(pred.output.all) <- NULL
+				pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
+
+				link.output <- pred.binning.output$link.1
+				link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[,1], link.boot.CI[,2])
+				colnames(link.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(link.output.all) <- NULL
+				link.output.all.list[[other.treat.origin[char]]] <- link.output.all
+				
+				TE.binning.all <- cbind(x0,TE.binning.output,TE.binning.sd,TE.binning.CI[,1],TE.binning.CI[,2])
+				colnames(TE.binning.all) <- c('x0',"coef","sd","CI.lower","CI.upper")
+				rownames(TE.binning.all) <- gp.lab
+				TE.binning.output.all.list[[other.treat.origin[char]]] <- TE.binning.all 
+														
+			}
+			
+			E.base.output <- pred.binning.output$E.base
+			base.output.all <- cbind(X.eval, E.base.output, base.boot.sd, base.boot.CI[,1], base.boot.CI[,2])
+			colnames(base.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+			rownames(base.output.all) <- NULL
+			pred.output.all.list[[all.treat.origin[base]]] <- base.output.all
+
+			link0.output <- pred.binning.output$link.0
+			link0.output.all <- cbind(X.eval, link0.output, link0.boot.sd, link0.boot.CI[,1], link0.boot.CI[,2])
+			colnames(link0.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+			rownames(link0.output.all) <- NULL
+			link.output.all.list[[all.treat.origin[base]]] <- link0.output.all
+		}
+		
+		if(treat.type=='continuous'){
+			ME.output.all.list <- list()
+			ME.binning.output.all.list <- list()
+			pred.output.all.list <- list()
+			link.output.all.list <- list()
+			k <- 1
+			for(D.ref in D.sample){
+				label <- label.name[k]
+				gen.general.ME.output <- gen.general.TE(model.coef=model.coef,D.ref=D.ref)
+				ME.output <- gen.general.ME.output$ME
+				ME.binning.output <- gen.binning.TE(model.binning.coef=model.binning.coef,
+													D.ref=D.ref)
+				pred.binning.output <- gen.pred.binning(model.binning.coef=model.binning.coef, 
+														X.eval=X.eval, 
+														cuts.X=cuts.X, 
+														x0=x0, 
+														D.ref=D.ref)
+												
+				ME.boot.matrix <- bootout[rownames(bootout)==paste0("ME.",label),]
+				ME.binning.boot.matrix <- bootout[rownames(bootout)==paste0("bin.est.",label),]
+				pred.boot.matrix <- bootout[rownames(bootout)==paste0("bin.pred.",label),]		
+				link.boot.matrix <- bootout[rownames(bootout)==paste0("link.",label),]
+
+				ME.boot.sd <- apply(ME.boot.matrix, 1, sd, na.rm=TRUE)
+				ME.binning.sd <- apply(ME.binning.boot.matrix, 1, sd, na.rm=TRUE)
+				pred.boot.sd <- apply(pred.boot.matrix, 1, sd, na.rm=TRUE)
+				link.boot.sd <- apply(link.boot.matrix, 1, sd, na.rm=TRUE)
+				
+				
+
+				ME.boot.CI <- t(apply(ME.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				ME.binning.CI <- t(apply(ME.binning.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				pred.boot.CI <- t(apply(pred.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+				link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025,0.975),na.rm=TRUE))
+					
+				ME.output.all <- cbind(X.eval,ME.output,ME.boot.sd,ME.boot.CI[,1],ME.boot.CI[,2])
+				colnames(ME.output.all) <- c("X","ME","sd","lower CI(95%)","upper CI(95%)")
+				ME.output.all.list[[label]] <- ME.output.all
+				
+				E.pred.output <- pred.binning.output$E.pred
+				pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[,1], pred.boot.CI[,2])
+				colnames(pred.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(pred.output.all) <- NULL
+				pred.output.all.list[[label]] <- pred.output.all
+
+				link.output <- pred.binning.output$link
+				link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[,1], link.boot.CI[,2])
+				colnames(link.output.all) <- c("X","E(Y)","sd","lower CI(95%)","upper CI(95%)")
+				rownames(link.output.all) <- NULL
+				link.output.all.list[[label]] <- link.output.all
+				
+				ME.binning.all <- cbind(x0,ME.binning.output,ME.binning.sd,ME.binning.CI[,1],ME.binning.CI[,2])
+				colnames(ME.binning.all) <- c('x0',"coef","sd","CI.lower","CI.upper")
+				rownames(ME.binning.all) <- gp.lab
+				ME.binning.output.all.list[[label]] <- ME.binning.all
+				k <- k+1
+			}
+		
+		}
+	}
+		
+	
+	if(TRUE){ # density or histogram
+	if (treat.type=='discrete'){ ## discrete D
     # density
-    if (is.null(weights)==TRUE) {
+    if(is.null(weights)==TRUE){
       de <- density(data[,X])
-    } else {
-      suppressWarnings(de <- density(data[,X],weights=dataweights))
+    }else {
+      suppressWarnings(de <- density(data[,X],weights=data[,'WEIGHTS']))
     }
     
     treat_den <- list()
-    for (char in all.treat) {
+    for (char in all.treat){
       de.name <- paste0("den.",char)
-      if (is.null(weights)==TRUE) {
+      if (is.null(weights)==TRUE){
         de.tr <- density(data[data[,D]==char,X])
       } 
       else {
         suppressWarnings(de.tr <- density(data[data[,D]==char,X],
-                                          weights=dataweights[data[,D]==char]))
+                                          weights=data[data[,D]==char,'WEIGHTS']))
       }
       treat_den[[all.treat.origin[char]]] <- de.tr
     }
@@ -2472,13 +2520,13 @@ if(TRUE){## get densities and histogram
     if (is.null(weights)==TRUE) {
       hist.out<-hist(data[,X],breaks=80,plot=FALSE)
     } else {
-      suppressWarnings(hist.out<-hist(data[,X],weights,
+      suppressWarnings(hist.out<-hist(data[,X],data[,'WEIGHTS'],
                                       breaks=80,plot=FALSE))
     } 
     n.hist<-length(hist.out$mids)
 
     # count the number of treated
-    treat_hist <- list()
+    treat.hist <- list()
     for (char in all.treat) {
       count1<-rep(0,n.hist)
       treat_index<-which(data[,D]==char)
@@ -2489,170 +2537,931 @@ if(TRUE){## get densities and histogram
       count1[n.hist]<-sum(data[treat_index,X]>=hist.out$breaks[n.hist] &
                             data[treat_index,X]<=hist.out$breaks[n.hist+1])
       
-      treat_hist[[all.treat.origin[char]]] <- count1
+      treat.hist[[all.treat.origin[char]]] <- count1
     }    
   }  
   
-  if (treat.type=='continuous') { ## continuous D
-    if (is.null(weights)==TRUE) {
+  if (treat.type=='continuous'){ ## continuous D
+    if (is.null(weights)==TRUE){
       de <- density(data[,X])
     } else {
-      suppressWarnings(de <- density(data[,X],weights=dataweights))
+      suppressWarnings(de <- density(data[,X],weights=data[,'WEIGHTS']))
     }
-    if (is.null(weights)==TRUE) {
+    if (is.null(weights)==TRUE){
       hist.out<-hist(data[,X],breaks=80,plot=FALSE)
-    } else {
-      #print("hhh")
-      suppressWarnings(hist.out<-hist(data[,X],weights,
+    } else{
+      suppressWarnings(hist.out<-hist(data[,X],data[,'WEIGHTS'],
                                       breaks=80,plot=FALSE))
     }
     de.co <- de.tr <- NULL 
-    count1 <- NULL
-  }
-  
-} 
+  } 
+}
 
-if(TRUE){## Storage
+	
+	tests <- NULL
+	
+	#wald test: doesn't allow nbinom by far
+	if(wald==TRUE & use_fe==FALSE & is.null(IV)){
+		data.wald <- data
+		sub.test <- NULL
 
-  ## L kurtosis
-  requireNamespace("Lmoments")
-  Lkurtosis <- Lmoments(data[,X],returnobject=TRUE)$ratios[4]
-  if(nbins>1){
-  if(treat.type=='discrete'){
-  tests <- list(
-    treat.type = treat.type,
-    #est.binning = est.bin,
-    bin.size = sprintf(c(table(groupX)/length(groupX)),fmt = '%#.3f'),
-    X.Lkurtosis = sprintf(Lkurtosis,fmt = '%#.3f')
-  )
-  if (nbins==3) {
-    tests<-c(tests,list(correctOrder=correctOrder.group))
-  }
-  if (nbins%in%c(2,3)) {
-    tests<-c(tests,list(p.twosided=group.p.twosided, fmt = '%#.3f')) 
-  }
-  if (wald == TRUE & vartype!='bootstrap') {
-    tests <- c(tests, list(p.wald = sprintf(p.wald, fmt = '%#.3f')))
-  }    
-  }
-  
-  if(treat.type=='continuous'){
-    tests <- list(
-      treat.type = treat.type,
-      #est.binning = est.bin,
-      bin.size = sprintf(c(table(groupX)/length(groupX)),fmt = '%#.3f'),
-      treat.variation.byGroup=sprintf(varD,fmt = '%#.3f'),
-      X.Lkurtosis = sprintf(Lkurtosis,fmt = '%#.3f')
-    )
-    if (nbins==3) {
-      tests<-c(tests,list(correctOrder=correctOrder))
-    }
-    if (nbins%in%c(2,3)) {
-      tests<-c(tests,list(p.twosided=sprintf(p.twosided, fmt = '%#.3f'))) 
-    }
-    if (wald == TRUE & vartype!='bootstrap') {
-      tests <- c(tests, list(p.wald = sprintf(p.wald, fmt = '%#.3f')))
-    }    
-  }
-  }
+		if(treat.type=='continuous'){
+			formula0.wald <- paste0(Y,"~",X,"+",D,"+DX")
+			formula1.wald <- formula0.wald
+			var.name <- c(X,D,"DX")
+			for(i in 1:(nbins-1)){
+				data.wald[,paste0("G.",i+1)] <- as.numeric(groupX==(i+1))
+				data.wald[,paste0("G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,X]
+				data.wald[,paste0("DG.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,D]
+				data.wald[,paste0("DG.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,D]*data.wald[,X]
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"),paste0("DG.",i+1),paste0("DG.",i+1,".X"))
+				var.name <- c(var.name,new.var.name)
+				formula1.wald <- paste0(formula1.wald,"+",paste0(new.var.name,collapse="+"))
+			}
 
-  ## saving
-  if(nbins==1){
-    est.bin <- NULL
-    tests <- NULL
-  }
+			if (is.null(Z)==FALSE){
+				if(full.moderate==FALSE){
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+				}
+				if(full.moderate==TRUE){ #z
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z.X,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z.X,collapse=" + "))
+					zero.var.name <- c()
+					for(a in Z){
+						for(i in 1:(nbins-1)){
+							data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
+							data.wald[,paste0("ZX.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]*data.wald[,X]
+							zero.var.name <- c(zero.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+						}
+					}
+					formula0.wald <- paste0(formula0.wald,"+",paste0(zero.var.name,collapse="+"))
+					formula1.wald <- paste0(formula1.wald,"+",paste0(zero.var.name,collapse="+"))
+				}
+			}
+
+			formula0.wald <- as.formula(formula0.wald)
+			formula1.wald <- as.formula(formula1.wald)
+			
+			if(method=='linear'){
+				suppressWarnings(
+					fit0 <- lm(formula0.wald,data=data.wald,weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- lm(formula1.wald,data=data.wald,weights=WEIGHTS)
+				)
+			}
+			if(method=='logit'){
+				suppressWarnings(
+					fit0 <- glm(formula0.wald,data=data.wald,family=binomial(link = 'logit'),weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm(formula1.wald,data=data.wald,family=binomial(link = 'logit'),weights=WEIGHTS)
+				)
+			}
+			
+			if(method=='probit'){
+				suppressWarnings(
+					fit0 <- glm(formula0.wald,data=data.wald,family=binomial(link = 'probit'),weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm(formula1.wald,data=data.wald,family=binomial(link = 'probit'),weights=WEIGHTS)
+				)
+			}
+			if(method=='poisson'){
+				suppressWarnings(
+					fit0 <- glm(formula0.wald,data=data.wald,family=poisson,weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm(formula1.wald,data=data.wald,family=poisson,weights=WEIGHTS)
+				)
+			}
+			if(method=='nbinom'){
+				suppressWarnings(
+					fit0 <- glm.nb(formula0.wald,data=data.wald,weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm.nb(formula1.wald,data=data.wald,weights=WEIGHTS)
+				)
+			}
+
+			#vcov
+			if(vcov.type=="homoscedastic"){
+				model.wald.vcov <- vcov(fit1)
+			}
+			if(vcov.type=="robust"){
+				model.wald.vcov <- vcovHC(fit1,type="HC1")
+			} 
+			if(vcov.type=="cluster"){
+				model.wald.vcov <- vcovCluster(fit1,cluster = data.wald[,cl])
+			}
+			if(vcov.type=="pcse"){
+				model.wald.vcov <- pcse(fit1,pairwise=pairwise,groupN=data.wald[,'cl'],groupT=data.wald[,'time'])$vcov
+				rownames(model.wald.vcov)[1] <- "(Intercept)"
+				colnames(model.wald.vcov)[1] <- "(Intercept)"
+			}
+
+			model.wald.coef <- coef(fit1)
+			model.wald.vcov[which(is.na(model.wald.vcov))] <- 0
+			model.wald.vcov.all <- matrix(0,nrow=length(model.wald.coef),ncol=length(model.wald.coef))
+
+			colnames(model.wald.vcov.all) <- names(model.wald.coef)
+			rownames(model.wald.vcov.all) <- names(model.wald.coef)
+			for(a1 in rownames(model.wald.vcov)){
+				for(a2 in colnames(model.wald.vcov)){
+					model.wald.vcov.all[a1,a2] <- model.wald.vcov[a1,a2]
+				}
+			}
+			
+			#lr.test
+			lr.result <- tryCatch(
+				round(lmtest::lrtest(fit1,fit0)[[5]][2],3),
+				error = function(e){return(NULL)}
+			)
+			
+			#wald.test
+			wald.result <- tryCatch(
+				round(lmtest::waldtest(fit1,fit0,test="Chisq", vcov=model.wald.vcov.all)[[4]][2],3),
+				error = function(e){return(NULL)}
+			)
+		}
+		
+		if(treat.type=='discrete'){
+			formula0.wald <- formula.origin
+			formula1.wald <- formula0.wald
+			for(i in 1:(nbins-1)){
+				data.wald[,paste0("G.",i+1)] <- as.numeric(groupX==(i+1))
+				data.wald[,paste0("G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,X]
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"))
+				for(char in other.treat){
+					data.wald[,paste0("D.",char,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,paste0("D.",char)]
+					data.wald[,paste0("DX.",char,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,paste0("D.",char)]*data.wald[,X]
+					new.var.name <- c(new.var.name,paste0("D.",char,".G.",i+1),paste0("DX.",char,".G.",i+1))
+				}
+				if(is.null(Z)==FALSE & full.moderate==TRUE){ #z
+					zero.var.name <- c()
+					for(a in Z){
+						data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
+						data.wald[,paste0("ZX.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]*data.wald[,X]
+						new.var.name <- c(new.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+						zero.var.name <- c(zero.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+					}
+					formula0.wald <- paste0(formula0.wald,"+",paste0(zero.var.name,collapse="+"))
+				}
+				formula1.wald <- paste0(formula1.wald,"+",paste0(new.var.name,collapse="+"))
+			}
+			
+			formula0.wald <- as.formula(formula0.wald)
+			formula1.wald <- as.formula(formula1.wald)
+
+			if(method=='linear'){
+				suppressWarnings(
+					fit0 <- glm(formula0.wald,data=data.wald,weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm(formula1.wald,data=data.wald,weights=WEIGHTS)
+				)
+			}
+			if(method=='logit'){
+				suppressWarnings(
+					fit0 <- glm(formula0.wald,data=data.wald,family=binomial(link = 'logit'),weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm(formula1.wald,data=data.wald,family=binomial(link = 'logit'),weights=WEIGHTS)
+				)
+			}
+			
+			if(method=='probit'){
+				suppressWarnings(
+					fit0 <- glm(formula0.wald,data=data.wald,family=binomial(link = 'probit'),weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm(formula1.wald,data=data.wald,family=binomial(link = 'probit'),weights=WEIGHTS)
+				)
+			}
+			if(method=='poisson'){
+				suppressWarnings(
+					fit0 <- glm(formula0.wald,data=data.wald,family=poisson,weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm(formula1.wald,data=data.wald,family=poisson,weights=WEIGHTS)
+				)
+			}
+			if(method=='nbinom'){
+				suppressWarnings(
+					fit0 <- glm.nb(formula0.wald,data=data.wald,weights=WEIGHTS)
+				)
+				suppressWarnings(
+					fit1 <- glm.nb(formula1.wald,data=data.wald,weights=WEIGHTS)
+				)
+			}
+			
+			#requireNamespace('mdscore')
+			#vcov
+			if(vcov.type=="homoscedastic"){
+				model.wald.vcov <- vcov(fit1)
+			}
+			if(vcov.type=="robust"){
+				model.wald.vcov <- vcovHC(fit1,type="HC1")
+			} 
+			if(vcov.type=="cluster"){
+				model.wald.vcov <- vcovCluster(fit1,cluster = data.wald[,cl])
+			}
+			if(vcov.type=="pcse"){
+				model.wald.vcov <- pcse(fit1,pairwise=pairwise,groupN=data.wald[,'cl'],groupT=data.wald[,'time'])$vcov
+				rownames(model.wald.vcov)[1] <- "(Intercept)"
+				colnames(model.wald.vcov)[1] <- "(Intercept)"
+			}
+
+			model.wald.coef <- coef(fit1)
+			model.wald.vcov[which(is.na(model.wald.vcov))] <- 0
+			model.wald.vcov.all <- matrix(0,nrow=length(model.wald.coef),ncol=length(model.wald.coef))
+
+			colnames(model.wald.vcov.all) <- names(model.wald.coef)
+			rownames(model.wald.vcov.all) <- names(model.wald.coef)
+			for(a1 in rownames(model.wald.vcov)){
+				for(a2 in colnames(model.wald.vcov)){
+					model.wald.vcov.all[a1,a2] <- model.wald.vcov[a1,a2]
+				}
+			}
+			
+			#lr.test
+			lr.result <- tryCatch(
+				round(lmtest::lrtest(fit1,fit0)[[5]][2],3),
+				error = function(e){return(NULL)}
+			)
+			
+			#wald.test
+			wald.result <- tryCatch(
+				round(lmtest::waldtest(fit1,fit0,test="Chisq", vcov=model.wald.vcov.all)[[4]][2],3),
+				error = function(e){return(NULL)}
+			)
+
+			
+			
+			if(length(other.treat)>1){ #more than one treated group
+				sub.test <- list()
+				for(target.char in other.treat){
+					formula0.wald.sub <- formula.origin
+					new.var.name <- c()
+					for(i in 1:(nbins-1)){	
+						new.var.name <- c(new.var.name,paste0("G.",i+1),paste0("G.",i+1,".X"))	
+						for(char in other.treat){
+							if(char!=target.char){
+								new.var.name <- c(new.var.name,paste0("D.",char,".G.",i+1),paste0("DX.",char,".G.",i+1))
+							}
+						}
+						if(is.null(Z)==FALSE & full.moderate==TRUE){ #z
+							for(a in Z){
+								new.var.name <- c(new.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+							}
+						}
+					}
+					formula0.wald.sub <- paste0(formula0.wald.sub,"+",paste0(new.var.name,collapse="+"))
+					
+					formula0.wald.sub <- as.formula(formula0.wald.sub)
+					#print(formula0.wald.sub)
+					#print(formula1.wald)
+					if(method=='linear'){
+						suppressWarnings(
+							fit0.sub <- glm(formula0.wald.sub,data=data.wald,weights=WEIGHTS)
+						)
+					}
+					if(method=='logit'){
+						suppressWarnings(
+							fit0.sub <- glm(formula0.wald.sub,data=data.wald,family=binomial(link = 'logit'),weights=WEIGHTS)
+						)
+					}
+					if(method=='probit'){
+						suppressWarnings(
+							fit0.sub <- glm(formula0.wald.sub,data=data.wald,family=binomial(link = 'probit'),weights=WEIGHTS)
+						)
+					}
+					if(method=='poisson'){
+						suppressWarnings(
+							fit0.sub <- glm(formula0.wald.sub,data=data.wald,family=poisson,weights=WEIGHTS)
+						)
+					}
+					if(method=='nbinom'){
+						suppressWarnings(
+							fit0.sub <- glm.nb(formula0.wald.sub,data=data.wald,weights=WEIGHTS)
+						)
+					}
+					
+
+					#lr.test
+					lr.result.sub <- tryCatch(
+						round(lmtest::lrtest(fit1,fit0.sub)[[5]][2],3),
+						error = function(e){return(NULL)}
+					)
+			
+					#wald.test
+					wald.result.sub <- tryCatch(
+						round(lmtest::waldtest(fit1,fit0.sub,test="Chisq", vcov=model.wald.vcov.all)[[4]][2],3),
+						error = function(e){return(NULL)}
+					)
+					
+					sub.test[[other.treat.origin[target.char]]] <- list(p.wald = sprintf(wald.result.sub,fmt = '%#.3f'),
+																		p.lr = sprintf(lr.result.sub,fmt = '%#.3f'),
+																		formula.restrict = formula0.wald.sub,
+																		formula.full = formula1.wald)
+
+				}
+			
+			}		
+		}
+	
+		requireNamespace("Lmoments")
+		Lkurtosis <- Lmoments(data[,X],returnobject=TRUE)$ratios[4] 
+		tests <- list(
+					treat.type = treat.type,
+					X.Lkurtosis = sprintf(Lkurtosis,fmt = '%#.3f'),
+					p.wald = sprintf(wald.result,fmt = '%#.3f'),
+					p.lr = sprintf(lr.result,fmt = '%#.3f'),
+					formula.restrict = formula0.wald,
+					formula.full = formula1.wald,
+					sub.test = sub.test
+				)
+	}
+	
+	if(wald==TRUE & use_fe==FALSE & !is.null(IV)){
+		# test 2 ivreg fit
+		data.wald <- data
+		sub.test <- NULL
+
+		if(treat.type=='continuous'){
+			# fit0 
+			formula0.wald <- paste0(Y,"~",X,"+",D,"+DX")
+			formula0.iv <- X
+			for(sub.iv in IV){
+				data.wald[,paste0(X,".",sub.iv)] <- data.wald[,sub.iv]*data.wald[,X]
+				formula0.iv <- paste0(formula0.iv,"+",sub.iv)
+				formula0.iv <- paste0(formula0.iv,"+",paste0(X,".",sub.iv))
+			}
+
+			# fit1
+			formula1.wald <- formula0.wald
+			var.name <- c(X,D,"DX")
+			for(i in 1:(nbins-1)){
+				data.wald[,paste0("G.",i+1)] <- as.numeric(groupX==(i+1))
+				data.wald[,paste0("G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,X]
+				data.wald[,paste0("DG.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,D]
+				data.wald[,paste0("DG.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,D]*data.wald[,X]
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"),paste0("DG.",i+1),paste0("DG.",i+1,".X"))
+				var.name <- c(var.name,new.var.name)
+				formula1.wald <- paste0(formula1.wald,"+",paste0(new.var.name,collapse="+"))
+			}
+			formula1.iv <- formula0.iv
+				
+			for(i in 1:(nbins-1)){
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"))
+				for(sub.iv in IV){
+					data.wald[,paste0(sub.iv,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,sub.iv]
+					data.wald[,paste0(sub.iv,".G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,sub.iv]*data.wald[,X]
+					new.var.name <- c(new.var.name,paste0(sub.iv,".G.",i+1),paste0(sub.iv,".G.",i+1,".X"))
+				}
+				formula1.iv <- paste0(formula1.iv,"+",paste0(new.var.name,collapse="+"))
+			}
+
+			# add covariates
+			if (is.null(Z)==FALSE){
+				if(full.moderate==FALSE){
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+					formula0.iv <- paste0(formula0.iv, "+",paste(Z,collapse=" + "))
+					formula1.iv <- paste0(formula1.iv, "+",paste(Z,collapse=" + "))
+				}
+				if(full.moderate==TRUE){ #z
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z.X,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z.X,collapse=" + "))
+					formula0.iv <- paste0(formula0.iv, "+",paste(Z,collapse=" + "))
+					formula1.iv <- paste0(formula1.iv, "+",paste(Z,collapse=" + "))
+					formula0.iv <- paste0(formula0.iv, "+",paste(Z.X,collapse=" + "))
+					formula1.iv <- paste0(formula1.iv, "+",paste(Z.X,collapse=" + "))
+					zero.var.name <- c()
+					for(a in Z){
+						for(i in 1:(nbins-1)){
+							data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
+							data.wald[,paste0("ZX.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]*data.wald[,X]
+							zero.var.name <- c(zero.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+						}
+					}
+					formula0.wald <- paste0(formula0.wald,"+",paste0(zero.var.name,collapse="+"))
+					formula1.wald <- paste0(formula1.wald,"+",paste0(zero.var.name,collapse="+"))
+					formula0.iv <- paste0(formula0.iv,"+",paste0(zero.var.name,collapse="+"))
+					formula1.iv <- paste0(formula1.iv,"+",paste0(zero.var.name,collapse="+"))
+				}
+			}
+
+			formula0.wald <- paste0(formula0.wald,"|",formula0.iv)
+			formula1.wald <- paste0(formula1.wald,"|",formula1.iv)
+			formula0.wald <- as.formula(formula0.wald)
+			formula1.wald <- as.formula(formula1.wald)
+			
+			suppressWarnings(
+				fit0 <- ivreg(formula0.wald,data=data.wald,weights=WEIGHTS)
+			)
+			suppressWarnings(
+				fit1 <- ivreg(formula1.wald,data=data.wald,weights=WEIGHTS)
+			)
+
+			#vcov
+			if(vcov.type=="homoscedastic"){
+				model.wald.vcov <- vcov(fit1)
+			}
+			if(vcov.type=="robust"){
+				model.wald.vcov <- vcovHC(fit1,type="HC1")
+			} 
+			if(vcov.type=="cluster"){
+				model.wald.vcov <- vcovCluster(fit1,cluster = data.wald[,cl])
+			}
+			if(vcov.type=="pcse"){
+				model.wald.vcov <- pcse(fit1,pairwise=pairwise,groupN=data.wald[,'cl'],groupT=data.wald[,'time'])$vcov
+				rownames(model.wald.vcov)[1] <- "(Intercept)"
+				colnames(model.wald.vcov)[1] <- "(Intercept)"
+			}
+
+			model.wald.coef <- coef(fit1)
+			model.wald.vcov[which(is.na(model.wald.vcov))] <- 0
+			model.wald.vcov.all <- matrix(0,nrow=length(model.wald.coef),ncol=length(model.wald.coef))
+
+			colnames(model.wald.vcov.all) <- names(model.wald.coef)
+			rownames(model.wald.vcov.all) <- names(model.wald.coef)
+			for(a1 in rownames(model.wald.vcov)){
+				for(a2 in colnames(model.wald.vcov)){
+					model.wald.vcov.all[a1,a2] <- model.wald.vcov[a1,a2]
+				}
+			}
+			
+			#lr.test
+			lr.result <- tryCatch(
+				round(lmtest::lrtest(fit1,fit0)[[5]][2],3),
+				error = function(e){return(NULL)}
+			)
+			
+			#wald.test
+			wald.result <- tryCatch(
+				round(lmtest::waldtest(fit1,fit0,test="Chisq", vcov=model.wald.vcov.all)[[4]][2],3),
+				error = function(e){return(NULL)}
+			)
+		}
+
+		if(treat.type=='discrete'){
+			#overall test
+			# fit0
+			formula0.wald <- paste0(Y,"~",X)
+			for(char in other.treat){
+				formula0.wald <- paste0(formula0.wald,"+",paste0("D",".",char),"+",paste0("DX",".",char))
+			}
+			formula0.iv <- X
+			for(sub.iv in IV){
+				data.wald[,paste0(X,".",sub.iv)] <- data.wald[,sub.iv]*data.wald[,X]
+				formula0.iv <- paste0(formula0.iv,"+",sub.iv)
+				formula0.iv <- paste0(formula0.iv,"+",paste0(X,".",sub.iv))
+			}
+			#fit1
+			formula1.wald <- formula0.wald
+			for(i in 1:(nbins-1)){
+				data.wald[,paste0("G.",i+1)] <- as.numeric(groupX==(i+1))
+				data.wald[,paste0("G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,X]
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"))
+				for(char in other.treat){
+					data.wald[,paste0("D.",char,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,paste0("D.",char)]
+					data.wald[,paste0("DX.",char,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,paste0("D.",char)]*data.wald[,X]
+					new.var.name <- c(new.var.name,paste0("D.",char,".G.",i+1),paste0("DX.",char,".G.",i+1))
+				}
+				formula1.wald <- paste0(formula1.wald,"+",paste0(new.var.name,collapse="+"))
+			}
+
+			formula1.iv <- formula0.iv	
+			for(i in 1:(nbins-1)){
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"))
+				for(sub.iv in IV){
+					data.wald[,paste0(sub.iv,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,sub.iv]
+					data.wald[,paste0(sub.iv,".G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,sub.iv]*data.wald[,X]
+					new.var.name <- c(new.var.name,paste0(sub.iv,".G.",i+1),paste0(sub.iv,".G.",i+1,".X"))
+				}
+				formula1.iv <- paste0(formula1.iv,"+",paste0(new.var.name,collapse="+"))
+			}
+
+			# add covariates
+			if (is.null(Z)==FALSE){
+				if(full.moderate==FALSE){
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+					formula0.iv <- paste0(formula0.iv, "+",paste(Z,collapse=" + "))
+					formula1.iv <- paste0(formula1.iv, "+",paste(Z,collapse=" + "))
+				}
+				if(full.moderate==TRUE){ #z
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+					formula0.wald <- paste0(formula0.wald, "+",paste(Z.X,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z.X,collapse=" + "))
+					formula0.iv <- paste0(formula0.iv, "+",paste(Z,collapse=" + "))
+					formula1.iv <- paste0(formula1.iv, "+",paste(Z,collapse=" + "))
+					formula0.iv <- paste0(formula0.iv, "+",paste(Z.X,collapse=" + "))
+					formula1.iv <- paste0(formula1.iv, "+",paste(Z.X,collapse=" + "))
+					zero.var.name <- c()
+					for(a in Z){
+						for(i in 1:(nbins-1)){
+							data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
+							data.wald[,paste0("ZX.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]*data.wald[,X]
+							zero.var.name <- c(zero.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+						}
+					}
+					formula0.wald <- paste0(formula0.wald,"+",paste0(zero.var.name,collapse="+"))
+					formula1.wald <- paste0(formula1.wald,"+",paste0(zero.var.name,collapse="+"))
+					formula0.iv <- paste0(formula0.iv,"+",paste0(zero.var.name,collapse="+"))
+					formula1.iv <- paste0(formula1.iv,"+",paste0(zero.var.name,collapse="+"))
+				}
+			}
+
+			formula0.wald <- paste0(formula0.wald,"|",formula0.iv)
+			formula1.wald <- paste0(formula1.wald,"|",formula1.iv)
+			formula0.wald <- as.formula(formula0.wald)
+			formula1.wald <- as.formula(formula1.wald)
+
+			suppressWarnings(
+				fit0 <- ivreg(formula0.wald,data=data.wald,weights=WEIGHTS)
+			)
+			suppressWarnings(
+				fit1 <- ivreg(formula1.wald,data=data.wald,weights=WEIGHTS)
+			)
+
+			#vcov
+			if(vcov.type=="homoscedastic"){
+				model.wald.vcov <- vcov(fit1)
+			}
+			if(vcov.type=="robust"){
+				model.wald.vcov <- vcovHC(fit1,type="HC1")
+			} 
+			if(vcov.type=="cluster"){
+				model.wald.vcov <- vcovCluster(fit1,cluster = data.wald[,cl])
+			}
+			if(vcov.type=="pcse"){
+				model.wald.vcov <- pcse(fit1,pairwise=pairwise,groupN=data.wald[,'cl'],groupT=data.wald[,'time'])$vcov
+				rownames(model.wald.vcov)[1] <- "(Intercept)"
+				colnames(model.wald.vcov)[1] <- "(Intercept)"
+			}
+
+			model.wald.coef <- coef(fit1)
+			model.wald.vcov[which(is.na(model.wald.vcov))] <- 0
+			model.wald.vcov.all <- matrix(0,nrow=length(model.wald.coef),ncol=length(model.wald.coef))
+
+			colnames(model.wald.vcov.all) <- names(model.wald.coef)
+			rownames(model.wald.vcov.all) <- names(model.wald.coef)
+			for(a1 in rownames(model.wald.vcov)){
+				for(a2 in colnames(model.wald.vcov)){
+					model.wald.vcov.all[a1,a2] <- model.wald.vcov[a1,a2]
+				}
+			}
+			
+			#lr.test
+			lr.result <- tryCatch(
+				round(lmtest::lrtest(fit1,fit0)[[5]][2],3),
+				error = function(e){return(NULL)}
+			)
+			
+			#wald.test
+			wald.result <- tryCatch(
+				round(lmtest::waldtest(fit1,fit0,test="Chisq", vcov=model.wald.vcov.all)[[4]][2],3),
+				error = function(e){return(NULL)}
+			)
+
+			#sub-test
+			if(length(other.treat)>1){ #more than one treated group
+				sub.test <- list()
+				for(target.char in other.treat){
+					formula0.sub.wald <- paste0(Y,"~",X)
+					for(char in other.treat){
+						formula0.sub.wald  <- paste0(formula0.sub.wald ,"+",paste0("D",".",char),"+",paste0("DX",".",char))
+					}
+					formula0.sub.iv <- formula1.iv
+
+					for(i in 1:(nbins-1)){
+						new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"))
+						for(char in other.treat){
+							if(char != target.char){
+								new.var.name <- c(new.var.name,paste0("D.",char,".G.",i+1),paste0("DX.",char,".G.",i+1))
+							}
+						}
+						formula0.sub.wald <- paste0(formula0.sub.wald,"+",paste0(new.var.name,collapse="+"))
+					}
+
+					# add covariates
+					if (is.null(Z)==FALSE){
+						if(full.moderate==FALSE){
+							formula0.sub.wald <- paste0(formula0.sub.wald, "+",paste(Z,collapse=" + "))
+						}
+						if(full.moderate==TRUE){ #z
+							formula0.sub.wald <- paste0(formula0.sub.wald, "+",paste(Z,collapse=" + "))
+							formula0.sub.wald <- paste0(formula0.sub.wald, "+",paste(Z.X,collapse=" + "))
+							zero.var.name <- c()
+							for(a in Z){
+								for(i in 1:(nbins-1)){
+									zero.var.name <- c(zero.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+								}
+							}
+							formula0.sub.wald <- paste0(formula0.sub.wald,"+",paste0(zero.var.name,collapse="+"))
+						}
+					}
+
+					formula0.sub.wald <- paste0(formula0.sub.wald,"|",formula0.sub.iv)
+					formula0.sub.wald <- as.formula(formula0.sub.wald)
+
+					suppressWarnings(
+						fit0.sub <- ivreg(formula0.sub.wald,data=data.wald,weights=WEIGHTS)
+					)
+
+					#lr.test
+					lr.result.sub <- tryCatch(
+						round(lmtest::lrtest(fit1,fit0.sub)[[5]][2],3),
+						error = function(e){return(NULL)}
+					)
+			
+					#wald.test
+					wald.result.sub <- tryCatch(
+						round(lmtest::waldtest(fit1,fit0.sub,test="Chisq", vcov=model.wald.vcov.all)[[4]][2],3),
+						error = function(e){return(NULL)}
+					)
+					sub.test[[other.treat.origin[target.char]]] <- list(p.wald = sprintf(wald.result.sub,fmt = '%#.3f'),
+																		p.lr = sprintf(lr.result.sub,fmt = '%#.3f'),
+																		formula.restrict = formula0.sub.wald,
+																		formula.full = formula1.wald)
+				}
+			}
+		}
+
+		requireNamespace("Lmoments")
+		Lkurtosis <- Lmoments(data[,X],returnobject=TRUE)$ratios[4] 
+		tests <- list(
+					treat.type = treat.type,
+					X.Lkurtosis = sprintf(Lkurtosis,fmt = '%#.3f'),
+					p.wald = sprintf(wald.result,fmt = '%#.3f'),
+					p.lr = sprintf(lr.result,fmt = '%#.3f'),
+					formula.restrict = formula0.wald,
+					formula.full = formula1.wald,
+					sub.test = sub.test
+		)
+	}
+
+	if(wald==TRUE & use_fe==TRUE & is.null(IV)){
+		data.wald <- data
+		sub.test <- NULL
+		if(treat.type=='continuous'){
+			formula1.wald <- paste0(Y,"~",X,"+",D,"+DX")
+			var.name <- c(X,D,"DX")
+			constrain.terms <- c()
+			for(i in 1:(nbins-1)){
+				data.wald[,paste0("G.",i+1)] <- as.numeric(groupX==(i+1))
+				data.wald[,paste0("G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,X]
+				data.wald[,paste0("DG.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,D]
+				data.wald[,paste0("DG.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,D]*data.wald[,X]
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"),paste0("DG.",i+1),paste0("DG.",i+1,".X"))
+				var.name <- c(var.name,new.var.name)
+				formula1.wald <- paste0(formula1.wald,"+",paste0(new.var.name,collapse="+"))
+				constrain.terms <- c(constrain.terms, new.var.name)
+			}
+
+			constraints <- as.formula(paste0("~",paste0(constrain.terms, collapse = "|")))
+
+			if (is.null(Z)==FALSE){
+				if(full.moderate==FALSE){
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+				}
+				if(full.moderate==TRUE){ #z
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
+					formula1.wald <- paste0(formula1.wald, "+",paste(Z.X,collapse=" + "))
+					zero.var.name <- c()
+					for(a in Z){
+						for(i in 1:(nbins-1)){
+							data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
+							data.wald[,paste0("ZX.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]*data.wald[,X]
+							zero.var.name <- c(zero.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+						}
+					}
+					formula1.wald <- paste0(formula1.wald,"+",paste0(zero.var.name,collapse="+"))
+				}
+			}
+
+      		formula1.wald <- paste0(formula1.wald, "|",paste0(FE, collapse = "+"))
+      		if (vartype=="cluster") {
+        		formula1.wald <- paste0(formula1.wald, "| 0 |",paste0(cl,collapse = "+"))
+      		}
+
+			formula1.wald <- as.formula(formula1.wald)
+			w.wald <- data.wald[,'WEIGHTS']
+			suppressWarnings(
+				mod.un <- felm(formula1.wald,data=data.wald,weights=w.wald)
+			)
+
+			if(vartype=="homoscedastic") {
+        		p.wald <- lfe::waldtest(mod.un, constraints, type = "default")[1]
+     		}else if (vartype=="robust") {
+        		p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
+      		}else {
+        		p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
+      		}
+      		names(p.wald) <- NULL            
+     		p.wald <- round(p.wald,4)
+		}
+
+		if(treat.type=='discrete'){
+			formula1.wald <- formula.origin
+			constrain.terms <- c()
+			for(i in 1:(nbins-1)){
+				data.wald[,paste0("G.",i+1)] <- as.numeric(groupX==(i+1))
+				data.wald[,paste0("G.",i+1,".X")] <- as.numeric(groupX==(i+1))*data.wald[,X]
+				new.var.name <- c(paste0("G.",i+1),paste0("G.",i+1,".X"))
+				for(char in other.treat){
+					data.wald[,paste0("D.",char,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,paste0("D.",char)]
+					data.wald[,paste0("DX.",char,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,paste0("D.",char)]*data.wald[,X]
+					new.var.name <- c(new.var.name,paste0("D.",char,".G.",i+1),paste0("DX.",char,".G.",i+1))
+				}
+
+				constrain.terms <- c(constrain.terms,new.var.name)
+
+				if(is.null(Z)==FALSE & full.moderate==TRUE){ #z
+					zero.var.name <- c()
+					for(a in Z){
+						data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
+						data.wald[,paste0("ZX.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]*data.wald[,X]
+						new.var.name <- c(new.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+						zero.var.name <- c(zero.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
+					}
+				}
+				formula1.wald <- paste0(formula1.wald,"+",paste0(new.var.name,collapse="+"))
+			}
+			
+			formula1.wald <- paste0(formula1.wald, "|",paste0(FE, collapse = "+"))
+      		if (vartype=="cluster") {
+        		formula1.wald <- paste0(formula1.wald, "| 0 |",paste0(cl,collapse = "+"))
+      		}
+
+			formula1.wald <- as.formula(formula1.wald)
+			constraints <- as.formula(paste0("~",paste0(constrain.terms, collapse = "|")))
+
+			w.wald <- data.wald[,'WEIGHTS']
+			suppressWarnings(
+				mod.un <- felm(formula1.wald,data=data.wald,weights=w.wald)
+			)
+
+			if(vartype=="homoscedastic") {
+        		p.wald <- lfe::waldtest(mod.un, constraints, type = "default")[1]
+     		}else if (vartype=="robust") {
+        		p.wald <- lfe::waldtest(mod.un, constraints, type = "robust")[1]
+      		}else {
+        		p.wald <- lfe::waldtest(mod.un, constraints)[1] # clustered
+      		}
+      		names(p.wald) <- NULL            
+     		p.wald <- round(p.wald,4)
+			
+			if(length(other.treat)>1){ #more than one treated group
+				sub.test <- list()
+				for(target.char in other.treat){
+					constrain.terms.sub <- c()
+					new.var.name <- c()
+					for(i in 1:(nbins-1)){		
+						constrain.terms.sub <- c(constrain.terms.sub,paste0("D.",target.char,".G.",i+1),paste0("DX.",target.char,".G.",i+1))
+					}
+					
+					constraints.sub <- as.formula(paste0("~",paste0(constrain.terms.sub, collapse = "|")))
+					
+					if(vartype=="homoscedastic") {
+        				p.wald.sub <- lfe::waldtest(mod.un, constraints.sub, type = "default")[1]
+     				}else if (vartype=="robust") {
+        				p.wald.sub <- lfe::waldtest(mod.un, constraints.sub, type = "robust")[1]
+      				}else {
+        				p.wald.sub <- lfe::waldtest(mod.un, constraints.sub)[1] # clustered
+      				}
+      				names(p.wald.sub) <- NULL            
+     				p.wald.sub <- round(p.wald.sub,4)
+					sub.test[[other.treat.origin[target.char]]] <- list(p.wald = sprintf(p.wald.sub,fmt = '%#.3f'))
+				}
+			}	
+		}
+
+		requireNamespace("Lmoments")
+		Lkurtosis <- Lmoments(data[,X],returnobject=TRUE)$ratios[4] 
+		tests <- list(
+					treat.type = treat.type,
+					X.Lkurtosis = sprintf(Lkurtosis,fmt = '%#.3f'),
+					p.wald = sprintf(p.wald,fmt = '%#.3f'),
+					formula.restrict = formula0.wald,
+					formula.full = formula1.wald,
+					sub.test = sub.test
+				)
+	}
+
+	if(wald==TRUE & use_fe==TRUE & !is.null(IV)){
+		#use the wald test in felm
+		data.wald <- data
+		sub.test <- NULL
+		tests <- NULL
+	}
 
 
-  if(treat.type=='discrete'){
-  output<-list(
-    type = "binning",
-    nbins = nbins,
-    est.lin = est.lin,
-	vcov.matrix = est.matrix,
-    est.bin = est.bin,
-    treat.type = treat.type,
-    treatlevels = all.treat.origin,
-	order = order,
-    base=base.origin,
-    Xlabel = Xlabel,
-    Dlabel = Dlabel,
-    Ylabel = Ylabel,
-    de = de,
-    de.tr = treat_den, # density
-    hist.out = hist.out,
-    count.tr = treat_hist,
-    tests = tests,
-	predict = predict
-  )
-  }
-  
-  if(treat.type=="continuous"){
-    output<-list(
-      type = "binning",
-      nbins = nbins,
-      est.lin = est.lin,
-	  vcov.matrix = est.matrix,
-      est.bin = est.bin,
-      treat.type = treat.type,
-      treatlevels= NULL,
-	  order = NULL,
-      base= NULL,
-      Xlabel = Xlabel,
-      Dlabel = Dlabel,
-      Ylabel = Ylabel,
-      de = de, # density
-      de.tr = de.tr,
-      hist.out = hist.out,
-      count.tr = NULL,
-      tests = tests,
-	  predict = predict
-    )
-  }
-  
-  if(predict==TRUE){
 	if(treat.type=='discrete'){
-		labelname <- NULL
-		D.ref <- NULL
+		final.output <- list(treat.info=treat.info,
+							 est.lin=TE.output.all.list,
+							 pred.bin=pred.output.all.list,
+							 link.bin=link.output.all.list,
+							 est.bin=TE.binning.output.all.list,
+							 nbins=nbins,
+							 Xlabel = Xlabel,
+							 Dlabel = Dlabel,
+							 Ylabel = Ylabel,
+							 de = de,
+							 de.tr = treat_den, # density
+							 hist.out = hist.out,
+							 count.tr = treat.hist,
+							 tests = tests,
+							 estimator = "binning",
+							 model.linear = model,
+							 model.binning = model.binning,
+							 use.fe = use_fe
+							)
 	}
+  
 	if(treat.type=='continuous'){
-		all.treat.origin <- names(D.sample)
+		final.output <- list(treat.info=treat.info,
+							est.lin=ME.output.all.list,
+							pred.bin=pred.output.all.list,
+							link.bin=link.output.all.list,
+							est.bin=ME.binning.output.all.list,
+							nbins=nbins,
+							Xlabel = Xlabel,
+							Dlabel = Dlabel,
+							Ylabel = Ylabel,
+							de = de, # density
+							de.tr = de.tr,
+							hist.out = hist.out,
+							count.tr = NULL,
+							tests = tests,
+							estimator = "binning",
+							model.linear = model,
+							model.binning = model.binning,
+							use.fe = use_fe
+							)
 	}
-	output <- c(output,list(est.predict = est.predict.binning,labelname = labelname,all.treat = all.treat.origin,
-						    X=X,Y=Y,D=D,D.ref=D.ref))
-  }
-  
-}
+	
+	#Plot
+  if(figure==TRUE){
+	class(final.output) <- "interflex"
+	figure.output <- plot.interflex(	x=final.output,
+									order = order,
+									subtitles = subtitles,
+									show.subtitles = show.subtitles,
+									CI = CI,
+									diff.values = NULL,
+									Xdistr = Xdistr,
+									main = main,
+									Ylabel = Ylabel,
+									Dlabel = Dlabel,
+									Xlabel = Xlabel,
+									xlab = xlab,
+									ylab = ylab,
+									xlim = xlim,
+									ylim = ylim,
+									theme.bw = theme.bw,
+									show.grid = show.grid,     
+									cex.main = cex.main,
+									cex.sub = cex.sub,
+									cex.lab = cex.lab,
+									cex.axis = cex.axis,
+									bin.labs = bin.labs, # bin labels    
+									interval = interval, # interval in replicated papers
+									file = file,
+									ncols = ncols,
+									#pool plot
+									pool = pool,
+									legend.title = legend.title,
+									color = color,
+									show.all = show.all,
+									scale = scale,
+  									height = height,
+  									width = width
+								)
 
-## Plot
-class(output) <- "interflex"
-if (figure==TRUE & pool==FALSE) {
-    
-    class(output) <- "interflex"
-    suppressMessages(
-    graph <- plot.interflex(x = output, CI = CI, xlab = xlab, ylab = ylab, color = color, order = order,
-                        subtitles = subtitles,
-                        show.subtitles = show.subtitles,
-                        Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
-                        main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,interval = interval,pool=pool,
-                        file = file, theme.bw = theme.bw, show.grid = show.grid, bin.labs = bin.labs, ncols=ncols,
-                        cex.main = cex.main,cex.sub = cex.sub, cex.axis = cex.axis, cex.lab = cex.lab)  
-    )
-    output<-c(output,list(graph=graph))
-    class(output) <- "interflex"
+	final.output <- c(final.output,list(figure=figure.output))
+  
   }
   
-if(figure==TRUE & pool==TRUE & treat.type=='discrete'){
-    suppressMessages(
-    graph <- plot.interflex(x = output, CI = CI, xlab = xlab, ylab = ylab,order=order,subtitles = subtitles,show.subtitles = show.subtitles,
-                              Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
-                              main = main, xlim = xlim, ylim = ylim, Xdistr = Xdistr,interval = interval,pool=pool,color=color,
-                              file = file, theme.bw = theme.bw, show.grid = show.grid,
-                              cex.main = cex.main, cex.axis = cex.axis, cex.lab = cex.lab,jitter=jitter,legend.title =legend.title)
-    )
-    output <- c(output, list(graph = graph))
-  }
-class(output) <- "interflex"
-return(output)
-}
+	
+	
+	
+	
+	
+	class(final.output) <- "interflex"
+	return(final.output)
+
+	}
+	
+	
+
 
 

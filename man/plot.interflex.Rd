@@ -2,17 +2,18 @@
 \alias{plot.interflex}
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting marginal effect estimates after either the binning estimator or the kernel estimator is applied}
-\usage{\method{plot}{interflex}(x, to.show = NULL, order = NULL, subtitles = NULL, 
+\usage{\method{plot}{interflex}(x, order = NULL, subtitles = NULL, 
   show.subtitles = NULL, CI = NULL, diff.values = NULL, Xdistr = "histogram", 
   main = NULL, Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL, 
   ylab = NULL, xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
   cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
   bin.labs = TRUE, interval = NULL, file = NULL, ncols = NULL, pool = FALSE, 
-  legend.title = NULL, color = NULL, jitter = FALSE, \dots)
+  legend.title = NULL, color = NULL, show.all = FALSE,
+  scale = 1.1, height = 7, width = 10,
+  \dots)
 }
 \arguments{
   \item{x}{an \bold{interflex} object.}
-  \item{to.show}{a vector of strings that determines which treatment arms will be displayed when visualizing marginal effects. It should should be a subset of all treatment arms except for the base group.}
   \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing marginal effects. It should contain all kinds of treatment arms except for the base group or all elements in "to.show".}
   \item{subtitles}{a vector of strings that determines the subtitles of subplots. Its length should be equal to the number of categories of treatment arms minus one. }
   \item{show.subtitles}{a logical flag controlling whether to show subtitles. Default to TRUE when the number of treatment arms is larger than 2.}
@@ -40,11 +41,14 @@
   \item{pool}{a logical flag specifying whether to integrate marginal effects for each treatment arm in one plot.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
   \item{color}{a vector of colors that determines the color of lines when \bold{pool} is TRUE.}
-  \item{jitter}{a logical flag specifying whether to jitter error-bars to avoid overlapping. The default is FALSE.}
+  \item{show.all}{a logical flag specifying whether to return the plots for each kinds of treatment level. If setting to TRUE, the program will return a list of ggplot2 objects.}
+  \item{scale}{Multiplicative scaling factor of printed graph.}
+  \item{height}{Plot size (Height).}
+  \item{width}{Plot size (Width).}
   \item{\dots}{other argv.}
 }
 \details{
-  \bold{plot.interflex} draws a margining effect plot based on a \bold{interflex} object after either \bold{inter.binning} or \bold{inter.kernel} is applied. It allows users to flexibly change the look of a plot without re-estimating the model, hence saving time. 
+  \bold{plot.interflex} draws a margining effect plot based on a \bold{interflex} object after either binning model or kernel model is applied. It allows users to flexibly change the look of a plot without re-estimating the model, hence saving time. 
 }
 \value{  
   \item{graph}{stores the graphic output, a \bold{ggplot2} object.}
@@ -58,10 +62,5 @@
 \seealso{
   \code{\link{interflex}} and \code{\link{predict.interflex}}
 }
-\examples{
-library(interflex)
-data(interflex)
-out <- inter.binning(data = s1, Y = "Y", D = "D", X = "X", Z = "Z1", CI = FALSE)
-plot(out)
-}
+
 \keyword{graphics}
