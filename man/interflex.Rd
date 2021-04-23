@@ -144,7 +144,7 @@
 
 
 \author{
-  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer); Ziyi Liu
+  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer);  Ziyi Liu
 }
 \references{
   Jens Hainmueller; Jonathan Mummolo; Yiqing Xu. 2019. "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice." Political Analysis, Vol. 27, Iss. 2, April 2019, pp. 163--192. Available at: \url{http://bit.ly/HMX2019}.
