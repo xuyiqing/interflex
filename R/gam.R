@@ -130,7 +130,8 @@ interflex.gam<-function(data,
         }
     }
 
-
+    oldpar <- par(no.readonly = TRUE)
+    on.exit(par(oldpar))
     par(mfrow=c(2,2),mar=c(2,2,0,0))
     if (CI==FALSE) {
         for (i in angle) {
