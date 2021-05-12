@@ -1,6 +1,6 @@
 Package: interflex
 Type: Package
-Version: 1.2.5
+Version: 1.2.6
 Title: Multiplicative Interaction Models Diagnostics and Visualization
 Date: 2021-05-02
 Authors@R: c(person("Jens Hainmueller", role=c("aut","ctb")),

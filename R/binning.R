@@ -3213,6 +3213,7 @@ interflex.binning <- function(data,
 		data.wald <- data
 		sub.test <- NULL
 		if(treat.type=='continuous'){
+			formula0.wald <- NULL
 			formula1.wald <- paste0(Y,"~",X,"+",D,"+DX")
 			var.name <- c(X,D,"DX")
 			constrain.terms <- c()
@@ -3271,6 +3272,7 @@ interflex.binning <- function(data,
 		}
 
 		if(treat.type=='discrete'){
+			formula0.wald <- NULL
 			formula1.wald <- formula.origin
 			constrain.terms <- c()
 			for(i in 1:(nbins-1)){
