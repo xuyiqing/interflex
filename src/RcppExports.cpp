@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // fastplm
 List fastplm(arma::mat data, arma::mat FE, arma::colvec weight, int FEcoefs);
 RcppExport SEXP _interflex_fastplm(SEXP dataSEXP, SEXP FESEXP, SEXP weightSEXP, SEXP FEcoefsSEXP) {

@@ -7,7 +7,7 @@
 \details{This package performs diagnostics and visualizations of multiplicative interaction models. Besides conventional linear interaction models, it provides two additional estimation strategies--linear regression based on pre-specified bins and locally linear regressions based on Gaussian kernels--to flexibly estimate the conditional marginal effect of a treatment variable on an outcome variable across different values of a moderating variable. These approaches relax the linear interaction effect assumption and safeguard against excessive extrapolation.}
 
 \author{
-  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu (Maintainer); Ziyi Liu
+  Jens Hainmueller; Jonathan Mummolo; Yiqing Xu; Ziyi Liu (Maintainer)
 }
 
 \references{

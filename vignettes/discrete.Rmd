@@ -1,0 +1,432 @@
+---
+title: 'Tutorial: Discrete Outcomes'
+output:
+  rmarkdown::html_vignette:
+    toc: false
+    toc_depth: 4
+    number_sections: false
+vignette: >
+  %\VignetteIndexEntry{Tutorial: Discrete Outcomes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}  
+---
+<!-- 
+  Code to Justify Text
+    <style>
+    body {
+    text-align: justify}
+    </style>
+-->   
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```  
+
+Load the package as well as the simulated toy datasets for this tutorial. **s1**-**s5** are for the tutorial for **interflex** with [continuous](continuous.html) outcomes. The response variable **Y** in **s6**-**s9** are all binary(0/1), and the link function is logit.
+```{r, message = FALSE}
+library(interflex)
+data(interflex)
+ls()
+```
+
+**s6** is a case of a dichotomous treatment indicator with the DGP $$E(Y)=prob(Y=1)=logit^{-1}(-1+D+X+DX)=\frac{e^{-1+D+X+DX}}{1+e^{-1+D+X+DX}}$$, where D is binary too.
+
+**s7** is a case of a continuous treatment indicator with the same DGP as **s6** except that D is continuous; 
+
+**s8** is a case of a dichotomous treatment indicator with nonlinear "linear predictor": $$E(Y)=prob(Y=1)=logit^{-1}(1+D+X+DX-DX^{2})$$ 
+
+**s9** is a case of a discrete treatment indicator in which for the group 0, $E(Y)=logit^{-1}(-X)$, for the group 1 $E(Y)=logit^{-1}(1+X)$, and for the group 2, $E(Y)=logit^{-1}(-X^{2}-X+4)$.
+```{r simu}
+set.seed(110)
+n <- 2000
+x <- runif(n,min=-3, max = 3)
+d1 <- sample(x = c(0,1),size = n,replace = T)
+d2 <- runif(min = 0,max = 1,n = n)
+d3 <- sample(x = c(0,1,2),size = n,replace = T)
+Z1 <- runif(min = 0,max = 1,n = n)
+Z2 <- rnorm(n,3,1)
+
+## s6
+link1 <- -1+d1+x+d1*x
+prob1 <- exp(link1)/(1+exp(link1))
+rand.u <- runif(min = 0,max = 1,n = n)
+y1 <- as.numeric(rand.u<prob1)
+s6 <- cbind.data.frame(X=x,D=d1,Z1=Z1,Z2=Z2,Y=y1)
+
+## s7
+link2 <- -1+d2+x+d2*x
+prob2 <- exp(link2)/(1+exp(link2))
+rand.u <- runif(min = 0,max = 1,n = n)
+y2 <- as.numeric(rand.u<prob2)
+s7 <- cbind.data.frame(X=x,D=d2,Z1=Z1,Z2=Z2,Y=y2)
+
+## s8
+link3 <- -1+d1+x+d1*x-d1*x*x
+prob3 <- exp(link3)/(1+exp(link3))
+rand.u <- runif(min = 0,max = 1,n = n)
+y3 <- as.numeric(rand.u<prob3)
+s8 <- cbind.data.frame(X=x,D=d1,Z1=Z1,Z2=Z2,Y=y3)
+
+## s9
+link4 <- rep(NA,n)
+link4[which(d3==0)] <- -x[which(d3==0)]
+link4[which(d3==1)] <- (1+x)[which(d3==1)]
+link4[which(d3==2)] <- (4-x*x-x)[which(d3==2)]
+
+prob4 <- exp(link4)/(1+exp(link4))
+rand.u <- runif(min = 0,max = 1,n = n)
+y4 <- as.numeric(rand.u<prob4)
+s9 <- cbind.data.frame(X=x,D=d3,Z1=Z1,Z2=Z2,Y=y4)
+```
+
+---
+
+## Linear linear predictors
+
+When setting the option `estimator` to "linear", the program will conduct the classic glm regression and estimate the marginal effects/treatment effects using the coefficients from the regression. In the following command, the outcome variable is "Y", the moderator is "X", the covariates are "Z1" and "Z2", and here it uses logit link function.
+```{r dlinear1, cache=TRUE, results = "hide", message=FALSE}
+s6.linear <- interflex(estimator='linear', method='logit', data = s6, 
+                       Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"))
+```
+
+### Marginal/treatment effects
+
+The estimated treatment effects of "D" on "Y" across the support of "X" are saved in 
+```{r dlinear2, cache=TRUE}
+s6.linear$est.lin
+```
+
+Users can then use the command **plot** to visualize the treatment effects
+```{r dlinear3, results = "hide", fig.height=5, fig.width=8}
+s6.plot <- plot(s6.linear)
+s6.plot
+```
+
+When setting the option `show.all` to **TRUE** in the command **plot**, the program will return a list in which every element is the plot of one treated group. As all of them are ggplot2 objects, users can then edit those graphs in their ways. For example, we can add the "true" treatment effects to the plot as a comparison.
+```{r dlinear4, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+library(ggplot2)
+s6.linear.plot <- plot.interflex(s6.linear,show.all = TRUE, Xdistr = 'none')$`1`
+TE <- exp(-1+1+x+1*x)/(1+exp(-1+1+x+1*x))-exp(-1+0+x+0*x)/(1+exp(-1+0+x+0*x))
+s6.linear.plot + geom_line(aes(x=x,y=TE),color='red')
+```
+
+### E(Y|X,Z,D)
+
+The estimated E(Y|X,Z,D) are saved in 
+```{r dlinear5, cache=TRUE}
+s6.linear$pred.lin
+```
+
+Users can then use the command **predict** to visualize E(Y|X,Z,D). The option `pool` can help users draw E(Y|X,Z,D) for different D in one plot.
+```{r dlinear6, cache=TRUE, results = "hide", fig.height=5, fig.width=8}
+s6.predict <- predict(s6.linear, pool = TRUE, subtitles=c('Group:0','Group:1'))
+s6.predict
+```
+
+### Differences in effects
+
+The difference of margnal effects/treatment effects at different values of the moderator(by default are the 25%, 50%, 75% quantiles of the moderator) are saved in "diff.estimate". Users can also pass two or three values(should be in the support of "X") into `diff.values` when applying linear estimator.
+```{r dlinear7, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s6.linear.a <- interflex(estimator = 'linear', method='logit', data = s6, 
+                         Y = 'Y', D = 'D', diff.values = c(-2,0,2), 
+                         X = 'X', Z = c('Z1','Z2'))
+plot.interflex(s6.linear.a,diff.values = c(-2,0,2))
+```
+
+```{r dlinear8, cache=TRUE}
+s6.linear.a$diff.estimate
+```
+
+### Average treatment/marginal effects
+
+The estimated average treatment effect/marginal effect is saved in "Avg.estimate". Here the program uses the coefficients from the regression and the input data to calculate the ATE/AME.
+```{r dlinear9, cache=TRUE}
+s6.linear$Avg.estimate
+```
+
+### Uncertainty estimates
+
+In the default setting, confidence intervals of treatment effects, E(Y|D,X,Z), difference of treatment effects and ATE are all estimated using the delta method. The program also supports the bootstrap method and the simulation methods proposed by King(2000). For the sample dataset, the differences between these three methods are ignorable.
+```{r dlinear10, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8,warning = FALSE}
+library(patchwork)
+s6.linear.b <- interflex(estimator='linear', method='logit', 
+                         Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), 
+                         data = s6, vartype='bootstrap')
+s6.linear.c <- interflex(estimator='linear', method='logit', 
+                         Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), 
+                         data = s6, vartype='simu')
+s6.p1 <- plot(s6.linear,ylim=c(-0.3,0.6),main = 'delta')
+s6.p2 <- plot(s6.linear.b,ylim=c(-0.3,0.6),main = 'bootstrap')
+s6.p3 <- plot(s6.linear.c,ylim=c(-0.3,0.6),main = 'simu')
+s6.p1+s6.p2+s6.p3
+```
+
+Note that the variance-covariance matrix of coefficients used by the delta method or the simulation method by default is the robust standard error matrix esimated from the regression. Users can also choose "homoscedastic" or "cluster" standard error by specifying the option `vcov.type`.
+
+### Set covariate values
+
+Different from the linear case, the treatment effects in glm models rely on the choice of values of all covariates. By default, all covariates are set to their means when estimating TE, E(Y|X,D,Z) and difference of TE. Users can also pass their preferred values of covariates into the option `Z.ref`, which must have the same length as `Z`. 
+```{r dlinear11, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s6.linear.d <- interflex(estimator='linear', method='logit', 
+                         Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), 
+                         data = s6, Z.ref=c(1,1))
+plot(s6.linear.d)
+```
+
+### Fully moderated model
+
+For the linear estimator, when the option `full.moderate` is set to **TRUE**, interaction terms between the moderatoe "X" and each covariate will enter the model, which is the case in Blackwell and Olson (2020). This extension in some cases can reduce the bias of the original model.
+```{r dlinear11a, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s6.linear.f <- interflex(estimator='linear', method='logit', 
+                         Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), 
+                         data = s6, full.moderate=TRUE)
+plot(s6.linear.f)
+```
+
+### Continuous treatments
+
+When the treatment variable "D" is continuous, the package will choose the mean of "D" as the "reference value" when estimating marginal effects(ME), E(Y|X,D,Z) and difference of ME.
+```{r dlinear12, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s7.linear <- interflex(estimator = 'linear', method = 'logit', data = s7,
+                       Y = 'Y', D = 'D',X = 'X',Z = c('Z1','Z2'))
+plot(s7.linear)
+```
+
+As the marginal effects in glm models also depends on the value of D, users can pass their preferred values of D into the option `D.ref`. For example, we can set "D" to three values: 0.25, 0.5 and 0.75.
+```{r dlinear13, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s7.linear.a <- interflex(estimator = 'linear', method='logit', data = s7,
+                         Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'),
+                         D.ref = c(0.25,0.5,0.75))
+plot(s7.linear.a)
+```
+
+Predicted values and difference of ME are also grouped by D.ref.
+```{r dlinear14, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+predict(s7.linear.a)
+```
+
+```{r dlinear15, cache=TRUE}
+s7.linear.a$diff.estimate
+```
+
+The average marginal effect(AME) is saved in "Avg.estimate", which doesn't rely on the choice of "D.ref".
+```{r dlinear16, cache=TRUE}
+s7.linear.a$Avg.estimate
+```
+
+Users can also draw a Generalized Additive Model (GAM) plot, the usage is the same as the linear estimator.
+```{r dgam, cache=TRUE}
+s7.gam <- interflex(estimator='gam', method='logit', data=s7, 
+                    Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'), 
+                    CI=FALSE)
+```
+
+### Limitations of the linear linear-predictor
+
+When the "linear predictor"(the term in the bracket of $logit^{-1}()$) actually doesn't take a linear form, such as in **s8**, the simple linear estimator may suffer from severe bias.
+```{r dlinear17, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8, warning=FALSE}
+s8.linear <- interflex(estimator='linear',data=s8,Y='Y',D='D', X='X',Z=c('Z1','Z2'),method='logit')
+s8.linear.plot <- plot.interflex(s8.linear,show.all = T,Xdistr = 'none')$`1`
+#link3 <- -1+d1+x+d1*x-d1*x*x
+TE <- exp(-1+1+x+1*x-x*x)/(1+exp(-1+1+x+1*x-x*x))-exp(-1+0+x+0*x)/(1+exp(-1+0+x+0*x))
+s8.linear.plot + geom_line(aes(x=x,y=TE),color='red')+ylim(-0.6,0.6)
+```
+
+```{r dlinear18, cache=TRUE}
+s8.linear$Avg.estimate
+```
+
+In such cases, we can use the binning estimator as the diagnostic tools for the linear interaction effect (LIE) assumption, and use the kernel estimator to approximate the true DGP.
+
+---
+
+
+## The binning estimator
+
+The binning estimator is a diagnostic tool, it will discretizes the moderator X into several bins and create a dummy variable for each bin and picks an evaluation point within each bin, where users want to estimate the conditional marginal effect of D on Y. The regression terms includes interactions between the bin dummies and the treatment indicator, the bin dummies and the moderator X minus the evaluation points, as well as the triple interactions. 
+
+If the treatment/marginal effect estimates from the binning estimator sit closely to the estimated treatment/marginal effects from the linear estimator, then the LIE assumption likely holds. For dataset **s6**, it is clear that all three binning estimators sits closely to the results from linear estimator.
+```{r dbinning1, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s6.binning <- interflex(estimator = 'binning', data = s6, method='logit',
+                        Y = 'Y', D = 'D', X = 'X',Z = c('Z1','Z2'))
+plot(s6.binning)
+```
+
+Users can access the estimated binning estimates saved in "est.bin":
+```{r dbinning2, cache=TRUE}
+s6.binning$est.bin
+```
+
+As a comparison, if we apply the binning method to **s8**, it is obvious that several binning estimates falls outside the confidence intervals of the linear estimates, implying the existence of non-linear predictor in the DGP of **s8**. 
+```{r dbinning3, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s8.binning <- interflex(estimator='binning', data = s8, method='logit', 
+                        Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
+plot(s8.binning)
+```
+
+### E(Y|X,D,Z)
+
+Like the command for the linear estimator, one can visualize E(Y|X,D,Z) estimated using the binning model. It is expected to see some "zigzags" at the bin boundaries in the plot.
+```{r dbinning4, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+predict(s8.binning)
+```
+
+
+### Hypothesis testing
+
+The program provides formal tools for verifying the the LIE assumption, the Wald test and the likelihood ratio test. For dataset **s8**, both of these two tests reject the null hypothesis of LIE.
+```{r dbinning5, cache=TRUE}
+s8.binning$tests
+```
+
+For **s6**, there is no enough evidence to reject the null hypothesis.
+```{r dbinning6, cache=TRUE}
+s6.binning$tests
+```
+
+### Fully moderated model
+
+Unlike the fully moderated model in the linear estimator, for the binning estimator, this program interacts all covariates with the moderator X in the same way as the treatment variable D. That is to say, for each covariate, we includes interactions between it and the bin dummies and the triple interactions. It can reduce biases when the impact of some covariates to the outcome doesn't take a linear form of "X", but sometimes it will also render the estimates unstable when the number of covariates is large.
+
+```{r dbinning7, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s8.binning.full <- interflex(estimator = 'binning', data=s8, 
+                             Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'),
+                             method = 'logit', full.moderate=TRUE)
+plot(s8.binning.full)
+```
+
+---
+
+## The kernel estimator
+
+With the kernel method, a bandwidth is first selected via a 10-fold cross-validation. If the outcome variable is binary, the bandwidth that produces the largest area under the curve(AUC) or the least cross entropy in cross validation will be chosen as the "optimal" bandwidth. The standard errors are produced by a non-parametric bootstrap. It is very flexible but takes more time compared with the linear estimation.
+
+For **s8**, the kernel estimator can much better approximates the "True" TE than the linear estimator.
+```{r dkernel1, cache=TRUE, results = "hide", fig.height=5, fig.width=8}
+s8.kernel <- interflex(estimator = 'kernel', data = s8, method='logit', 
+                       Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
+plot(s8.kernel)
+```
+
+```{r dkernel1a, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8,warning = FALSE}
+s8.kernel.plot <- plot.interflex(s8.kernel,show.all = T,Xdistr = 'none')$`1`
+#link3 <- -1+d1+x+d1*x-d1*x*x
+TE <- exp(-1+1+x+1*x-x*x)/(1+exp(-1+1+x+1*x-x*x))-exp(-1+0+x+0*x)/(1+exp(-1+0+x+0*x))
+s8.kernel.plot + geom_line(aes(x=x,y=TE),color='red')+ylim(-0.6,0.6)
+```
+
+The results of cross-validation are saved in "CV.output".
+```{r dkernel2, cache=TRUE}
+s8.kernel$CV.output
+```
+
+For **s6**, the program will choose a relatively large bandwidth via cross-validation, thus the results produced by kernel estimator is similar to the results from the linear estimator.
+```{r dkernel3, cache=TRUE, results = "hide", fig.height=5, fig.width=8}
+s6.kernel <- interflex(estimator = 'kernel', data = s6, method = 'logit', 
+                       Y = 'Y',D = 'D', X = 'X',Z =c('Z1','Z2'))
+plot.interflex(s6.kernel)
+```
+
+```{r dkernel3a, cache=TRUE}
+s6.kernel$CV.output
+```
+
+
+### E(Y|D,X,Z)
+
+Like the linear estimator, the estimated E(Y|D,X,Z) is saved in "pred.kernel". Users can visualize it using the command "predict".
+```{r dkernel4, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+predict(s8.kernel)
+```
+
+### Differences in effects
+
+Like the linear estimator, the estimated difference of treatment effects are saved in "diff.estimate":
+```{r dkernel5, cache=TRUE}
+s8.kernel$diff.estimate
+```
+
+### Average treatment/marginal effects
+
+The estimated ATE/AME for the kernel model is saved in "Avg.estimate":
+```{r dkernel6, cache=TRUE}
+s8.kernel$Avg.estimate
+```
+
+### fully moderated model
+
+The fully moderated model for the kernel estimator adds the interaction terms between covariates and moderator to the local weighted regression. 
+```{r dkernel7, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s8.kernel.full <- interflex(estimator = 'kernel', data = s8, method='logit', 
+                            Y = 'Y',D = 'D', X = 'X', Z = c('Z1','Z2'), full.moderate=TRUE)
+plot(s8.kernel.full)
+```
+
+---
+
+## Multiple (>2) treatment arms
+
+**interflex** can also be applied when there are more than two treated conditions. For **s9**, the LIE assumption are violated only in group 2.
+The linear estimator can give a consistent estimation of treatment effects for the group 1, but not group 2.
+
+```{r dmulti1, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s9.linear <- interflex(estimator='linear', data=s9, method='logit', 
+                       Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
+plot(s9.linear)
+```
+
+```{r dmulti2, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
+p1 <- plot.interflex(s9.linear,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
+TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
+p2 <- plot(s9.linear,show.all = T)$`2`+geom_line(aes(x=x,y=TE2),color='red')
+p1 + p2
+```
+
+Then, we use the binning estimator to conduct a diagnostic analysis.
+```{r dmulti3, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s9.binning <- interflex(estimator = 'binning', data = s9, method='logit',
+                        Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
+plot(s9.binning)
+```
+
+Results of the binning estimator also suggests the violation of LIE for group 2, which can be further verified by checking the test results.
+```{r dmulti4, cache=TRUE}
+s9.binning$tests$p.wald
+s9.binning$tests$p.lr
+```
+
+Both of these tests suggest that LIE assumption fails in the model, but it **doesn't** tell us in which group the assumption fails. There is an extra output "sub.test" when there are more than 3 groups in the data, which includes by-group results of the Wald/Likelihood ratio test, which test the linear multiplicative interaction assumption for each group. In this case, the test results suggest that there are not enough evidences to reject the null hypothesis for group 1, but for group 2, the null hypothesis can be safely rejected.
+```{r dmulti5, cache=TRUE}
+s9.binning$tests$sub.test
+```
+
+Lastly, we can use the kernel estimator to get more consistent results.
+```{r dmulti6, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+s9.kernel <- interflex(estimator = 'kernel', data = s9, 
+                       Y ='Y', D = 'D', X = 'X', Z = c('Z1','Z2'),
+                       method='logit')
+plot(s9.kernel)
+```
+
+```{r dmulti7, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
+p1 <- plot(s9.kernel,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
+TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
+p2 <- plot(s9.kernel,show.all = T)$`2`+geom_line(aes(x=x,y=TE2),color='red')
+p1 + p2
+```
+
+
+The estimated ATE and E(Y|D,X,Z) are also grouped by treatment.
+```{r dmulti8, cache=TRUE}
+s9.kernel$Avg.estimate
+```
+
+```{r dmulti9, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+predict(s9.kernel)
+```
+
+
