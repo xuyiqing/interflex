@@ -8,7 +8,7 @@ Authors@R: c(person("Jens Hainmueller", role=c("aut")),
 	     person("Yiqing Xu", role=c("aut"), email = "yiqingxu@stanford.edu"),
 	     person("Ziyi Liu", role=c("aut","cre"), email = "zyliu2020@uchicago.edu"))
 Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
-URL: http://yiqingxu.org/software/interaction/RGuide.html
+URL: https://yiqingxu.org/packages/interflex/
 License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16),
