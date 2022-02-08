@@ -24,8 +24,10 @@ Xu](https://yiqingxu.org/), and Ziyi Liu
 (1.2.6)
 
 **Tutoralis:** See tutorials for cases with
-[continuous](articles/continuous.html) and
-[discrete](articles/discrete.html) outcomes.
+[continuous](https://yiqingxu.org/packages/interflex/articles/continuous.html)
+and
+[discrete](https://yiqingxu.org/packages/interflex/articles/discrete.html)
+outcomes.
 
 **Examples:** R code used in the tutorials can be downloaded from
 [here](examples.R).
