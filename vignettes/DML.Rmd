@@ -10,13 +10,16 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}  
 ---
+
+```{=html}
 <!-- 
   Code to Justify Text
     <style>
     body {
     text-align: justify}
     </style>
--->   
+-->
+```
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -55,11 +58,12 @@ y1 <- y1 + e + z1 + z2
 s5 <- cbind.data.frame(D=d1, X=x, Y=y1, Z1 = z1,Z2 = z2)
 ```
 
----
+------------------------------------------------------------------------
 
 ## Double Machine Learning
 
 When setting the option `estimator` to "DML" and the option `ml_method` to "nn", the program will conduct the two-stage estimator (with machine learning method as Neural Network) to compute the marginal effects/treatment effects. In the following command, the outcome variable is "Y", the moderator is "X", the covariates are "Z1" and "Z2", and here it uses logit link function.
+
 ```{r dlinear1, cache=TRUE, results = "hide", message=FALSE}
 s5.DML.nn <- interflex(estimator='DML', data = s5, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = "Z1", treat.type = "discrete")
@@ -67,12 +71,14 @@ s5.DML.nn <- interflex(estimator='DML', data = s5, ml_method="nn",
 
 ### Marginal/treatment effects
 
-The estimated treatment effects of "D" on "Y" across the support of "X" are saved in 
+The estimated treatment effects of "D" on "Y" across the support of "X" are saved in
+
 ```{r dlinear2, cache=TRUE}
 s5.DML.nn$est.dml
 ```
 
 Users can then use the command **plot** to visualize the treatment effects
+
 ```{r dlinear3, results = "hide", fig.height=5, fig.width=8}
 s5.DML.nn.plot <- plot(s5.DML.nn)
 s5.DML.nn.plot
@@ -80,7 +86,7 @@ s5.DML.nn.plot
 
 ### Parameters
 
-Users can change the parameters for the machine learning method in Stage 1. 
+Users can change the parameters for the machine learning method in Stage 1.
 
 ```{r dlinear4, results = "hide", fig.height=5, fig.width=8}
 s5.DML.nn.2 <- interflex(estimator='DML', data = s5, ml_method="nn",
@@ -107,5 +113,3 @@ s5.DML.hgb <- interflex(estimator='DML', data = s5, ml_method="hgb",
                     Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
 plot(s5.DML.hgb)
 ```
-
-
