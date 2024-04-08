@@ -1,0 +1,111 @@
+---
+title: 'Tutorial: Interflex with Double Machine Learning'
+output:
+  rmarkdown::html_vignette:
+    toc: false
+    toc_depth: 4
+    number_sections: false
+vignette: >
+  %\VignetteIndexEntry{Tutorial: Interflex with Double Machine Learning}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}  
+---
+<!-- 
+  Code to Justify Text
+    <style>
+    body {
+    text-align: justify}
+    </style>
+-->   
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Load the package as well as the simulated toy datasets for this tutorial. **s5** is for the tutorial for **interflex** with continuous outcomes.
+
+```{r, message = FALSE}
+library(interflex)
+data(interflex)
+
+set.seed(1234)
+n<-200
+x<-rnorm(n,3,1) # moderator
+z<-rnorm(n,3,1) # covariate
+e<-rnorm(n,0,1) # error term
+
+## Multiple treatment arms
+n <- 600
+# treatment 1
+d1 <- sample(c('A','B','C'),n,replace=T)
+# moderator
+x <- runif(n,min=-3, max = 3)
+# covriates
+z1 <- rnorm(n,0,3)
+z2 <- rnorm(n,0,2)
+# error
+e <- rnorm(n,0,1)
+y1 <- rep(NA,n)
+y1[which(d1=='A')] <- -x[which(d1=='A')]
+y1[which(d1=='B')] <- (1+x)[which(d1=='B')]
+y1[which(d1=='C')] <- (4-x*x-x)[which(d1=='C')]
+y1 <- y1 + e + z1 + z2
+s5 <- cbind.data.frame(D=d1, X=x, Y=y1, Z1 = z1,Z2 = z2)
+```
+
+---
+
+## Double Machine Learning
+
+When setting the option `estimator` to "DML" and the option `ml_method` to "nn", the program will conduct the two-stage estimator (with machine learning method as Neural Network) to compute the marginal effects/treatment effects. In the following command, the outcome variable is "Y", the moderator is "X", the covariates are "Z1" and "Z2", and here it uses logit link function.
+```{r dlinear1, cache=TRUE, results = "hide", message=FALSE}
+s5.DML.nn <- interflex(estimator='DML', data = s5, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = "Z1", treat.type = "discrete")
+```
+
+### Marginal/treatment effects
+
+The estimated treatment effects of "D" on "Y" across the support of "X" are saved in 
+```{r dlinear2, cache=TRUE}
+s5.DML.nn$est.dml
+```
+
+Users can then use the command **plot** to visualize the treatment effects
+```{r dlinear3, results = "hide", fig.height=5, fig.width=8}
+s5.DML.nn.plot <- plot(s5.DML.nn)
+s5.DML.nn.plot
+```
+
+### Parameters
+
+Users can change the parameters for the machine learning method in Stage 1. 
+
+```{r dlinear4, results = "hide", fig.height=5, fig.width=8}
+s5.DML.nn.2 <- interflex(estimator='DML', data = s5, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                       solver = "lbfgs",
+                       max_iter = 10000,
+                       alpha = 1e-5,
+                       hidden_layer_sizes = c(3, 3, 2),
+                       random_state = 1,
+                       treat.type = "discrete")
+plot(s5.DML.nn.2)
+```
+
+### Machine Learning Methods
+
+Users can also change the machine learning method Stage 1. Now `Random Forest` (rf), `Hist Gradient Boosting` (hgb), and `Neural Network` (nn) are allowed to input as `ml_method`.
+
+```{r dlinear5, results = "hide", fig.height=5, fig.width=8}
+s5.DML.rf <- interflex(estimator='DML', data = s5, ml_method="RF",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
+plot(s5.DML.rf)
+
+s5.DML.hgb <- interflex(estimator='DML', data = s5, ml_method="hgb",
+                    Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
+plot(s5.DML.hgb)
+```
+
+
