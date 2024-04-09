@@ -385,6 +385,9 @@ plot.interflex <- function(x,
     if (treat.type == "continuous" & (estimator == "linear" | estimator == "binning")) {
         tempxx <- out$est.lin[[label.name[1]]][, "X"]
     }
+    if (treat.type == "continuous" & estimator == "DML") {
+        tempxx <- out$est.dml[[label.name[1]]][, "X"]
+    }
     if (treat.type == "continuous" & estimator == "kernel") {
         tempxx <- out$est.kernel[[label.name[1]]][, "X"]
     }
@@ -412,6 +415,9 @@ plot.interflex <- function(x,
             tempxx <- out$est.kernel[[other.treat[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "linear") {
+            tempxx <- out$est.lin[[label.name[1]]][, "X"]
+        }
+        if (treat.type == "continuous" & estimator == "DML") {
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "kernel") {
@@ -514,7 +520,18 @@ plot.interflex <- function(x,
             }
             X.lvls <- est.dml[[other.treat[1]]][, 1]
         }
-
+        if (treat.type == "continuous") {
+            est.dml <- out$est.dml
+            yrange <- c(0)
+            for (label in label.name) {
+                if (CI == TRUE) {
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(4, 5)]))))
+                } else {
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, 2]))))
+                }
+            }
+            X.lvls <- est.dml[[label.name[1]]][, 1]
+        }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
         if (is.null(ylim) == FALSE) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)

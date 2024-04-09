@@ -7,7 +7,7 @@ import doubleml as dml
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 
-def marginal_effect_for_R(df, ml_method, Y, D, X, Z, 
+def marginal_effect_for_binary_treatment(df, ml_method, Y, D, X, Z, 
                           trimming_threshold=0.01, n_folds=5,
                           n_estimators=500, 
                           solver='adam', max_iter=10000, alpha=1e-5, hidden_layer_sizes=(5, 3, 2), random_state=1):
