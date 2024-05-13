@@ -27,54 +27,73 @@ knitr::opts_chunk$set(
 )
 ```
 
-Load the package as well as the simulated toy datasets (s6~s9) for this tutorial. **s7** is a case of a continuous treatment indicator, **s9** is a case of a discrete treatment indicator.
+Load the package 
 
 ```{r, message = FALSE}
 library(interflex)
 data(interflex)
-
-set.seed(110)
-
-n <- 2000
-x <- runif(n,min=-3, max = 3)
-d1 <- sample(x = c(0,1),size = n,replace = T)
-d2 <- runif(min = 0,max = 1,n = n)
-d3 <- sample(x = c(0,1,2),size = n,replace = T)
-Z1 <- runif(min = 0,max = 1,n = n)
-Z2 <- rnorm(n,3,1)
-
-## s6
-link1 <- -1+d1+x+d1*x
-prob1 <- exp(link1)/(1+exp(link1))
-rand.u <- runif(min = 0,max = 1,n = n)
-y1 <- as.numeric(rand.u<prob1)
-s6 <- cbind.data.frame(X=x,D=d1,Z1=Z1,Z2=Z2,Y=y1)
-
-## s7
-link2 <- -1+d2+x+d2*x
-prob2 <- exp(link2)/(1+exp(link2))
-rand.u <- runif(min = 0,max = 1,n = n)
-y2 <- as.numeric(rand.u<prob2)
-s7 <- cbind.data.frame(X=x,D=d2,Z1=Z1,Z2=Z2,Y=y2)
-
-## s8
-link3 <- -1+d1+x+d1*x-d1*x*x
-prob3 <- exp(link3)/(1+exp(link3))
-rand.u <- runif(min = 0,max = 1,n = n)
-y3 <- as.numeric(rand.u<prob3)
-s8 <- cbind.data.frame(X=x,D=d1,Z1=Z1,Z2=Z2,Y=y3)
-
-## s9
-link4 <- rep(NA,n)
-link4[which(d3==0)] <- -x[which(d3==0)]
-link4[which(d3==1)] <- (1+x)[which(d3==1)]
-link4[which(d3==2)] <- (4-x*x-x)[which(d3==2)]
-
-prob4 <- exp(link4)/(1+exp(link4))
-rand.u <- runif(min = 0,max = 1,n = n)
-y4 <- as.numeric(rand.u<prob4)
-s9 <- cbind.data.frame(X=x,D=d3,Z1=Z1,Z2=Z2,Y=y4)
 ```
+
+Load the simulated toy datasets (s1, s2, s6, s7, s9) for this tutorial. 
+**s1** is a case of a dichotomous treatment indicator with continuous outcome.
+**s2** is a case of a continuous treatment indicator with continuous outcome.
+**s6** is a case of a dichotomous treatment indicator with discrete outcomes.
+**s7** is a case of a continuous treatment indicator with discrete outcomes.
+**s9** is a case of a discrete treatment indicator (3 groups) with discrete outcomes.
+
+```{r, message = FALSE}
+### continuous outcome
+set.seed(1234)
+n <- 200
+x <- rnorm(n, 3, 1)
+z <- rnorm(n, 3, 1)
+e <- rnorm(n, 0, 1)
+
+# s1
+d1 <- sample(c(0, 1), n, replace=TRUE)
+y1<-5 - 4 * x - 9 * d1 + 3 * x * d1 + 1 * z + 2 * e
+s1<-cbind.data.frame(Y = y1, D = d1, X = x, Z1 = z)
+
+# s2
+d2 <- rnorm(n, 3, 1)
+y2<-5 - 4 * x - 9 * d2 + 3 * x * d2 + 1 * z + 2 * e
+s2<-cbind.data.frame(Y = y2, D = d2, X = x, Z1 = z)
+
+### discrete outcome
+set.seed(110)
+n <- 2000
+x <- runif(n, min = -3, max = 3)
+d1 <- sample(x = c(0, 1), size = n, replace = T)
+Z1 <- runif(min = 0, max = 1, n = n)
+Z2 <- rnorm(n, 3, 1)
+
+# s6
+link1 <- -1 + d1 + x + d1 * x
+prob1 <- exp(link1) / (1 + exp(link1))
+rand.u <- runif(min = 0, max = 1, n = n)
+y1 <- as.numeric(rand.u < prob1)
+s6 <- cbind.data.frame(X = x, D = d1, Z1 = Z1, Z2 = Z2, Y = y1)
+
+# s7
+d2 <- runif(min = 0, max = 1, n = n)
+link2 <- -1 + d2 + x + d2 * x
+prob2 <- exp(link2) / (1 + exp(link2))
+rand.u <- runif(min = 0, max = 1, n = n)
+y2 <- as.numeric(rand.u < prob2)
+s7 <- cbind.data.frame(X = x, D = d2, Z1 = Z1, Z2 = Z2, Y = y2)
+
+# s9
+d3 <- sample(x = c(0, 1, 2), size = n, replace = T)
+link4 <- rep(NA, n)
+link4[which(d3 == 0)] <- -x[which(d3 == 0)]
+link4[which(d3 == 1)] <- (1 + x)[which(d3 == 1)]
+link4[which(d3 == 2)] <- (4 - x * x - x)[which(d3 == 2)]
+prob4 <- exp(link4) / (1 + exp(link4))
+rand.u <- runif(min = 0, max = 1, n = n)
+y4 <- as.numeric(rand.u < prob4)
+s9 <- cbind.data.frame(X = x, D = d3, Z1 = Z1, Z2 = Z2, Y = y4)
+```
+
 
 ------------------------------------------------------------------------
 
@@ -83,7 +102,7 @@ s9 <- cbind.data.frame(X=x,D=d3,Z1=Z1,Z2=Z2,Y=y4)
 When setting the option `estimator` to "DML" and the option `ml_method` to "nn", the program will conduct the two-stage estimator (with machine learning method as Neural Network) to compute the marginal effects/treatment effects. In the following command, the outcome variable is "Y", the moderator is "X", the covariates are "Z1" and "Z2", and here it uses logit link function.
 
 ```{r dlinear1, cache=TRUE, results = "hide", message=FALSE}
-s9.DML.nn <- interflex(estimator='DML', data = s9, ml_method="nn",
+s9.DML.nn <- interflex(estimator="DML", data = s9, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
 ```
 
@@ -107,7 +126,7 @@ s9.DML.nn.plot
 Users can change the parameters for the machine learning method in Stage 1.
 
 ```{r dlinear4, results = "hide", fig.height=5, fig.width=8}
-s9.DML.nn.2 <- interflex(estimator='DML', data = s9, ml_method="nn",
+s9.DML.nn.2 <- interflex(estimator="DML", data = s9, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
                        solver = "lbfgs",
                        max_iter = 10000,
@@ -123,21 +142,48 @@ plot(s9.DML.nn.2)
 Users can also change the machine learning method Stage 1. Now `Random Forest` (rf), `Hist Gradient Boosting` (hgb), and `Neural Network` (nn) are allowed to input as `ml_method`.
 
 ```{r dlinear5, results = "hide", fig.height=5, fig.width=8}
-s9.DML.rf <- interflex(estimator='DML', data = s9, ml_method="RF",
+s9.DML.rf <- interflex(estimator="DML", data = s9, ml_method="RF",
                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
 plot(s9.DML.rf)
 
-s9.DML.hgb <- interflex(estimator='DML', data = s9, ml_method="hgb",
+s9.DML.hgb <- interflex(estimator="DML", data = s9, ml_method="hgb",
                     Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
 plot(s9.DML.hgb)
 ```
 
-### Continuous Treatment
+------------------------------------------------------------------------
 
-Users can also test for **s7**, which has continuous treatment.
+## Dichotomous Treatment Indicator with Continuous Outcome
 
 ```{r dlinear6, results = "hide", fig.height=5, fig.width=8}
-s7.DML.nn <- interflex(estimator='DML', data = s7, ml_method="nn",
+s1.DML.nn <- interflex(estimator='DML', data = s1, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = "Z1", treat.type = "discrete")
+
+plot(s1.DML.nn)
+```
+
+## Continuous Treatment Indicator with Continuous Outcome
+
+```{r dlinear7, results = "hide", fig.height=5, fig.width=8}
+s2.DML.nn <- interflex(estimator='DML', data = s2, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = "Z1", treat.type = "continuous")
+
+plot(s2.DML.nn)
+```
+
+## Dichotomous Treatment Indicator with Discrete Outcome
+
+```{r dlinear8, results = "hide", fig.height=5, fig.width=8}
+s6.DML.nn <- interflex(estimator='DML', data = s6, ml_method="nn",
+                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
+
+plot(s6.DML.nn)
+```
+
+## Continuous Treatment Indicator with Discrete Outcome
+
+```{r dlinear9, results = "hide", fig.height=5, fig.width=8}
+s7.DML.nn <- interflex(estimator="DML", data = s7, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
                        dml_method = "regularization", treat.type = "continuous")
 
