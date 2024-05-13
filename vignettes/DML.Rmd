@@ -139,7 +139,7 @@ plot(s9.DML.nn.2)
 
 ### Machine Learning Methods
 
-Users can also change the machine learning method Stage 1. Now `Random Forest` (rf), `Hist Gradient Boosting` (hgb), and `Neural Network` (nn) are allowed to input as `ml_method`.
+Users can also change the machine learning method for Stage 1. Now `Random Forest` (rf), `Hist Gradient Boosting` (hgb), and `Neural Network` (nn) are allowed to input as `ml_method`.
 
 ```{r dlinear5, results = "hide", fig.height=5, fig.width=8}
 s9.DML.rf <- interflex(estimator="DML", data = s9, ml_method="RF",
@@ -151,11 +151,41 @@ s9.DML.hgb <- interflex(estimator="DML", data = s9, ml_method="hgb",
 plot(s9.DML.hgb)
 ```
 
+
+### Double Machine Learning Methods
+
+For continuous treatment specifically, users can also change the different methods for double machine learning itself. Now `Default`, `Polynomial`, `Regularization` (remember to control the `lasso_alpha` parameter to control the penalty), and `Non-Parametric` are allowed to input as `dml_method`.
+
+```{r dlinear6, results = "hide", fig.height=5, fig.width=8}
+s2.DML.hgb <- interflex(estimator='DML', data = s7, ml_method="hgb",
+                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                        D.ref = c(0.25,0.5,0.75),
+                        dml_method = "polynomial",
+                        treat.type = "continuous")
+plot(s2.DML.hgb)
+
+s7.DML.rf <- interflex(estimator='DML', data = s7, ml_method="rf",
+                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                        D.ref = c(0.25,0.5,0.75),
+                        dml_method = "regularization", lasso_alpha = 0.00001,
+                        treat.type = "continuous")
+plot(s7.DML.rf)
+
+s7.DML.hgb <- interflex(estimator='DML', data = s7, ml_method="hgb",
+                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                        D.ref = c(0.25,0.5,0.75),
+                        dml_method = "non-parametric",
+                        casual_forest_criterion="mse",
+                        casual_forest_n_estimators=1000,
+                        casual_forest_in_impurity_decrease=0.001,
+                        treat.type = "continuous")
+plot(s7.DML.hgb)
+```
 ------------------------------------------------------------------------
 
 ## Dichotomous Treatment Indicator with Continuous Outcome
 
-```{r dlinear6, results = "hide", fig.height=5, fig.width=8}
+```{r dlinear7, results = "hide", fig.height=5, fig.width=8}
 s1.DML.nn <- interflex(estimator='DML', data = s1, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = "Z1", treat.type = "discrete")
 
@@ -164,7 +194,7 @@ plot(s1.DML.nn)
 
 ## Continuous Treatment Indicator with Continuous Outcome
 
-```{r dlinear7, results = "hide", fig.height=5, fig.width=8}
+```{r dlinear8, results = "hide", fig.height=5, fig.width=8}
 s2.DML.nn <- interflex(estimator='DML', data = s2, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = "Z1", treat.type = "continuous")
 
@@ -173,7 +203,7 @@ plot(s2.DML.nn)
 
 ## Dichotomous Treatment Indicator with Discrete Outcome
 
-```{r dlinear8, results = "hide", fig.height=5, fig.width=8}
+```{r dlinear9, results = "hide", fig.height=5, fig.width=8}
 s6.DML.nn <- interflex(estimator='DML', data = s6, ml_method="nn",
                         Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete")
 
@@ -182,7 +212,7 @@ plot(s6.DML.nn)
 
 ## Continuous Treatment Indicator with Discrete Outcome
 
-```{r dlinear9, results = "hide", fig.height=5, fig.width=8}
+```{r dlinear10, results = "hide", fig.height=5, fig.width=8}
 s7.DML.nn <- interflex(estimator="DML", data = s7, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
                        dml_method = "regularization", treat.type = "continuous")

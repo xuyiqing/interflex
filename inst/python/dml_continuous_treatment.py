@@ -12,7 +12,7 @@ from sklearn.neural_network import MLPClassifier, MLPRegressor
 def marginal_effect_for_continuous_treatment(df, ml_method, Y, D, X, Z, d_ref = 1,
                           n_estimators=500, solver='adam', max_iter=10000, alpha=1e-5, hidden_layer_sizes=(5, 3, 2), random_state=1,
                           dml_method='default',
-                          poly_degree=3, lasso_alpha=0.1,
+                          poly_degree=3, lasso_alpha=0.0001,
                           casual_forest_criterion="mse",
                           casual_forest_n_estimators=1000,
                           casual_forest_in_impurity_decrease=0.001):
@@ -84,7 +84,8 @@ def marginal_effect_for_continuous_treatment(df, ml_method, Y, D, X, Z, d_ref = 
                               n_estimators=casual_forest_n_estimators,
                               min_impurity_decrease=casual_forest_in_impurity_decrease,
                               random_state=random_state, discrete_outcome=discrete_outcome)
-        est.tune(df[[Y]], df[[D]], X=df[[X]], W=df[[*Z]])
+        ## this line influence the hyperparameters
+        # est.tune(df[[Y]], df[[D]], X=df[[X]], W=df[[*Z]])
 
     else:
         print("'dml_method' should be one of 'default', 'polynomial', 'regularization', and 'non-parametric'.")
