@@ -40,3 +40,4 @@ vignettes/discrete_cache
 docs
 .DS_Store
 
+R/DML copy.R
