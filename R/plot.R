@@ -26,7 +26,15 @@ plot.interflex <- function(x,
                            # pool plot
                            pool = FALSE,
                            legend.title = NULL,
+                           line.size = 1.2,
                            color = NULL,
+                           line.color = "black",
+                           CI.color = "black",
+                           CI.color.alpha = 0.2,
+                           hist.color = c("gray50", "red"),
+                           hist.color.alpha = 0.3,
+                           density.color = c("gray50", "red"),
+                           density.color.alpha = 0.3,
                            show.all = FALSE,
                            scale = 1.1,
                            height = 7,
@@ -71,7 +79,15 @@ plot.interflex <- function(x,
             cex.sub = cex.sub,
             bin.labs = bin.labs, # bin labels
             interval = interval, # interval in replicated papers
+            line.size = line.size,
             color = color,
+            line.color = line.color,
+            CI.color = CI.color,
+            CI.color.alpha = CI.color.alpha,
+            hist.color = hist.color,
+            hist.color.alpha = hist.color.alpha,
+            density.color = density.color,
+            density.color.alpha = density.color.alpha,
             file = file
         )
         return(p)
@@ -663,9 +679,11 @@ plot.interflex <- function(x,
             )
 
             ## color
-            feed.col <- col2rgb("gray50")
-            col.co <- rgb(feed.col[1] / 1000, feed.col[2] / 1000, feed.col[3] / 1000)
-            col.tr <- rgb(red = 1, blue = 0, green = 0)
+            col.co <- density.color[1]
+            col.tr <- density.color[1]
+            if (length(density.color) == 2) {
+                col.tr <- density.color[2]
+            }
 
             for (char in other.treat) {
                 deX.tr <- data.frame(
@@ -675,11 +693,11 @@ plot.interflex <- function(x,
 
                 p1 <- p.group[[char]] + geom_ribbon(
                     data = deX.co, aes(x = x, ymax = y, ymin = deX.ymin),
-                    fill = col.co, alpha = 0.2
+                    fill = col.co, alpha = density.color.alpha
                 ) +
                     geom_ribbon(
                         data = deX.tr, aes(x = x, ymax = y, ymin = deX.ymin),
-                        fill = col.tr, alpha = 0.2
+                        fill = col.tr, alpha = density.color.alpha
                     )
                 p.group[[char]] <- p1
             }
@@ -692,16 +710,12 @@ plot.interflex <- function(x,
                 y = de$y / max(de$y) * maxdiff / 5 + min(yrange) - maxdiff / 5
             )
 
-            ## color
-            feed.col <- col2rgb("gray50")
-            col <- rgb(feed.col[1] / 1000, feed.col[2] / 1000, feed.col[3] / 1000)
-
             for (label in label.name) {
                 ## plotting
                 p1 <- p.group[[label]]
                 p1 <- p1 + geom_ribbon(
                     data = deX, aes(x = x, ymax = y, ymin = deX.ymin),
-                    fill = col, alpha = 0.2
+                    fill = density.color[1], alpha = density.color.alpha
                 )
                 p.group[[label]] <- p1
             }
@@ -731,13 +745,18 @@ plot.interflex <- function(x,
                     count1 = count.tr[[char]] / hist.max * maxdiff / 5 + hist.col[, "count1"]
                 )
 
+                fill1 <- hist.color[1]
+                fill2 <- hist.color[1]
+                if (length(hist.color) == 2) {
+                    fill2 <- hist.color[2]
+                }
                 p1 <- p.group[[char]] + geom_rect(
-                    data = hist.col, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = count1), fill = "gray50",
-                    colour = "gray50", alpha = 0.3, size = 0.3
+                    data = hist.col, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = count1),
+                    fill = fill1, colour = "gray50", alpha = hist.color.alpha, size = 0.3
                 ) + # control
                     geom_rect(
                         data = hist.treat, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = count1),
-                        fill = "red", colour = "gray50", alpha = 0.3, size = 0.3
+                        fill = fill2, colour = "gray50", alpha = hist.color.alpha, size = 0.3
                     )
                 p.group[[char]] <- p1
             }
@@ -757,7 +776,7 @@ plot.interflex <- function(x,
                 p1 <- p.group[[label]]
                 p1 <- p1 + geom_rect(
                     data = histX, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                    colour = "gray50", alpha = 0.3, size = 0.5
+                    fill = hist.color[1], colour = "gray50", alpha = hist.color.alpha, size = 0.5
                 )
                 p.group[[label]] <- p1
             }
@@ -791,9 +810,12 @@ plot.interflex <- function(x,
                     colnames(tempest) <- c("X", "TE")
                     tempest <- as.data.frame(tempest)
                 }
-                p1 <- p1 + geom_line(data = tempest, aes(X, TE), size = 1.2)
+                p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
                 if (CI == TRUE) {
-                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper), alpha = 0.2)
+                    p1 <- p1 + geom_ribbon(
+                        data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                        fill = CI.color, alpha = CI.color.alpha
+                    )
                 }
                 # ymin=min(yrange)-maxdiff/5
 
@@ -854,9 +876,12 @@ plot.interflex <- function(x,
                     colnames(tempest) <- c("X", "ME")
                     tempest <- as.data.frame(tempest)
                 }
-                p1 <- p1 + geom_line(data = tempest, aes(X, ME), size = 1.2)
+                p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
                 if (CI == TRUE) {
-                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper), alpha = 0.2)
+                    p1 <- p1 + geom_ribbon(
+                        data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                        fill = CI.color, alpha = CI.color.alpha
+                    )
                 }
                 # ymin=min(yrange)-maxdiff/5
 
@@ -927,9 +952,12 @@ plot.interflex <- function(x,
                     tempest.bin2 <- as.data.frame(tempest.bin2)
                 }
 
-                p1 <- p1 + geom_line(data = tempest, aes(X, TE), size = 1.2)
+                p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
                 if (CI == TRUE) {
-                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper), alpha = 0.2)
+                    p1 <- p1 + geom_ribbon(
+                        data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                        fill = CI.color, alpha = CI.color.alpha
+                    )
                 }
                 ## bin estimates
                 p1 <- p1 + geom_point(data = tempest.bin2, aes(x0, TE), size = 4 / treat_sc, shape = 21, fill = "white", colour = "red")
@@ -1015,9 +1043,12 @@ plot.interflex <- function(x,
                     tempest.bin2 <- as.data.frame(tempest.bin2)
                 }
 
-                p1 <- p1 + geom_line(data = tempest, aes(X, ME), size = 1.2)
+                p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
                 if (CI == TRUE) {
-                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper), alpha = 0.2)
+                    p1 <- p1 + geom_ribbon(
+                        data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                        fill = CI.color, alpha = CI.color.alpha
+                    )
                 }
                 ## bin estimates
                 p1 <- p1 + geom_point(data = tempest.bin2, aes(x0, ME), size = 4 / treat_sc, shape = 21, fill = "white", colour = "red")
