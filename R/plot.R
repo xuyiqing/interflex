@@ -803,13 +803,12 @@ plot.interflex <- function(x,
                     } else {
                         colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                     }
-                    tempest <- as.data.frame(tempest)
                 }
                 if (CI == FALSE) {
                     tempest <- tempest[, c(1, 2)]
                     colnames(tempest) <- c("X", "TE")
-                    tempest <- as.data.frame(tempest)
                 }
+                tempest <- as.data.frame(tempest)
                 p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
                 if (CI == TRUE) {
                     p1 <- p1 + geom_ribbon(

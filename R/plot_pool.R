@@ -106,7 +106,7 @@ interflex.plot.pool <- function(
         }
     }
 
-    if (estimator == "binning" | estimator == "linear") {
+    if (estimator == "binning" | estimator == "linear" | estimator == "DML") {
         if (is.null(CI) == TRUE) {
             CI <- TRUE
         }
@@ -276,20 +276,23 @@ interflex.plot.pool <- function(
     if (treat.type == "discrete" & (estimator == "linear" | estimator == "binning")) {
         tempxx <- out$est.lin[[other.treat[1]]][, "X"]
     }
+    if (treat.type == "discrete" & estimator == "DML") {
+        tempxx <- out$est.dml[[other.treat[1]]][, "X"]
+    }
     if (treat.type == "discrete" & estimator == "kernel") {
         tempxx <- out$est.kernel[[other.treat[1]]][, "X"]
     }
     if (treat.type == "continuous" & (estimator == "linear" | estimator == "binning")) {
         tempxx <- out$est.lin[[label.name[1]]][, "X"]
     }
+    if (treat.type == "continuous" & estimator == "DML") {
+        tempxx <- out$est.dml[[label.name[1]]][, "X"]
+    }
     if (treat.type == "continuous" & estimator == "kernel") {
         tempxx <- out$est.kernel[[label.name[1]]][, "X"]
     }
     min.XX <- min(tempxx)
     max.XX <- max(tempxx)
-
-
-
 
     ## order/subtitles
     if (treat.type == "discrete") {
@@ -382,10 +385,16 @@ interflex.plot.pool <- function(
         if (treat.type == "discrete" & estimator == "linear") {
             tempxx <- out$est.lin[[other.treat[1]]][, "X"]
         }
+        if (treat.type == "discrete" & (estimator == "DML")) {
+            tempxx <- out$est.dml[[other.treat[1]]][, "X"]
+        }
         if (treat.type == "discrete" & estimator == "kernel") {
             tempxx <- out$est.kernel[[other.treat[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "linear") {
+            tempxx <- out$est.lin[[label.name[1]]][, "X"]
+        }
+        if (treat.type == "continuous" & estimator == "DML") {
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "kernel") {
@@ -474,7 +483,38 @@ interflex.plot.pool <- function(
         ymin <- min(yrange) - maxdiff / 5
     }
 
-
+    if (estimator == "DML") {
+        if (treat.type == "discrete") {
+            est.dml <- out$est.dml
+            yrange <- c(0)
+            for (char in other.treat) {
+                if (CI == TRUE) {
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(3, 4)]))))
+                } else {
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, 2]))))
+                }
+            }
+            X.lvls <- est.dml[[other.treat[1]]][, 1]
+        }
+        if (treat.type == "continuous") {
+            est.dml <- out$est.dml
+            yrange <- c(0)
+            for (label in label.name) {
+                if (CI == TRUE) {
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(4, 5)]))))
+                } else {
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, 2]))))
+                }
+            }
+            X.lvls <- est.dml[[label.name[1]]][, 1]
+        }
+        errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
+        if (is.null(ylim) == FALSE) {
+            yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
+        }
+        maxdiff <- (max(yrange) - min(yrange))
+        pos <- max(yrange) - maxdiff / 20
+    }
 
     if (estimator == "linear") {
         if (treat.type == "discrete") {
@@ -603,9 +643,11 @@ interflex.plot.pool <- function(
         p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
     }
 
-    if (estimator == "kernel" | estimator == "linear") {
+    if (estimator == "kernel" | estimator == "linear" | estimator == "DML") {
         if (estimator == "kernel") {
             est <- est.kernel
+        } else if (estimator == "DML") {
+            est <- est.dml
         } else {
             est <- est.lin
         }
@@ -614,7 +656,11 @@ interflex.plot.pool <- function(
             for (char in other.treat) {
                 est.touse <- est[[char]]
                 if (CI == TRUE) {
-                    colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
+                    if (estimator == "DML") {
+                        colnames(est.touse) <- c("X", "TE", "CI_lower", "CI_upper")
+                    } else {
+                        colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
+                    }
                 }
                 if (CI == FALSE) {
                     est.touse <- est.touse[, c(1, 2)]
