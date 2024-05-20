@@ -1,0 +1,499 @@
+---
+title: "Interflex with Double/debiased Machine Learning Tutorial"
+#author: "Jiehan Liu"
+date: "2024-05-17"
+output: html_document
+bibliography: sample.bib  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache =TRUE)
+```
+
+```{r include=FALSE}
+require(Rcpp) # for processing C++ code
+require(mgcv) # for GAM
+require(sandwich) # for calculating standard errors
+require(pcse) # in case panel-corrected standard errors will be used
+require(foreach)  # for parallel computing in kernel estimation
+require(doParallel) # for parallel computing in kernel estimation
+require(lmtest) # for wald test
+require(lfe) # for fixed effects estimations
+require(Lmoments) # for L-kurtosis measure
+require(ggplot2)  # for plotting
+require(plotrix) # for plotting
+require(grid) # for plotting
+require(gridExtra) # for plotting
+require(ggplotify) # for plotting
+require(RColorBrewer) # for plotting
+require(grDevices) # for plotting
+require(gtable) # for plotting
+require(MASS) # for wald test
+require(mvtnorm) # for simulation
+require(pROC) # for auc
+require(ModelMetrics) # for cross entropy
+require(ggpubr)
+require(interflex)
+require(foreign)
+require(rmarkdown)
+```
+
+------------------------------------------------------------------------
+
+This vignette gives a brief overview of estimating Conditional Marginal Effects (CMEs) using the Interflex pacakge, focusing on the Double/debiased Machine Learning (DML) estimator. This vignette walks through using DML estimators for different empirical setup, using both the simulating data and real-world data, including:
+
+-   [Simulation: binary treatment with discrete outcomes]
+
+-   [Simulation: discrete treatment with discrete outcomes]
+
+-   [Simulation: continuous treatment with discrete outcome]
+
+-   [Application: binary treatment with continuous outcome]
+
+-   [Application: continuous treatment with continuous outcome]
+
+------------------------------------------------------------------------
+
+## Overview of Formal Methodology
+
+This section explores the ideas behind the Double/Debiased Machine Learning (DML), highlighting its use of modern machine learning to robustly estimate Conditional Marginal Effects (CMEs).
+
+### Estimands
+
+We starts with formally defining the Conditional Marginal Effects (CMEs) via the Neyman–Rubin potential outcome framework @rubin1974estimating. For simplicity,we use binary treatment and continuous outcome as example. Let $Y_1$ and $Y_0$ be the potential outcome corresponding to a subject's response with and without binary treatment $D_i \in {0,1}$. $X_i$ are the moderators of interest, along with $Z_i$ be the vector of covariates. We can define the full set of covariates as $V_i = (X_i, Z_i)$. Thus, the CME of treatment $D$ on $Y$ moderated by $X$ is:
+
+$$
+\frac{\partial \mathbb{E}[Y \mid D, X, Z]}{\partial D}
+$$
+
+Assuming unconfoundedness, we have:
+
+$$
+\mathbb{E}[Y \mid D = 1, X, Z] = \mathbb{E}[Y(1) \mid X, Z] \\
+\mathbb{E}[Y \mid D = 0, X, Z] = \mathbb{E}[Y(0) \mid X, Z] 
+$$
+
+Given that $V_i = (X_i, Z_i)$ is the full set of covariates, thus:
+
+```{=tex}
+\begin{align*}
+\frac{\partial \mathbb{E}[Y \mid D, X, Z]}{\partial D} 
+& = \frac{D \cdot \mathbb{E}[Y(1) \mid V] + (1 - D) \cdot \mathbb{E}[Y(0) \mid V]}{\partial D} \\
+& = \mathbb{E}[Y_1 - Y_0 \mid V = v]
+\end{align*}
+```
+which is equivalent to Conditional Average Treatment Effect (CATE).
+
+Intuitively, the complex relations among the treatment, outcome, and moderators are very difficult to model, especially with parametric approaches. Here, we introduce the DML estimator, which are more flexible, and thus are more adept at capturing complex data generating process (DGP).
+
+### DML framework
+
+Building on the principles of doubly robust estimation, DML was introduced by @chernozhukov2018double to further enhance causal inference techniques. DML extends the doubly robust framework by integrating machine learning algorithms to flexibly model both the outcome and the treatment assignment processes:
+
+1.  predicting the outcome $Y$ from the controls,
+2.  predicting the treatment $D$ from the controls;
+
+The DML method yields unbiased, $\sqrt{n}$-consistent estimators and confidence intervals for the low-dimensional parameter of interest, $\theta_0$, even in the presence of potentially high-dimensional nuisance parameters. Crucially, it achieves this without imposing stringent assumptions on high-dimensional covariates, instead deriving these forms directly from the data.
+
+### Model
+
+The relationship between the variables can be described by the following model:
+
+$$
+Y = \theta(X)D + g(V) + \epsilon, E[\epsilon \mid V, D] = 0\\
+D = m(V) + \eta, E[\eta \mid V] = 0
+$$
+
+where:
+
+-   $\theta(X)$ is the parameter of interest, representing the CME of $D$ on $Y$ moderated by $X$.
+-   $g(V)$ is a nonparametric function capturing the relationship between full set of covaraites $V_i = (X_i, Z_i)$ and the outcome $Y$.
+-   $m(V)$ is a nonparametric function capturing the relationship between full set of covaraites $V_i = (X_i, Z_i)$ and the treatment $D$ (propensity score).
+-   $\epsilon,\eta$ are disturbances.
+
+The DML framework helps to estimate the parameter $\theta(X)$ by accounting for the high-dimensional covariates using machine learning methods. The steps involved are:
+
+**1. First Stage: estimating nuisance functions**
+
+-   Outcome model: Estimate the nuisance function $g(V) = g(X, Z)$ using machine learning methods.
+-   Treatment model: Estimate the nuisance function (propensity score) $m(V) = \mathbb{P}(D = 1 \mid V$ using machine learning methods.
+-   Create orthogonalized residuals $\hat{\Lambda}$ for the outcome and the treatment. The orthogonalization step helps to mitigate the bias from the machine learning models.
+
+**2. Orthogonalization (Neyman Orthogonalization)**
+
+The key of DML is the construction of orthogonalization, which are designed to reduce bias from nuisance parameter ($g(V), m(V)$) estimation and to ensure robustness against model misspecification. In the **interflex** pacakge, we construct the orthogonal signal via residualization.
+
+$$
+\tilde{Y} = Y - \hat{g}(V) \\
+\tilde{D} = D - \hat{m}(V) 
+$$
+
+**2. Second Stage: nonparametric regression**
+
+-   Regress the orthogonal residuals $\hat{\Lambda}$ to estimate $\theta(X)$ via a nonparametric method\$:
+
+$$
+\theta(X) = \mathbb{E}[\tilde{Y} | \tilde{D}, X]
+$$
+
+------------------------------------------------------------------------
+
+## The DML estimator
+
+Load the simulated toy datasets (s6, s7, s9) for this tutorial. **s6** is a case of a binary treatment indicator with discrete outcomes. **s7** is a case of a continuous treatment indicator with discrete outcomes. **s9** is a case of a discrete treatment indicator (3 groups) with discrete outcomes.
+
+```{r}
+
+### continuous outcome
+n <- 2000
+x <- runif(n,min=-3, max = 3)
+d1 <- sample(x = c(0,1),size = n,replace = T)
+d2 <- runif(min = 0,max = 1,n = n)
+d3 <- sample(x = c(0,1,2),size = n,replace = T)
+Z1 <- runif(min = 0,max = 1,n = n)
+Z2 <- rnorm(n,3,1)
+
+# s6
+link1 <- -1 + d1 + x + d1 * x
+prob1 <- exp(link1) / (1 + exp(link1))
+rand.u <- runif(min = 0, max = 1, n = n)
+y1 <- as.numeric(rand.u < prob1)
+s6 <- cbind.data.frame(X = x, D = d1, Z1 = Z1, Z2 = Z2, Y = y1)
+
+# s7
+d2 <- runif(min = 0, max = 1, n = n)
+link2 <- -1 + d2 + x + d2 * x
+prob2 <- exp(link2) / (1 + exp(link2))
+rand.u <- runif(min = 0, max = 1, n = n)
+y2 <- as.numeric(rand.u < prob2)
+s7 <- cbind.data.frame(X = x, D = d2, Z1 = Z1, Z2 = Z2, Y = y2)
+
+# s9
+d3 <- sample(x = c(0, 1, 2), size = n, replace = T)
+link4 <- rep(NA, n)
+link4[which(d3 == 0)] <- -x[which(d3 == 0)]
+link4[which(d3 == 1)] <- (1 + x)[which(d3 == 1)]
+link4[which(d3 == 2)] <- (4 - x * x - x)[which(d3 == 2)]
+prob4 <- exp(link4) / (1 + exp(link4))
+rand.u <- runif(min = 0, max = 1, n = n)
+y4 <- as.numeric(rand.u < prob4)
+s9 <- cbind.data.frame(X = x, D = d3, Z1 = Z1, Z2 = Z2, Y = y4)
+```
+
+When setting the option `estimator` to `DML`, the function will conduct the two-stage DML estimator to compute the CMEs. In the following command, the outcome variable is "Y", the moderator is "X", the covariates are "Z1" and "Z2", and here it uses logit link function. `ml_method` determines the machine learning model used in estimating nuisance function, `treat.type` set the data type of treatment variable, it can be either `continuous` or `discrete`. Here, we use dataset *s6*,as an example. Since *s6* binary treatment indicator with discrete outcomes, we set `treat.type` to `discrete`.
+
+#### Simulation: binary treatment with discrete outcomes
+
+```{r message=FALSE, warning=FALSE}
+s6.DML.nn <- interflex(estimator="DML", data = s6, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete", base = 0)
+```
+
+The estimated treatment effects of "D" on "Y" across the support of "X" are saved in:
+
+```{r}
+## printing the first 10 rows
+lapply(s6.DML.nn$est.dml, head, 10)
+```
+
+Users can then use the command plot to visualize the treatment effects:
+
+```{r}
+plot(s6.DML.nn)
+```
+
+### ML model selections
+
+The `DML` estimator supports three different machine learning algorithms for Stage 1: `rf` (Random Forest), `nn` (Neural Network), and `hgb` (Histogram-based Gradient Boosting). Users can change the `ml_method` option to calculate the nuisance parameter using a different ML method. In this example, we use the dataset **s9** to demonstrate the process:
+
+#### Simulation: discrete treatment with discrete outcomes
+
+```{r message=FALSE, fig.width=10,fig.height=8 }
+s9.DML.nn <- interflex(estimator="DML", data = s9, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
+                       treat.type = "discrete")
+
+s9.DML.rf <- interflex(estimator="DML", data = s9, ml_method="rf",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
+                       treat.type = "discrete")
+
+s9.DML.hgb <- interflex(estimator="DML", data = s9, ml_method="hgb",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
+                       treat.type = "discrete")
+
+ggarrange(s9.DML.nn$figure, s9.DML.rf$figure, s9.DML.hgb$figure, 
+          common.legend = TRUE, legend = "none",labels = c("DML: nn",
+                                                           "DML: rf",
+                                                           "DML: hgb"))
+
+```
+
+### ML model parameters
+
+Users can customize parameters for the machine learning model in `ml_method`:
+
+-   for neural network `nn`, the modifiable parameters include: `solver`, `max_iter`, `alpha`, `hidden_layer_sizes`, `random_state`
+
+-   for random forest `rf`, the modifiable parameters include: `n_estimator`
+
+-   for hist gradient boosting `hgb`, the modifiable parameters include: ....
+
+```{r}
+s9.DML.nn.2 <- interflex(estimator="DML", data = s9, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                       solver = "lbfgs",
+                       max_iter = 10000,
+                       alpha = 1e-5,
+                       hidden_layer_sizes = c(3, 3, 2),
+                       random_state = 1,
+                       treat.type = "discrete")
+plot(s9.DML.nn.2)
+```
+
+### DML model selection
+
+When dealing with continuous treatment, users have the option to adjust the dml_method to utilize different CATE estimators within the [EconML package](https://econml.azurewebsites.net/reference.html#double-machine-learning-dml). The **interflex** package supports the following estimators:\
+
+-   `default`: This uses the LinearDML estimator, which employs an unregularized final linear model. It is most effective when the feature vector $V(X_i, Z_i)$ is low dimensional. Users should choose this option if the number of features/covariates $V$ is small relative to the number of samples.
+-   `polynomial`: This uses the SparseLinearDML estimator, which incorporates an $\ell1$-regularized final model. This option is suitable when the number of features/covariates $V$ is roughly equal to the number of samples.
+-   `regularization`: This method uses a standard DML estimator, assuming a linear effect model for each outcome $i$ and treatment $j$. In the interflex package, we apply `sklearn.linear_model.Lasso` for the final stage estimator to introduce regularization.
+-   `non-parametric`: This employs the CausalForestDML estimator, which does not make specific assumptions about the effect model for each outcome and uses a Causal Forest as the final model. This estimator is capable of handling many features, though generally fewer than what the SparseLinearDML can manage.
+
+For practical demonstration, we use dataset **s7** to explore how selecting different DML models affects performance.
+
+#### Simulation: continuous treatment with discrete outcome
+
+```{r}
+s7.DML.nn.1 <- interflex(estimator="DML", data = s7, ml_method="nn",
+                         Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
+                         dml_method = "default",
+                       treat.type = "continuous")
+
+s7.DML.nn.2 <- interflex(estimator="DML", data = s7, ml_method="nn",
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
+                       dml_method = "regularization", 
+                       treat.type = "continuous")
+
+s7.DML.nn.3 <- interflex(estimator="DML", data = s7, ml_method="nn", 
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
+                       dml_method = "polynomial",
+                       treat.type = "continuous")
+
+s7.DML.nn.4 <- interflex(estimator="DML", data = s7, ml_method="nn", 
+                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
+                      dml_method = "non-parametric",
+                       treat.type = "continuous")
+
+ggarrange(s7.DML.nn.1$figure, s7.DML.nn.2$figure, 
+          s7.DML.nn.3$figure, s7.DML.nn.4$figure,
+          common.legend = TRUE, legend = "none",labels = c("default",
+                                                           "regularization",
+                                                           "polynomial",
+                                                           "non-parametric"))
+
+```
+
+------------------------------------------------------------------------
+
+## Application: binary treatment with continuous outcome
+
+In this section, we walk through an example application of DML estimator with binary treatment and continuous outcome. The data we are using is from @huddy2015expressive, which explores the expressive model of partisanship, contrasting it with instrumental perspectives on political behavior. It argues that partisan identity, more than policy stances or ideological alignment, drives campaign involvement and emotional responses to political events. Key findings indicate that strongly identified partisans are more likely to engage in campaign activities and exhibit stronger emotional reactions—such as anger when threatened with electoral loss and positivity when victory seems likely—compared to those with weaker partisan identities.
+
+The authors drew data from four studies conducted among populations that differ in their level of political activity: a highly engaged sample recruited from political blogs, and less politically engaged samples of students, New York (NY) State residents, and a national YouGov panel. The total number of respondents was 1,482. The variables of interest include
+
+-   Outcome variable: level of anger (measured on a continuous scale from 0 to 1)
+-   Treatment variable: the presence of an electoral loss threat (a binary yes/no variable)
+-   Moderator Variable: strength of partisan identity (also measured on a continuous scale from 0 to 1)
+
+### Data overview
+
+```{r}
+path <- "~/Desktop/interflex/Replication/"
+d<-read.dta(paste0(path,"Data/Huddy_APSR_2015/rep_huddy_2015a.dta"),convert.factor=FALSE)
+name<-"huddy_2015a"
+paged_table(head(d))
+d$pidstr2_threat<-d$pidstr2 * d$threat
+d$issuestr2_threat<-d$issuestr2 * d$threat
+
+Y="totangry" 
+D="threat" 
+X="pidentity"
+Z<-c("issuestr2", "pidstr2", "pidstr2_threat" ,"issuestr2_threat", "knowledge" , "educ" , "male" , "age10" )
+Dlabel<-"Threat"
+Xlabel<-"Partisan Identity"
+Ylabel<-"Anger"
+vartype<-"robust"
+main<-"Huddy et al. (2015) \n APSR"
+cl<-cuts<-cuts2<-time<-NULL
+```
+
+### Estimating and summarizing CME
+
+```{r}
+out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn",
+                      Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
+                      Xlabel=Xlabel,
+                      Ylabel=Ylabel, Dlabel=Dlabel)
+
+lapply(out.dml.nn$est.dml, head, 20)
+```
+
+### Visualization
+
+```{r}
+plot(out.dml.nn)
+```
+
+### Comparison across other estimators in interflex
+
+```{r fig.width=10,fig.height=8}
+
+out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn",
+                      Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
+                      Xlabel=Xlabel,
+                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.18,0.6))
+
+out.dml.rf<-interflex(estimator='DML', data = d, ml_method="rf",
+                      Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
+                      Xlabel=Xlabel,
+                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.18,0.6))
+
+out.dml.hgb<-interflex(estimator='DML', data = d, ml_method="hgb",
+                       Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
+                       Xlabel=Xlabel,
+                       Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.18,0.6))
+
+out.raw <- interflex(estimator = "raw", Y=Y,D=D,X=X,data=d, Xlabel=Xlabel,
+                     Ylabel=Ylabel, Dlabel=Dlabel)
+
+out.est1<-interflex(estimator = "binning",Y=Y,D=D,X=X,Z=Z,data=d,FE = FE,
+                    Xlabel=Xlabel, Ylabel=Ylabel, Dlabel=Dlabel,
+                    nbins=3, cutoffs=cuts,  cl=cl, time=time,
+                    pairwise=TRUE,  Xdistr = "histogram",ylim=c(-0.18,0.6))
+
+out.kernel<-interflex(estimator = "kernel", data=d, Y=Y,D=D,X=X,Z=Z,FE=FE,
+                      cl=NULL,
+                      Dlabel=Dlabel, Xlabel=Xlabel, Ylabel=Ylabel,
+                      bw=0.917, Xdistr = "histogram", ylim=c(-0.18,0.6))
+
+ggarrange(out.dml.nn$figure, out.dml.rf$figure, out.dml.hgb$figure, 
+          out.raw, out.est1$figure, out.kernel$figure,
+          common.legend = TRUE, legend = "none",labels = c("DML: nn",
+                                                           "DML: rf",
+                                                           "DML: hgb",
+                                                           "Raw",
+                                                           "Binning",
+                                                           "Kernel"))
+
+```
+
+The lower left panel features a diagnostic scatterplot, illustrating that the relationship between anger and partisan identity is closely approximated by a linear fit in both treated and untreated groups, as indicated by the proximity of the linear and LOESS lines. This supports the assumption of a nearly linear interaction effect, with the impact of the threat on anger intensifying as partisan identity increases. Furthermore, the box plots demonstrate ample sufficient support for partisan identity ranging from approximately 0.3 to 1.
+
+The three DML estimator plots consistently show that the marginal effect of the threat on anger escalates with increasing partisan identity across all machine learning methods employed. However, these DML estimators appear to overfit when partisan identity is below 0.25, a region with sparse data representation. The widen confidence intervals in areas where partisan identity is lower (e.g., below 0.25) further indicate uncertainty in the model’s estimations in these areas.
+
+------------------------------------------------------------------------
+
+## Application: continuous treatment with continuous outcome
+
+In this section, we demonstrate the application of the DML estimator, focusing on scenarios with continuous treatment and outcome variables. We refer to the study by @hellwig2007voting, which investigates the impact of global economic integration on electoral accountability and voter behavior in democracies. Hellwig’s analysis reveals that greater integration into the global economy tends to weaken the relationship between national economic performance and voter support for incumbents.
+
+In the example, the dataset consists of 424 cases. The key variables include:
+
+-   Outcome Variable: Incumbent vote count.
+-   Treatment Variable: Annual percentage change in real per capita GDP.
+-   Moderator Variable: Trade openness, measured as the sum of a country’s exports and imports relative to its GDP.
+
+### Data overview
+
+```{r}
+
+d<-read.dta(paste0(path,"Data/Hellwig_Samuels_CPS_2007/rep_hellwig_2007a.dta"), convert.factors=FALSE)
+name<-"hellwig_2007a"
+paged_table(head(d))
+Y="incvotet" 
+D="dgdp" 
+X="tradeshr" 
+Z<-c("incvotet1", "electype" ,"gdpxelectype" ,"presrun", "enlp" ,"income" ,"regafrica", "regasia" ,"regcee" ,"reglatam")
+Dlabel<-"Economy"
+Xlabel<-"Trade openness"
+Ylabel<-"Election"
+#table(d[,D], exclude=NULL) 
+#table(d[,X], exclude=NULL) 
+#quantile(d[,X],probs=seq(0,1,1/3))
+vartype<-"cluster"
+cl<-"code"
+cuts<-cuts2<-time<-NULL
+main<-"Hellwig & Samuels (2007) \n CPS"
+
+```
+
+### Estimating and summarizing CME
+
+```{r}
+out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn", 
+          Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
+          dml_method = "default",
+          Xlabel=Xlabel,
+          Ylabel=Ylabel, Dlabel=Dlabel)
+
+lapply(out.dml.nn$est.dml, head, 20)
+```
+
+### Visualization
+
+```{r}
+plot(out.dml.nn)
+```
+
+### Comparison acorss other estimators in Interflex
+
+```{r fig.width=11,fig.height=9}
+
+out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn", 
+          Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
+          dml_method = "default",
+          Xlabel=Xlabel, 
+          Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-3,3))
+
+out.dml.rf<-interflex(estimator='DML', data = d, ml_method="rf",
+                       Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
+                      dml_method = "default",
+                       Xlabel=Xlabel,
+                       Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-3,3))
+
+out.dml.hgb<-interflex(estimator='DML', data = d, ml_method="hgb",
+                       Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
+                       dml_method = "default",
+                       Xlabel=Xlabel,
+                       Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-3,3))
+
+out.raw <- interflex(estimator = "raw", Y=Y,D=D,X=X,data=d,Xlabel=Xlabel,
+                     Ylabel=Ylabel, Dlabel=Dlabel, cutoffs=cuts,span=NULL)
+
+
+out.est1<-interflex(estimator = "binning",Y=Y,D=D,X=X,Z=Z,data=d,
+                    Xlabel=Xlabel, Ylabel=Ylabel, Dlabel=Dlabel,
+                    nbins=3, cutoffs=cuts,  cl=cl, time=time,
+                    pairwise=TRUE, Xdistr = "histogram",ylim=c(-3,3))
+
+
+out.kernel<-interflex(estimator = "kernel", data=d, Y=Y,D=D,X=X,Z=Z,FE=FE,
+                      cl=cl,
+                      Dlabel=Dlabel, Xlabel=Xlabel, Ylabel=Ylabel,
+                      bw=1.838, Xdistr = "histogram", ylim=c(-3,3))
+
+ggarrange(out.dml.nn$figure, out.dml.rf$figure, out.dml.hgb$figure, 
+          out.raw, out.est1$figure, out.kernel$figure,
+          common.legend = TRUE, legend = "none",labels = c("DML: nn",
+                                                           "DML: rf",
+                                                           "DML: hgb",
+                                                           "Raw",
+                                                           "Binning",
+                                                           "Kernel"))
+
+
+
+```
+
+## References
