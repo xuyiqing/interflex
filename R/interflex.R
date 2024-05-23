@@ -84,7 +84,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       span = NULL,
                       scale = 1.1,
                       height = 7,
-                      width = 10) {
+                      width = 10,
+                      box.pos = "down",
+                      x.lim = NULL,
+                      y.lim = NULL) {
     ##################################################### CHECK ##############################################################
     ## in case data is in tibble format
     if (is.data.frame(data) == FALSE) {
@@ -1173,7 +1176,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             file = file,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            box.pos = box.pos,
+            xlim = xlim,
+            ylim = ylim
         )
     }
 
