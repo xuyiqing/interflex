@@ -18,6 +18,7 @@ interflex.kernel <- function(data,
                              X.eval = NULL,
                              method = "linear", ## "probit"; "logit"; "poisson"; "nbinom"
                              CI = TRUE,
+                             vartype = "delta", ## "delta"; "bootstrap"
                              nboots = 200,
                              parallel = TRUE,
                              cores = 4,
@@ -397,7 +398,6 @@ interflex.kernel <- function(data,
                 n.coef <- n.coef + 2
             }
         }
-
         if (treat.type == "continuous") {
             data.touse[, "D.delta.x"] <- data.touse[, D] * data.touse[, "delta.x"]
             formula <- paste0(formula, "+", D, "+", "D.delta.x")
@@ -419,14 +419,12 @@ interflex.kernel <- function(data,
         }
 
         formula <- as.formula(formula)
-
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        density.mean <- exp(mean(log(Xdensity$y)))
+        # density.mean <- exp(mean(log(Xdensity$y)))
         bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        # bw.adapt <- bw*sqrt(density.mean/temp_density)
+        # bw.adapt <- bw * sqrt(density.mean/temp_density)
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
         data.touse[, "WEIGHTS"] <- w
-
         if (max(data.touse[, "WEIGHTS"]) == 0) {
             result <- rep(NA, 1 + n.coef)
             names(result) <- c("x0", all.var.name)
@@ -489,25 +487,39 @@ interflex.kernel <- function(data,
 
         if (typeof(glm.reg) != "list") {
             result <- rep(NA, 1 + n.coef)
-            names(result) <- c("x0", all.var.name)
-            return(result)
+            names(result) <- c(
+                "x0",
+                names(glm.reg$coef)
+            )
+            return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
         }
 
+        glm.reg.summary <- summary(glm.reg, robust = "HC2")
+        glm.reg.vcov <- vcovHC(glm.reg, type = "HC2")
+        glm.reg.df <- glm.reg$df.residual
+
         if (glm.reg$converged == FALSE) {
-            result <- rep(NA, length(c(x, glm.reg$coef)))
-            names(result) <- c("x0", names(glm.reg$coef))
-            return(result)
+            result <- rep(NA, 1 + length(glm.reg$coef))
+            names(result) <- c(
+                "x0",
+                names(glm.reg$coef)
+            )
+            return(list(result = result, model.vcov = glm.reg.vcov, model.df = glm.reg.df, data.touse = NULL))
         }
 
         if (glm.reg$converged == TRUE) {
-            result <- c(x, glm.reg$coef)
-            names(result) <- c("x0", names(glm.reg$coef))
+            result <- c(
+                x,
+                glm.reg.summary$coef[, 1]
+            )
+            names(result) <- c(
+                "x0",
+                names(glm.reg$coef)
+            )
             result[which(is.na(result))] <- 0
-            return(result)
+            return(list(result = result, model.vcov = glm.reg.vcov, model.df = glm.reg.df, data.touse = data.touse))
         }
     }
-
-
 
     wls <- function(x, data, bw, weights, Xdensity) {
         if (use_fe == TRUE & is.null(IV)) {
@@ -577,7 +589,10 @@ interflex.kernel <- function(data,
 
             # demean -> use wls without fixed effects#
             if (is.null(IV)) {
-                coef.grid.cv <- t(sapply(X.eval.cv, function(x) wls.nofe(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)))
+                coef.grid.cv <- c()
+                for (x in X.eval) {
+                    coef.grid.cv <- rbind(coef.grid.cv, wls.nofe(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)$result)
+                }
             } else {
                 coef.grid.cv <- t(sapply(X.eval.cv, function(x) wls.iv(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)))
             }
@@ -637,7 +652,6 @@ interflex.kernel <- function(data,
             }
 
             Knn <- t(sapply(test[, X], esCoef.cv))
-
             link <- Knn[, "(Intercept)"]
 
             if (treat.type == "discrete") {
@@ -831,7 +845,19 @@ interflex.kernel <- function(data,
 
     # Core Estimation, gen grid points
 
-    coef.grid <- t(sapply(X.eval, function(x) wls(x = x, data = data, bw = bw, weights = w, Xdensity = Xdensity)))
+    count <- 1
+    results <- list()
+    coef.grid <- c()
+    model.vcovs <- list()
+    model.dfs <- c()
+    for (x in X.eval) {
+        results[[count]] <- wls(x = x, data = data, bw = bw, weights = w, Xdensity = Xdensity)
+        coef.grid <- rbind(coef.grid, results[[count]]$result)
+        model.vcovs[[count]] <- results[[count]]$model.vcov
+        model.dfs <- c(model.dfs, results[[count]]$model.df)
+        count <- count + 1
+    }
+
     coef.grid <- na.omit(coef.grid)
     if (dim(coef.grid)[1] <= neval / 2) {
         warning("Inappropriate bandwidth.\n")
@@ -845,7 +871,98 @@ interflex.kernel <- function(data,
     # print(neval)
     cat(paste0("Number of evaluation points:", neval, "\n"))
 
+    gen.sd <- function(result, to.diff = FALSE) {
+        coef.grid <- result$result
+        x_prev <- coef.grid["x0"]
+        model.vcov <- result$model.vcov
+        data.touse <- result$data.touse
+        x <- data.touse[which.min(abs(data.touse[[X]] - x_prev)), "delta.x"]
+        if (treat.type == "discrete") {
+            link.1 <- coef.grid["(Intercept)"] + x * coef.grid[X] + 1 * coef.grid[paste0("D.", char)] + x * coef.grid[paste0("D.delta.x.", char)]
+            link.0 <- coef.grid["(Intercept)"] + x * coef.grid[X]
+            if (is.null(Z) == FALSE) {
+                for (a in Z) {
+                    target.Z <- Z.ref[a]
+                    link.1 <- link.1 + target.Z * coef.grid[a]
+                    link.0 <- link.0 + target.Z * coef.grid[a]
+                }
+            }
 
+            if (is.null(Z) == FALSE) {
+                if (full.moderate == FALSE) {
+                    vec.1 <- c(1, x, 1, x, Z.ref)
+                    vec.0 <- c(1, x, 0, 0, Z.ref)
+                    target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char), Z)
+                }
+            } else {
+                vec.1 <- c(1, x, 1, x)
+                vec.0 <- c(1, x, 0, 0)
+                target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char))
+            }
+            temp.vcov.matrix <- model.vcov[target.slice, target.slice]
+            if (method == "logit") {
+                vec <- vec.1 * exp(link.1) / (1 + exp(link.1))^2 - vec.0 * exp(link.0) / (1 + exp(link.0))^2
+            }
+            if (method == "probit") {
+                vec <- vec.1 * dnorm(link.1) - vec.0 * dnorm(link.0)
+            }
+            if (method == "poisson" | method == "nbinom") {
+                vec <- vec.1 * exp(link.1) - vec.0 * exp(link.0)
+            }
+            if (method == "linear") {
+                vec <- vec.1 - vec.0
+            }
+            if (to.diff == TRUE) {
+                return(list(vec = vec, temp.vcov.matrix = temp.vcov.matrix))
+            }
+            delta.sd <- sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1])
+            return(delta.sd)
+        }
+
+        if (treat.type == "continuous") {
+            link <- coef.grid["(Intercept)"] + x * coef.grid[X] + coef.grid[D] * D.ref + coef.grid["D.delta.x"] * x * D.ref
+            if (is.null(Z) == FALSE) {
+                for (a in Z) {
+                    target.Z <- Z.ref[a]
+                    link <- link + target.Z * coef.grid[a]
+                }
+            }
+
+            if (is.null(Z) == FALSE) {
+                if (full.moderate == FALSE) {
+                    vec1 <- c(1, x, D.ref, D.ref * x, Z.ref)
+                    vec0 <- c(0, 0, 1, x, rep(0, length(Z)))
+                    target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
+                }
+            } else {
+                vec1 <- c(1, x, D.ref, D.ref * x)
+                vec0 <- c(0, 0, 1, x)
+                target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x")
+            }
+
+            temp.vcov.matrix <- model.vcov[target.slice, target.slice]
+
+            if (method == "logit") {
+                vec <- -(coef.grid[D] + x * coef.grid["D.delta.x"]) * (exp(link) - exp(-link)) / (2 + exp(link) + exp(-link))^2 * vec1 + exp(link) / (1 + exp(link))^2 * vec0
+            }
+            if (method == "probit") {
+                vec <- dnorm(link) * vec0 - (coef.grid[D] + x * coef.grid["D.delta.x"]) * link * dnorm(link) * vec1
+            }
+            if (method == "poisson" | method == "nbinom") {
+                vec <- (coef.grid[D] + x * coef.grid["D.delta.x"]) * exp(link) * vec1 + exp(link) * vec0
+            }
+            if (method == "linear") {
+                vec <- vec0
+            }
+
+            if (to.diff == TRUE) {
+                return(list(vec = vec, temp.vcov.matrix = temp.vcov.matrix))
+            }
+
+            delta.sd <- sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1])
+            return(delta.sd)
+        }
+    }
 
     ## Function B: estimate TE/ME; E.predict(E.base);
     # 1, estimate treatment effects/marginal effects given model.coef;
@@ -860,6 +977,151 @@ interflex.kernel <- function(data,
             treat.type == "discrete"
         }
         neval <- dim(coef.grid)[1]
+
+        gen.link.sd <- function(result, base = FALSE) {
+            coef.grid <- result$result
+            x_prev <- coef.grid["x0"]
+            model.vcov <- result$model.vcov
+            data.touse <- result$data.touse
+            x <- data.touse[which.min(abs(data.touse[[X]] - x_prev)), "delta.x"]
+            if (treat.type == "discrete") {
+                if (is.null(Z) == FALSE) {
+                    if (base == FALSE) {
+                        vec <- c(1, x, 1, x, Z.ref)
+                        target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char), Z)
+                    } else {
+                        vec <- c(1, x, Z.ref)
+                        target.slice <- c("(Intercept)", "delta.x", Z)
+                    }
+                } else {
+                    if (base == FALSE) {
+                        vec <- c(1, x, 1, x)
+                        target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char))
+                    } else {
+                        vec <- c(1, x)
+                        target.slice <- c("(Intercept)", "delta.x")
+                    }
+                }
+                temp.vcov.matrix <- model.vcov[target.slice, target.slice]
+                link.sd <- sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1])
+                return(link.sd)
+            }
+
+            if (treat.type == "continuous") {
+                if (is.null(Z) == FALSE) {
+                    vec <- c(1, x, D.ref, D.ref * x, Z.ref)
+                    target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
+                    if (full.moderate == TRUE) {
+                        vec <- c(vec, Z.ref * x)
+                        target.slice <- c(target.slice, Z.X)
+                    }
+                } else {
+                    vec <- c(1, x, D.ref, D.ref * x)
+                    target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x")
+                }
+
+                temp.vcov.matrix <- model.vcov[target.slice, target.slice]
+                link.sd <- sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1])
+                return(link.sd)
+            }
+        }
+
+        gen.predict.sd <- function(result, base = FALSE) {
+            coef.grid <- result$result
+            x_prev <- coef.grid["x0"]
+            model.vcov <- result$model.vcov
+            data.touse <- result$data.touse
+            x <- data.touse[which.min(abs(data.touse[[X]] - x_prev)), "delta.x"]
+            if (treat.type == "discrete") {
+                if (base == FALSE) {
+                    link <- coef.grid["(Intercept)"] + x * coef.grid[X] + 1 * coef.grid[paste0("D.", char)] + x * coef.grid[paste0("D.delta.x.", char)]
+                }
+                if (base == TRUE) {
+                    link <- coef.grid["(Intercept)"] + x * coef.grid[X]
+                }
+                if (is.null(Z) == FALSE) {
+                    for (a in Z) {
+                        target.Z <- Z.ref[a]
+                        link <- link + target.Z * coef.grid[a]
+                        if (full.moderate == TRUE) {
+                            link <- link + target.Z * coef.grid[paste0(a, ".X")] * x
+                        }
+                    }
+                }
+
+                if (is.null(Z) == FALSE) {
+                    if (base == FALSE) {
+                        vec <- c(1, x, 1, x, Z.ref)
+                        target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char), Z)
+                    } else {
+                        vec <- c(1, x, Z.ref)
+                        target.slice <- c("(Intercept)", "delta.x", Z)
+                    }
+                } else {
+                    if (base == FALSE) {
+                        vec <- c(1, x, 1, x)
+                        target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char))
+                    } else {
+                        vec <- c(1, x)
+                        target.slice <- c("(Intercept)", "delta.x")
+                    }
+                }
+
+                temp.vcov.matrix <- model.vcov[target.slice, target.slice]
+                if (method == "logit") {
+                    vec <- vec * exp(link) / (1 + exp(link))^2
+                }
+                if (method == "probit") {
+                    vec <- vec * dnorm(link)
+                }
+                if (method == "poisson" | method == "nbinom") {
+                    vec <- vec * exp(link)
+                }
+                if (method == "linear") {
+                    vec <- vec
+                }
+                predict.sd <- sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1])
+                return(predict.sd)
+            }
+
+            if (treat.type == "continuous") {
+                link <- coef.grid["(Intercept)"] + x * coef.grid[X] + coef.grid[D] * D.ref + coef.grid["D.delta.x"] * x * D.ref
+                if (is.null(Z) == FALSE) {
+                    for (a in Z) {
+                        target.Z <- Z.ref[a]
+                        link <- link + target.Z * coef.grid[a]
+                        if (full.moderate == TRUE) {
+                            link <- link + target.Z * coef.grid[paste0(a, ".X")] * x
+                        }
+                    }
+                }
+
+                if (is.null(Z) == FALSE) {
+                    vec <- c(1, x, D.ref, D.ref * x, Z.ref)
+                    target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
+                } else {
+                    vec <- c(1, x, D.ref, D.ref * x)
+                    target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x")
+                }
+
+                temp.vcov.matrix <- model.vcov[target.slice, target.slice]
+                if (method == "logit") {
+                    vec <- vec * exp(link) / (1 + exp(link))^2
+                }
+                if (method == "probit") {
+                    vec <- vec * dnorm(link)
+                }
+                if (method == "poisson" | method == "nbinom") {
+                    vec <- vec * exp(link)
+                }
+                if (method == "linear") {
+                    vec <- vec
+                }
+                predict.sd <- sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1])
+                return(predict.sd)
+            }
+        }
+
         gen.TE <- function(coef.grid) {
             if (treat.type == "discrete") {
                 link.1 <- coef.grid[, "(Intercept)"] + coef.grid[, paste0("D.", char)]
@@ -936,15 +1198,44 @@ interflex.kernel <- function(data,
             return(gen.TE.output)
         }
 
-        gen.TE.output <- gen.TE(coef.grid = coef.grid)
+        TE.sd <- c(mapply(function(x) gen.sd(x), x = results))
+        if (treat.type == "discrete") {
+            if (char == base) {
+                link.sd <- c(sapply(results, function(x) gen.link.sd(x, base = TRUE)))
+                predict.sd <- c(sapply(results, function(x) gen.predict.sd(x, base = TRUE)))
+            } else {
+                link.sd <- c(sapply(results, function(x) gen.link.sd(x)))
+                predict.sd <- c(sapply(results, function(x) gen.predict.sd(x)))
+            }
+            names(predict.sd) <- rep(paste0("predict.sd.", char), neval)
+        } else {
+            link.sd <- c(sapply(results, function(x) gen.link.sd(x)))
+            predict.sd <- c(sapply(results, function(x) gen.predict.sd(x)))
+            names(predict.sd) <- rep(paste0("predict.sd.", names(D.sample)[D.sample == D.ref]), neval)
+        }
+        if (treat.type == "discrete") {
+            if (char == base) {
+                return(list(
+                    TE.sd = TE.sd,
+                    predict.sd = predict.sd,
+                    link.sd = link.sd,
+                    model.df = model.dfs
+                ))
+            }
+        }
 
+        gen.TE.output <- gen.TE(coef.grid = coef.grid)
         if (treat.type == "discrete") {
             return(list(
                 TE = gen.TE.output$TE,
                 E.pred = gen.TE.output$E.pred,
                 E.base = gen.TE.output$E.base,
                 link.1 = gen.TE.output$link.1,
-                link.0 = gen.TE.output$link.0
+                link.0 = gen.TE.output$link.0,
+                TE.sd = TE.sd,
+                predict.sd = predict.sd,
+                link.sd = link.sd,
+                model.df = model.dfs
             ))
         }
 
@@ -952,7 +1243,11 @@ interflex.kernel <- function(data,
             return(list(
                 ME = gen.TE.output$ME,
                 E.pred = gen.TE.output$E.pred,
-                link = gen.TE.output$link
+                link = gen.TE.output$link,
+                ME.sd = TE.sd,
+                predict.sd = predict.sd,
+                link.sd = link.sd,
+                model.df = model.dfs
             ))
         }
     }
@@ -1135,6 +1430,14 @@ interflex.kernel <- function(data,
             if (treat.type == "continuous") {
                 difference <- c(est.ME(diff.values[2]) - est.ME(diff.values[1]))
             }
+
+            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
+            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
+            vec1 <- vec.list1$vec
+            vec2 <- vec.list2$vec
+            vec <- vec2 - vec1
+            temp.vcov.matrix <- vec.list1$temp.vcov.matrix
+            difference.sd <- c(sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1]))
         }
 
         if (length(diff.values) == 3) {
@@ -1151,27 +1454,47 @@ interflex.kernel <- function(data,
                 difference3 <- est.ME(diff.values[3]) - est.ME(diff.values[1])
                 difference <- c(difference1, difference2, difference3)
             }
+
+            vec.list3 <- gen.sd(wls(x = diff.values[3], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
+            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
+            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
+            vec1 <- vec.list1$vec
+            vec2 <- vec.list2$vec
+            vec3 <- vec.list3$vec
+            vec21 <- vec2 - vec1
+            vec32 <- vec3 - vec2
+            vec31 <- vec3 - vec1
+            temp.vcov.matrix <- vec.list1$temp.vcov.matrix
+
+            difference.sd <- c(
+                sqrt((t(vec21) %*% temp.vcov.matrix %*% vec21)[1, 1]),
+                sqrt((t(vec32) %*% temp.vcov.matrix %*% vec32)[1, 1]),
+                sqrt((t(vec31) %*% temp.vcov.matrix %*% vec31)[1, 1])
+            )
         }
 
         if (treat.type == "discrete") {
             names(difference) <- paste0(char, ".", difference.name)
+            names(difference.sd) <- paste0("sd.", char, ".", difference.name)
         }
         if (treat.type == "continuous") {
             names(difference) <- paste0(names(D.sample)[D.sample == D.ref], ".", difference.name)
+            names(difference.sd) <- paste0("sd.", names(D.sample)[D.sample == D.ref], ".", difference.name)
         }
-        return(difference)
+        return(list(difference = difference, difference.sd = difference.sd))
     }
 
 
     ## Function D: estimate ATE/AME
-    gen.ATE <- function(data, coef.grid, char = NULL) {
+    gen.ATE <- function(data, coef.grid, model.vcovs, char = NULL) {
         if (is.null(char) == TRUE) {
             treat.type <- "continuous"
             weights <- data[, "WEIGHTS"]
         } else {
             treat.type <- "discrete"
-            sub.data <- data[data[, D] == char, ]
-            weights <- data[data[, D] == char, "WEIGHTS"]
+            which.index <- which(data[, D] == char)
+            sub.data <- data[which.index, ]
+            weights <- data[which.index, "WEIGHTS"]
         }
 
         gen.ATE.sub <- function(index) {
@@ -1336,18 +1659,114 @@ interflex.kernel <- function(data,
             }
         }
 
+        gen.ATE.sd.vec <- function(index) {
+            if (treat.type == "discrete") {
+                x <- sub.data[index, X]
+                link.1 <- coef.grid["(Intercept)"] + x * coef.grid[X] + 1 * coef.grid[paste0("D.", char)] + x * coef.grid[X] * coef.grid[paste0("D.delta.x.", char)]
+                link.0 <- coef.grid["(Intercept)"] + x * coef.grid[X]
+                if (is.null(Z) == FALSE) {
+                    for (a in Z) {
+                        target.Z <- sub.data[index, a]
+                        link.1 <- link.1 + target.Z * coef.grid[a]
+                        link.0 <- link.0 + target.Z * coef.grid[a]
+                    }
+                }
+                if (is.null(Z) == FALSE) {
+                    vec.1 <- c(1, x, 1, x, as.matrix(sub.data[index, Z]))
+                    vec.0 <- c(1, x, 0, 0, as.matrix(sub.data[index, Z]))
+                    target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char), Z)
+                } else {
+                    vec.1 <- c(1, x, 1, x)
+                    vec.0 <- c(1, x, 0, 0)
+                    target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char))
+                }
+                if (method == "logit") {
+                    vec <- vec.1 * exp(link.1) / (1 + exp(link.1))^2 - vec.0 * exp(link.0) / (1 + exp(link.0))^2
+                }
+                if (method == "probit") {
+                    vec <- vec.1 * dnorm(link.1) - vec.0 * dnorm(link.0)
+                }
+                if (method == "poisson" | method == "nbinom") {
+                    vec <- vec.1 * exp(link.1) - vec.0 * exp(link.0)
+                }
+                if (method == "linear") {
+                    vec <- vec.1 - vec.0
+                }
+                return(vec)
+            }
+
+            if (treat.type == "continuous") {
+                link <- coef.grid["(Intercept)"] + data[index, X] * coef.grid[X] + coef.grid[D] * data[index, D] + coef.grid["D.delta.x"] * data[index, X] * data[index, D]
+                if (is.null(Z) == FALSE) {
+                    for (a in Z) {
+                        target.Z <- data[index, a]
+                        link <- link + target.Z * coef.grid[a]
+                        if (full.moderate == TRUE) {
+                            link <- link + target.Z * coef.grid[paste0(a, ".X")] * data[index, X]
+                        }
+                    }
+                }
+
+                if (is.null(Z) == FALSE) {
+                    vec1 <- c(1, data[index, X], data[index, D], data[index, D] * data[index, X], as.matrix(data[index, Z]))
+                    vec0 <- c(0, 0, 1, data[index, X], rep(0, length(Z)))
+                    target.slice <- c("(Intercept)", X, D, "D.delta.x", Z)
+                } else {
+                    vec1 <- c(1, data[index, X], data[index, D], data[index, D] * data[index, X])
+                    vec0 <- c(0, 0, 1, data[index, X])
+                    target.slice <- c("(Intercept)", X, D, "D.delta.x")
+                }
+
+                if (method == "logit") {
+                    vec <- -(coef.grid[D] + data[index, X] * coef.grid["D.delta.x"]) * (exp(link) - exp(-link)) / (2 + exp(link) + exp(-link))^2 * vec1 + exp(link) / (1 + exp(link))^2 * vec0
+                }
+                if (method == "probit") {
+                    vec <- dnorm(link) * vec0 - (coef.grid[D] + data[index, X] * coef.grid["D.delta.x"]) * link * dnorm(link) * vec1
+                }
+                if (method == "poisson" | method == "nbinom") {
+                    vec <- (coef.grid[D] + data[index, X] * coef.grid["D.delta.x"]) * exp(link) * vec1 + exp(link) * vec0
+                }
+                if (method == "linear") {
+                    vec <- vec0
+                }
+                return(vec)
+            }
+        }
+
         if (treat.type == "discrete") {
             index.all <- c(1:dim(sub.data)[1])
             TE.all.real <- sapply(index.all, function(x) gen.ATE.sub(x))
             ATE <- weighted.mean(TE.all.real, weights, na.rm = TRUE)
-            return(ATE)
+            vec.all <- sapply(index.all, function(x) gen.ATE.sd.vec(x))
+            vec.mean <- apply(vec.all, 1, function(x) weighted.mean(x, weights))
+            if (is.null(Z) == FALSE) {
+                target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char), Z)
+            } else {
+                target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char))
+            }
+            temp.vcov.matrix.mean <- Reduce("+", model.vcovs) / length(model.vcovs)
+            temp.vcov.matrix <- temp.vcov.matrix.mean[target.slice, target.slice]
+            ATE.sd <- sqrt((t(vec.mean) %*% temp.vcov.matrix %*% vec.mean)[1, 1])
+            return(list(ATE = ATE, sd = ATE.sd))
         }
+
         if (treat.type == "continuous") {
             index.all <- c(1:dim(data)[1])
             ME.all.real <- sapply(index.all, function(x) gen.ATE.sub(x))
             names(ME.all.real) <- NULL
             AME <- weighted.mean(ME.all.real, weights, na.rm = TRUE)
-            return(AME)
+            vec.all <- sapply(index.all, function(x) gen.ATE.sd.vec(x))
+            vec.mean <- apply(vec.all, 1, function(x) weighted.mean(x, weights))
+            if (is.null(Z) == FALSE) {
+                target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
+            } else {
+                target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x")
+            }
+
+            temp.vcov.matrix.mean <- Reduce("+", model.vcovs) / length(model.vcovs)
+            temp.vcov.matrix <- temp.vcov.matrix.mean[target.slice, target.slice]
+            AME.sd <- sqrt((t(vec.mean) %*% temp.vcov.matrix %*% vec.mean)[1, 1])
+            return(list(AME = AME, sd = AME.sd))
         }
     }
 
@@ -1361,9 +1780,15 @@ interflex.kernel <- function(data,
                 diff.values = diff.values,
                 char = char
             )
-            gen.ATE.output <- gen.ATE(coef.grid = coef.grid, data = data, char = char)
-            all.output.noCI[[char]] <- list(TE = gen.TE.output, diff = gen.diff.output, ATE = gen.ATE.output)
+            gen.ATE.output <- gen.ATE(data = data, coef.grid = coef.grid, model.vcovs = model.vcovs, char = char)
+
+            all.output.noCI[[char]] <- list(
+                TE = gen.TE.output,
+                diff = gen.diff.output,
+                ATE = gen.ATE.output
+            )
         }
+        gen.TE.output.base <- gen.kernel.TE(coef.grid = coef.grid, char = base)
     }
 
     if (treat.type == "continuous") {
@@ -1383,338 +1808,495 @@ interflex.kernel <- function(data,
             k <- k + 1
         }
 
-        AME.estimate <- c(gen.ATE(coef.grid = coef.grid, data = data))
+        AME.estimate <- gen.ATE(coef.grid = coef.grid, model.vcovs = model.vcovs, data = data)
         all.output.noCI[["AME"]] <- AME.estimate
     }
 
 
 
     if (CI == TRUE) {
-        # Part1: Bootstrap
-        if (treat.type == "discrete") {
-            all.length <- neval * length(other.treat) + # TE
-                neval * length(all.treat) + # pred
-                neval * length(all.treat) + # link
-                length(other.treat) * length(difference.name) + # diff
-                length(other.treat) # ATE
-        }
-
-        if (treat.type == "continuous") {
-            all.length <- neval * length(label.name) + # ME
-                neval * length(label.name) + # pred
-                neval * length(label.name) + # link
-                length(label.name) * length(difference.name) + 1 # diff&AME
-        }
-
-        one.boot <- function() {
-            if (is.null(cl) == TRUE) {
-                smp <- sample(1:n, n, replace = TRUE)
-            } else { ## block bootstrap
-                cluster.boot <- sample(clusters, length(clusters), replace = TRUE)
-                smp <- unlist(id.list[match(cluster.boot, clusters)])
-            }
-            data.boot <- data[smp, ]
-            boot.out <- matrix(NA, nrow = all.length, ncol = 0)
+        if (vartype == "bootstrap") {
+            # Part1: Bootstrap
             if (treat.type == "discrete") {
-                if (length(unique(data.boot[, D])) != length(unique(data[, D]))) {
-                    return(boot.out)
-                }
-            }
-
-            if (is.null(weights) == TRUE) {
-                w.touse <- rep(1, dim(data.boot)[1])
-            } else {
-                w.touse <- data.boot[, weights]
-            }
-
-            # Xdensity
-            suppressWarnings(Xdensity.boot <- density(data.boot[, X], weights = w.touse))
-            coef.grid.boot <- t(sapply(X.eval, function(x) wls(x = x, data = data.boot, bw = bw, weights = w.touse, Xdensity = Xdensity.boot)))
-            boot.one.round <- c()
-
-            if (treat.type == "discrete") {
-                for (char in other.treat) {
-                    gen.TE.output <- gen.kernel.TE(coef.grid = coef.grid.boot, char = char)
-                    gen.diff.output <- gen.kernel.difference(
-                        coef.grid = coef.grid.boot,
-                        diff.values = diff.values,
-                        char = char
-                    )
-                    gen.ATE.output <- gen.ATE(coef.grid = coef.grid.boot, data = data.boot, char = char)
-
-                    TE.output <- gen.TE.output$TE
-                    names(TE.output) <- rep(paste0("TE.", char), neval)
-
-                    E.pred.output <- gen.TE.output$E.pred
-                    names(E.pred.output) <- rep(paste0("pred.", char), neval)
-                    E.base.output <- gen.TE.output$E.base
-
-                    link.output <- gen.TE.output$link.1
-                    names(link.output) <- rep(paste0("link.", char), neval)
-                    link0.output <- gen.TE.output$link.0
-
-                    diff.estimate.output <- c(gen.diff.output)
-                    names(diff.estimate.output) <- rep(paste0("diff.", char), length(difference.name))
-
-                    ATE.estimate <- c(gen.ATE.output)
-                    names(ATE.estimate) <- paste0("ATE.", char)
-                    boot.one.round <- c(boot.one.round, TE.output, E.pred.output, link.output, diff.estimate.output, ATE.estimate)
-                }
-                names(E.base.output) <- rep(paste0("pred.", base), neval)
-                boot.one.round <- c(boot.one.round, E.base.output)
-
-                names(link0.output) <- rep(paste0("link.", base), neval)
-                boot.one.round <- c(boot.one.round, link0.output)
+                all.length <- neval * length(other.treat) + # TE
+                    neval * length(all.treat) + # pred
+                    neval * length(all.treat) + # link
+                    length(other.treat) * length(difference.name) + # diff
+                    length(other.treat) # ATE
             }
 
             if (treat.type == "continuous") {
+                all.length <- neval * length(label.name) + # ME
+                    neval * length(label.name) + # pred
+                    neval * length(label.name) + # link
+                    length(label.name) * length(difference.name) + 1 # diff&AME
+            }
+
+            one.boot <- function() {
+                if (is.null(cl) == TRUE) {
+                    smp <- sample(1:n, n, replace = TRUE)
+                } else { ## block bootstrap
+                    cluster.boot <- sample(clusters, length(clusters), replace = TRUE)
+                    smp <- unlist(id.list[match(cluster.boot, clusters)])
+                }
+                data.boot <- data[smp, ]
+                boot.out <- matrix(NA, nrow = all.length, ncol = 0)
+                if (treat.type == "discrete") {
+                    if (length(unique(data.boot[, D])) != length(unique(data[, D]))) {
+                        return(boot.out)
+                    }
+                }
+
+                if (is.null(weights) == TRUE) {
+                    w.touse <- rep(1, dim(data.boot)[1])
+                } else {
+                    w.touse <- data.boot[, weights]
+                }
+
+                # Xdensity
+                suppressWarnings(Xdensity.boot <- density(data.boot[, X], weights = w.touse))
+                coef.grid.boot <- c()
+                for (x in X.eval) {
+                    coef.grid.boot <- rbind(coef.grid.boot, wls(x = x, data = data.boot, bw = bw, weights = w.touse, Xdensity = Xdensity.boot)$result)
+                }
+
+                boot.one.round <- c()
+                if (treat.type == "discrete") {
+                    for (char in other.treat) {
+                        gen.TE.output <- gen.kernel.TE(coef.grid = coef.grid.boot, char = char)
+                        gen.diff.output <- gen.kernel.difference(
+                            coef.grid = coef.grid.boot,
+                            diff.values = diff.values,
+                            char = char
+                        )
+
+                        gen.ATE.output <- gen.ATE(coef.grid = coef.grid.boot, data = data.boot, model.vcovs = model.vcovs, char = char)
+
+                        TE.output <- gen.TE.output$TE
+                        names(TE.output) <- rep(paste0("TE.", char), neval)
+
+                        E.pred.output <- gen.TE.output$E.pred
+                        names(E.pred.output) <- rep(paste0("pred.", char), neval)
+                        E.base.output <- gen.TE.output$E.base
+
+                        link.output <- gen.TE.output$link.1
+                        names(link.output) <- rep(paste0("link.", char), neval)
+                        link0.output <- gen.TE.output$link.0
+
+                        diff.estimate.output <- c(gen.diff.output$difference)
+                        names(diff.estimate.output) <- rep(paste0("diff.", char), length(difference.name))
+
+                        ATE.estimate <- c(gen.ATE.output$ATE)
+                        names(ATE.estimate) <- paste0("ATE.", char)
+                        boot.one.round <- c(boot.one.round, TE.output, E.pred.output, link.output, diff.estimate.output, ATE.estimate)
+                    }
+                    names(E.base.output) <- rep(paste0("pred.", base), neval)
+                    boot.one.round <- c(boot.one.round, E.base.output)
+
+                    names(link0.output) <- rep(paste0("link.", base), neval)
+                    boot.one.round <- c(boot.one.round, link0.output)
+                }
+
+                if (treat.type == "continuous") {
+                    k <- 1
+                    for (D.ref in D.sample) {
+                        gen.kernel.ME.output <- gen.kernel.TE(coef.grid = coef.grid.boot, D.ref = D.ref)
+                        ME.output <- gen.kernel.ME.output$ME
+                        names(ME.output) <- rep(paste0("ME.", label.name[k]), neval)
+                        E.pred.output <- gen.kernel.ME.output$E.pred
+                        names(E.pred.output) <- rep(paste0("pred.", label.name[k]), neval)
+
+                        link.output <- gen.kernel.ME.output$link
+                        names(link.output) <- rep(paste0("link.", label.name[k]), neval)
+
+                        gen.diff.output <- gen.kernel.difference(
+                            coef.grid = coef.grid.boot,
+                            diff.values = diff.values,
+                            D.ref = D.ref
+                        )
+
+                        diff.estimate.output <- c(gen.diff.output$difference)
+                        names(diff.estimate.output) <- rep(paste0("diff.", label.name[k]), length(difference.name))
+                        boot.one.round <- c(boot.one.round, ME.output, E.pred.output, link.output, diff.estimate.output)
+                        k <- k + 1
+                    }
+                    AME.estimate <- c(gen.ATE(coef.grid = coef.grid.boot, model.vcovs = model.vcovs, data = data.boot)$AME)
+                    names(AME.estimate) <- c("AME")
+                    boot.one.round <- c(boot.one.round, AME.estimate)
+                }
+                boot.out <- cbind(boot.out, boot.one.round)
+                rownames(boot.out) <- names(boot.one.round)
+                colnames(boot.out) <- NULL
+
+                return(boot.out)
+            }
+
+            if (parallel == TRUE) {
+                requireNamespace("doParallel")
+                ## require(iterators)
+                maxcores <- detectCores()
+                cores <- min(maxcores, cores)
+                pcl <- future::makeClusterPSOCK(cores)
+                doParallel::registerDoParallel(pcl)
+                cat("Parallel computing with", cores, "cores...\n")
+
+                suppressWarnings(
+                    bootout <- foreach(
+                        i = 1:nboots, .combine = cbind,
+                        .export = c("one.boot"), .packages = c("MASS", "AER"),
+                        .inorder = FALSE
+                    ) %dopar% {
+                        one.boot()
+                    }
+                )
+                suppressWarnings(stopCluster(pcl))
+                cat("\r")
+            } else {
+                bootout <- matrix(NA, all.length, 0)
+                for (i in 1:nboots) {
+                    tempdata <- one.boot()
+                    if (is.null(tempdata) == FALSE) {
+                        bootout <- cbind(bootout, tempdata)
+                    }
+                    if (i %% 50 == 0) cat(i) else cat(".")
+                }
+                cat("\r")
+            }
+
+            if (treat.type == "discrete") {
+                TE.output.all.list <- list()
+                pred.output.all.list <- list()
+                diff.output.all.list <- list()
+                TE.vcov.list <- list()
+                ATE.output.list <- list()
+                link.output.all.list <- list()
+                for (char in other.treat) {
+                    gen.general.TE.output <- all.output.noCI[[char]]$TE
+                    TE.output <- gen.general.TE.output$TE
+                    E.pred.output <- gen.general.TE.output$E.pred
+                    E.base.output <- gen.general.TE.output$E.base
+                    link.output <- gen.general.TE.output$link.1
+                    link0.output <- gen.general.TE.output$link.0
+                    diff.estimate.output <- all.output.noCI[[char]]$diff$difference
+                    ATE.estimate <- all.output.noCI[[char]]$ATE$ATE
+
+                    TE.boot.matrix <- bootout[rownames(bootout) == paste0("TE.", char), ]
+                    pred.boot.matrix <- bootout[rownames(bootout) == paste0("pred.", char), ]
+                    base.boot.matrix <- bootout[rownames(bootout) == paste0("pred.", base), ]
+                    link.boot.matrix <- bootout[rownames(bootout) == paste0("link.", char), ]
+                    link0.boot.matrix <- bootout[rownames(bootout) == paste0("link.", base), ]
+                    diff.boot.matrix <- bootout[rownames(bootout) == paste0("diff.", char), ]
+                    ATE.boot.matrix <- matrix(bootout[rownames(bootout) == paste0("ATE.", char), ], nrow = 1)
+
+                    if (length(diff.values) == 2) {
+                        diff.boot.matrix <- matrix(diff.boot.matrix, nrow = 1)
+                    }
+                    if (length(diff.values) == 3) {
+                        diff.boot.matrix <- as.matrix(diff.boot.matrix)
+                    }
+
+                    TE.boot.sd <- apply(TE.boot.matrix, 1, sd, na.rm = TRUE)
+                    pred.boot.sd <- apply(pred.boot.matrix, 1, sd, na.rm = TRUE)
+                    base.boot.sd <- apply(base.boot.matrix, 1, sd, na.rm = TRUE)
+                    link.boot.sd <- apply(link.boot.matrix, 1, sd, na.rm = TRUE)
+                    link0.boot.sd <- apply(link0.boot.matrix, 1, sd, na.rm = TRUE)
+                    diff.boot.sd <- apply(diff.boot.matrix, 1, sd, na.rm = TRUE)
+                    ATE.boot.sd <- apply(ATE.boot.matrix, 1, sd, na.rm = TRUE)
+
+                    TE.boot.CI <- t(apply(TE.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    pred.boot.CI <- t(apply(pred.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    base.boot.CI <- t(apply(base.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    link0.boot.CI <- t(apply(link0.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    ATE.boot.CI <- matrix(t(apply(ATE.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE)), nrow = 1)
+
+                    if (length(diff.values) == 2) {
+                        diff.boot.CI <- matrix(diff.boot.CI, nrow = 1)
+                    }
+                    if (length(diff.values) == 3) {
+                        diff.boot.CI <- as.matrix(diff.boot.CI)
+                    }
+
+                    TE.boot.vcov <- cov(t(TE.boot.matrix), use = "na.or.complete")
+                    rownames(TE.boot.vcov) <- NULL
+                    colnames(TE.boot.vcov) <- NULL
+
+                    TE.output.all <- cbind(X.eval, TE.output, TE.boot.sd, TE.boot.CI[, 1], TE.boot.CI[, 2])
+                    colnames(TE.output.all) <- c("X", "TE", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(TE.output.all) <- NULL
+                    TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
+
+                    pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2])
+                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(pred.output.all) <- NULL
+                    pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
+
+                    link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2])
+                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(link.output.all) <- NULL
+                    link.output.all.list[[other.treat.origin[char]]] <- link.output.all
+
+                    TE.vcov.list[[other.treat.origin[char]]] <- TE.boot.vcov
+
+                    z.value <- diff.estimate.output / diff.boot.sd
+                    p.value <- 2 * pnorm(-abs(z.value))
+                    diff.output.all <- cbind(
+                        diff.estimate.output, diff.boot.sd,
+                        z.value, p.value, diff.boot.CI[, 1], diff.boot.CI[, 2]
+                    )
+                    colnames(diff.output.all) <- c("diff.estimate", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+                    rownames(diff.output.all) <- difference.name
+                    diff.output.all.list[[other.treat.origin[char]]] <- diff.output.all
+
+                    ATE.z.value <- ATE.estimate / ATE.boot.sd
+                    ATE.p.value <- 2 * pnorm(-abs(ATE.z.value))
+                    ATE.output <- c(ATE.estimate, ATE.boot.sd, ATE.z.value, ATE.p.value, ATE.boot.CI[, 1], ATE.boot.CI[, 2])
+                    names(ATE.output) <- c("ATE", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+                    ATE.output.list[[other.treat.origin[char]]] <- ATE.output
+                }
+                # base
+                base.output.all <- cbind(X.eval, E.base.output, base.boot.sd, base.boot.CI[, 1], base.boot.CI[, 2])
+                colnames(base.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                rownames(base.output.all) <- NULL
+                pred.output.all.list[[all.treat.origin[base]]] <- base.output.all
+
+                link0.output.all <- cbind(X.eval, link0.output, link0.boot.sd, link0.boot.CI[, 1], link0.boot.CI[, 2])
+                colnames(link0.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                rownames(link0.output.all) <- NULL
+                link.output.all.list[[all.treat.origin[base]]] <- link0.output.all
+            }
+
+
+            if (treat.type == "continuous") {
+                ME.output.all.list <- list()
+                pred.output.all.list <- list()
+                diff.output.all.list <- list()
+                ME.vcov.list <- list()
+                link.output.all.list <- list()
                 k <- 1
                 for (D.ref in D.sample) {
-                    gen.kernel.ME.output <- gen.kernel.TE(coef.grid = coef.grid.boot, D.ref = D.ref)
-                    ME.output <- gen.kernel.ME.output$ME
-                    names(ME.output) <- rep(paste0("ME.", label.name[k]), neval)
-                    E.pred.output <- gen.kernel.ME.output$E.pred
-                    names(E.pred.output) <- rep(paste0("pred.", label.name[k]), neval)
+                    label <- label.name[k]
+                    gen.general.ME.output <- all.output.noCI[[label]]$ME
+                    ME.output <- gen.general.ME.output$ME
+                    E.pred.output <- gen.general.ME.output$E.pred
+                    link.output <- gen.general.ME.output$link
+                    diff.estimate.output <- all.output.noCI[[label]]$diff$difference
 
-                    link.output <- gen.kernel.ME.output$link
-                    names(link.output) <- rep(paste0("link.", label.name[k]), neval)
+                    ME.boot.matrix <- bootout[rownames(bootout) == paste0("ME.", label), ]
+                    pred.boot.matrix <- bootout[rownames(bootout) == paste0("pred.", label), ]
+                    link.boot.matrix <- bootout[rownames(bootout) == paste0("link.", label), ]
+                    diff.boot.matrix <- bootout[rownames(bootout) == paste0("diff.", label), ]
+                    if (length(diff.values) == 2) {
+                        diff.boot.matrix <- matrix(diff.boot.matrix, nrow = 1)
+                    }
+                    if (length(diff.values) == 3) {
+                        diff.boot.matrix <- as.matrix(diff.boot.matrix)
+                    }
 
-                    gen.diff.output <- gen.kernel.difference(
-                        coef.grid = coef.grid.boot,
-                        diff.values = diff.values,
-                        D.ref = D.ref
+                    ME.boot.vcov <- cov(t(ME.boot.matrix), use = "na.or.complete")
+                    rownames(ME.boot.vcov) <- NULL
+                    colnames(ME.boot.vcov) <- NULL
+
+                    ME.boot.sd <- apply(ME.boot.matrix, 1, sd, na.rm = TRUE)
+                    pred.boot.sd <- apply(pred.boot.matrix, 1, sd, na.rm = TRUE)
+                    link.boot.sd <- apply(link.boot.matrix, 1, sd, na.rm = TRUE)
+                    diff.boot.sd <- apply(diff.boot.matrix, 1, sd, na.rm = TRUE)
+
+                    ME.boot.CI <- t(apply(ME.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    pred.boot.CI <- t(apply(pred.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+                    diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
+
+                    ME.output.all <- cbind(X.eval, ME.output, ME.boot.sd, ME.boot.CI[, 1], ME.boot.CI[, 2])
+                    colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(ME.output.all) <- NULL
+                    ME.output.all.list[[label]] <- ME.output.all
+
+                    pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2])
+                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(pred.output.all) <- NULL
+                    pred.output.all.list[[label]] <- pred.output.all
+
+                    link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2])
+                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(link.output.all) <- NULL
+                    link.output.all.list[[label]] <- link.output.all
+
+                    ME.vcov.list[[label]] <- ME.boot.vcov
+
+                    z.value <- diff.estimate.output / diff.boot.sd
+                    p.value <- 2 * pnorm(-abs(z.value))
+                    diff.output.all <- cbind(
+                        diff.estimate.output, diff.boot.sd,
+                        z.value, p.value, diff.boot.CI[, 1], diff.boot.CI[, 2]
                     )
+                    colnames(diff.output.all) <- c("diff.estimate", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+                    rownames(diff.output.all) <- difference.name
+                    diff.output.all.list[[label]] <- diff.output.all
 
-                    diff.estimate.output <- c(gen.diff.output)
-                    names(diff.estimate.output) <- rep(paste0("diff.", label.name[k]), length(difference.name))
-                    boot.one.round <- c(boot.one.round, ME.output, E.pred.output, link.output, diff.estimate.output)
                     k <- k + 1
                 }
-                AME.estimate <- c(gen.ATE(coef.grid = coef.grid.boot, data = data.boot))
-                names(AME.estimate) <- c("AME")
-                boot.one.round <- c(boot.one.round, AME.estimate)
+                AME.estimate <- all.output.noCI$AME$AME
+                AME.boot.matrix <- matrix(bootout[rownames(bootout) == "AME", ], nrow = 1)
+                AME.boot.sd <- apply(AME.boot.matrix, 1, sd, na.rm = TRUE)
+                AME.boot.CI <- matrix(t(apply(AME.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE)), nrow = 1)
+                AME.z.value <- AME.estimate / AME.boot.sd
+                AME.p.value <- 2 * pnorm(-abs(AME.z.value))
+                AME.output <- c(AME.estimate, AME.boot.sd, AME.z.value, AME.p.value, AME.boot.CI[, 1], AME.boot.CI[, 2])
+                names(AME.output) <- c("AME", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
             }
-
-            boot.out <- cbind(boot.out, boot.one.round)
-            rownames(boot.out) <- names(boot.one.round)
-            colnames(boot.out) <- NULL
-            return(boot.out)
         }
 
-        if (parallel == TRUE) {
-            requireNamespace("doParallel")
-            ## require(iterators)
-            maxcores <- detectCores()
-            cores <- min(maxcores, cores)
-            pcl <- future::makeClusterPSOCK(cores)
-            doParallel::registerDoParallel(pcl)
-            cat("Parallel computing with", cores, "cores...\n")
-
-            suppressWarnings(
-                bootout <- foreach(
-                    i = 1:nboots, .combine = cbind,
-                    .export = c("one.boot"), .packages = c("MASS", "AER"),
-                    .inorder = FALSE
-                ) %dopar% {
-                    one.boot()
-                }
-            )
-            suppressWarnings(stopCluster(pcl))
-            cat("\r")
-        } else {
-            bootout <- matrix(NA, all.length, 0)
-            for (i in 1:nboots) {
-                tempdata <- one.boot()
-                if (is.null(tempdata) == FALSE) {
-                    bootout <- cbind(bootout, tempdata)
-                }
-                if (i %% 50 == 0) cat(i) else cat(".")
+        if (vartype == "delta") {
+            crit <- abs(qt(.025, df = model.dfs))
+            if (treat.type == "discrete") {
+                all.length <- neval * length(other.treat) + # TE
+                    neval * length(all.treat) + # pred
+                    neval * length(all.treat) + # link
+                    length(other.treat) * length(difference.name) + # diff
+                    length(other.treat) # ATE
             }
-            cat("\r")
-        }
 
-        if (treat.type == "discrete") {
-            TE.output.all.list <- list()
-            pred.output.all.list <- list()
-            diff.output.all.list <- list()
-            TE.vcov.list <- list()
-            ATE.output.list <- list()
-            link.output.all.list <- list()
-            for (char in other.treat) {
-                gen.general.TE.output <- all.output.noCI[[char]]$TE
-                TE.output <- gen.general.TE.output$TE
-                E.pred.output <- gen.general.TE.output$E.pred
-                E.base.output <- gen.general.TE.output$E.base
-                link.output <- gen.general.TE.output$link.1
-                link0.output <- gen.general.TE.output$link.0
-                diff.estimate.output <- all.output.noCI[[char]]$diff
-                ATE.estimate <- all.output.noCI[[char]]$ATE
-
-                TE.boot.matrix <- bootout[rownames(bootout) == paste0("TE.", char), ]
-                pred.boot.matrix <- bootout[rownames(bootout) == paste0("pred.", char), ]
-                base.boot.matrix <- bootout[rownames(bootout) == paste0("pred.", base), ]
-                link.boot.matrix <- bootout[rownames(bootout) == paste0("link.", char), ]
-                link0.boot.matrix <- bootout[rownames(bootout) == paste0("link.", base), ]
-                diff.boot.matrix <- bootout[rownames(bootout) == paste0("diff.", char), ]
-                ATE.boot.matrix <- matrix(bootout[rownames(bootout) == paste0("ATE.", char), ], nrow = 1)
-
-                if (length(diff.values) == 2) {
-                    diff.boot.matrix <- matrix(diff.boot.matrix, nrow = 1)
-                }
-                if (length(diff.values) == 3) {
-                    diff.boot.matrix <- as.matrix(diff.boot.matrix)
-                }
-
-                TE.boot.sd <- apply(TE.boot.matrix, 1, sd, na.rm = TRUE)
-                pred.boot.sd <- apply(pred.boot.matrix, 1, sd, na.rm = TRUE)
-                base.boot.sd <- apply(base.boot.matrix, 1, sd, na.rm = TRUE)
-                link.boot.sd <- apply(link.boot.matrix, 1, sd, na.rm = TRUE)
-                link0.boot.sd <- apply(link0.boot.matrix, 1, sd, na.rm = TRUE)
-                diff.boot.sd <- apply(diff.boot.matrix, 1, sd, na.rm = TRUE)
-                ATE.boot.sd <- apply(ATE.boot.matrix, 1, sd, na.rm = TRUE)
-
-                TE.boot.CI <- t(apply(TE.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                pred.boot.CI <- t(apply(pred.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                base.boot.CI <- t(apply(base.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                link0.boot.CI <- t(apply(link0.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                ATE.boot.CI <- matrix(t(apply(ATE.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE)), nrow = 1)
-
-                if (length(diff.values) == 2) {
-                    diff.boot.CI <- matrix(diff.boot.CI, nrow = 1)
-                }
-                if (length(diff.values) == 3) {
-                    diff.boot.CI <- as.matrix(diff.boot.CI)
-                }
-
-                TE.boot.vcov <- cov(t(TE.boot.matrix), use = "na.or.complete")
-                rownames(TE.boot.vcov) <- NULL
-                colnames(TE.boot.vcov) <- NULL
-
-                TE.output.all <- cbind(X.eval, TE.output, TE.boot.sd, TE.boot.CI[, 1], TE.boot.CI[, 2])
-                colnames(TE.output.all) <- c("X", "TE", "sd", "lower CI(95%)", "upper CI(95%)")
-                rownames(TE.output.all) <- NULL
-                TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
-
-                pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2])
-                colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
-                rownames(pred.output.all) <- NULL
-                pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
-
-                link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2])
-                colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
-                rownames(link.output.all) <- NULL
-                link.output.all.list[[other.treat.origin[char]]] <- link.output.all
-
-                TE.vcov.list[[other.treat.origin[char]]] <- TE.boot.vcov
-
-                z.value <- diff.estimate.output / diff.boot.sd
-                p.value <- 2 * pnorm(-abs(z.value))
-                diff.output.all <- cbind(
-                    diff.estimate.output, diff.boot.sd,
-                    z.value, p.value, diff.boot.CI[, 1], diff.boot.CI[, 2]
-                )
-                colnames(diff.output.all) <- c("diff.estimate", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
-                rownames(diff.output.all) <- difference.name
-                diff.output.all.list[[other.treat.origin[char]]] <- diff.output.all
-
-                ATE.z.value <- ATE.estimate / ATE.boot.sd
-                ATE.p.value <- 2 * pnorm(-abs(ATE.z.value))
-                ATE.output <- c(ATE.estimate, ATE.boot.sd, ATE.z.value, ATE.p.value, ATE.boot.CI[, 1], ATE.boot.CI[, 2])
-                names(ATE.output) <- c("ATE", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
-                ATE.output.list[[other.treat.origin[char]]] <- ATE.output
+            if (treat.type == "continuous") {
+                all.length <- neval * length(label.name) + # ME
+                    neval * length(label.name) + # pred
+                    neval * length(label.name) + # link
+                    length(label.name) * length(difference.name) + 1 # diff&AME
             }
-            # base
-            base.output.all <- cbind(X.eval, E.base.output, base.boot.sd, base.boot.CI[, 1], base.boot.CI[, 2])
-            colnames(base.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
-            rownames(base.output.all) <- NULL
-            pred.output.all.list[[all.treat.origin[base]]] <- base.output.all
 
-            link0.output.all <- cbind(X.eval, link0.output, link0.boot.sd, link0.boot.CI[, 1], link0.boot.CI[, 2])
-            colnames(link0.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
-            rownames(link0.output.all) <- NULL
-            link.output.all.list[[all.treat.origin[base]]] <- link0.output.all
-        }
+            if (treat.type == "discrete") {
+                TE.output.all.list <- list()
+                pred.output.all.list <- list()
+                diff.output.all.list <- list()
+                TE.vcov.list <- list()
+                ATE.output.list <- list()
+                link.output.all.list <- list()
+                for (char in other.treat) {
+                    gen.general.TE.output <- all.output.noCI[[char]]$TE
+                    TE.output <- gen.general.TE.output$TE
+                    E.pred.output <- gen.general.TE.output$E.pred
+                    E.base.output <- gen.general.TE.output$E.base
+                    link.output <- gen.general.TE.output$link.1
+                    link0.output <- gen.general.TE.output$link.0
+                    diff.estimate.output <- all.output.noCI[[char]]$diff
+                    ATE.estimate <- all.output.noCI[[char]]$ATE
 
+                    TE.delta.sd <- gen.general.TE.output$TE.sd
+                    TE.output.all <- cbind(X.eval, TE.output, TE.delta.sd, TE.output - crit * TE.delta.sd, TE.output + crit * TE.delta.sd)
+                    colnames(TE.output.all) <- c("X", "TE", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(TE.output.all) <- NULL
+                    TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
 
-        if (treat.type == "continuous") {
-            ME.output.all.list <- list()
-            pred.output.all.list <- list()
-            diff.output.all.list <- list()
-            ME.vcov.list <- list()
-            link.output.all.list <- list()
-            k <- 1
-            for (D.ref in D.sample) {
-                label <- label.name[k]
-                gen.general.ME.output <- all.output.noCI[[label]]$ME
-                ME.output <- gen.general.ME.output$ME
-                E.pred.output <- gen.general.ME.output$E.pred
-                link.output <- gen.general.ME.output$link
-                diff.estimate.output <- all.output.noCI[[label]]$diff
+                    pred.delta.sd <- gen.general.TE.output$predict.sd
+                    pred.output.all <- cbind(X.eval, E.pred.output, pred.delta.sd, E.pred.output - crit * pred.delta.sd, E.pred.output + crit * pred.delta.sd)
+                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(pred.output.all) <- NULL
+                    pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
 
-                ME.boot.matrix <- bootout[rownames(bootout) == paste0("ME.", label), ]
-                pred.boot.matrix <- bootout[rownames(bootout) == paste0("pred.", label), ]
-                link.boot.matrix <- bootout[rownames(bootout) == paste0("link.", label), ]
-                diff.boot.matrix <- bootout[rownames(bootout) == paste0("diff.", label), ]
-                if (length(diff.values) == 2) {
-                    diff.boot.matrix <- matrix(diff.boot.matrix, nrow = 1)
+                    link.delta.sd <- gen.general.TE.output$link.sd
+                    link.output.all <- cbind(X.eval, link.output, link.delta.sd, link.output - crit * link.delta.sd, link.output + crit * link.delta.sd)
+                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(link.output.all) <- NULL
+                    link.output.all.list[[other.treat.origin[char]]] <- link.output.all
+
+                    TE.vcov.list[[other.treat.origin[char]]] <- NULL
+
+                    diff.estimate.value <- diff.estimate.output$difference
+                    diff.delta.sd <- diff.estimate.output$difference.sd
+
+                    z.value <- diff.estimate.value / diff.delta.sd
+                    p.value <- 2 * pnorm(-abs(z.value))
+                    diff.output.all <- cbind(
+                        diff.estimate.value, diff.delta.sd,
+                        z.value, p.value, diff.estimate.value - crit[1] * diff.delta.sd, diff.estimate.value + crit[1] * diff.delta.sd
+                    )
+
+                    colnames(diff.output.all) <- c("diff.estimate", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+                    rownames(diff.output.all) <- difference.name
+
+                    diff.output.all.list[[other.treat.origin[char]]] <- diff.output.all
+
+                    ATE.estimate.value <- ATE.estimate$ATE
+                    ATE.delta.sd <- ATE.estimate$sd
+                    ATE.z.value <- ATE.estimate.value / ATE.delta.sd
+                    ATE.p.value <- 2 * pnorm(-abs(ATE.z.value))
+                    ATE.output <- c(ATE.estimate.value, ATE.delta.sd, ATE.z.value, ATE.p.value, ATE.estimate.value - crit[1] * ATE.delta.sd, ATE.estimate.value + crit[1] * ATE.delta.sd)
+                    names(ATE.output) <- c("ATE", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+                    ATE.output.list[[other.treat.origin[char]]] <- ATE.output
                 }
-                if (length(diff.values) == 3) {
-                    diff.boot.matrix <- as.matrix(diff.boot.matrix)
-                }
+                # base
+                base.delta.sd <- gen.TE.output.base$predict.sd
+                base.output.all <- cbind(X.eval, E.base.output, base.delta.sd, E.base.output - crit * base.delta.sd, E.base.output + crit * base.delta.sd)
+                colnames(base.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                rownames(base.output.all) <- NULL
 
-                ME.boot.vcov <- cov(t(ME.boot.matrix), use = "na.or.complete")
-                rownames(ME.boot.vcov) <- NULL
-                colnames(ME.boot.vcov) <- NULL
+                pred.output.all.list[[all.treat.origin[base]]] <- base.output.all
 
-                ME.boot.sd <- apply(ME.boot.matrix, 1, sd, na.rm = TRUE)
-                pred.boot.sd <- apply(pred.boot.matrix, 1, sd, na.rm = TRUE)
-                link.boot.sd <- apply(link.boot.matrix, 1, sd, na.rm = TRUE)
-                diff.boot.sd <- apply(diff.boot.matrix, 1, sd, na.rm = TRUE)
-
-                ME.boot.CI <- t(apply(ME.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                pred.boot.CI <- t(apply(pred.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-                diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
-
-                ME.output.all <- cbind(X.eval, ME.output, ME.boot.sd, ME.boot.CI[, 1], ME.boot.CI[, 2])
-                colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)")
-                rownames(ME.output.all) <- NULL
-                ME.output.all.list[[label]] <- ME.output.all
-
-                pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2])
-                colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
-                rownames(pred.output.all) <- NULL
-                pred.output.all.list[[label]] <- pred.output.all
-
-                link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2])
-                colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
-                rownames(link.output.all) <- NULL
-                link.output.all.list[[label]] <- link.output.all
-
-                ME.vcov.list[[label]] <- ME.boot.vcov
-
-                z.value <- diff.estimate.output / diff.boot.sd
-                p.value <- 2 * pnorm(-abs(z.value))
-                diff.output.all <- cbind(
-                    diff.estimate.output, diff.boot.sd,
-                    z.value, p.value, diff.boot.CI[, 1], diff.boot.CI[, 2]
-                )
-                colnames(diff.output.all) <- c("diff.estimate", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
-                rownames(diff.output.all) <- difference.name
-                diff.output.all.list[[label]] <- diff.output.all
-
-                k <- k + 1
+                link0.delta.sd <- gen.TE.output.base$link.sd
+                link0.output.all <- cbind(X.eval, link0.output, link0.delta.sd, link0.output - crit * link0.delta.sd, link0.output + crit * link0.delta.sd)
+                colnames(link0.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                rownames(link0.output.all) <- NULL
+                link.output.all.list[[all.treat.origin[base]]] <- link0.output.all
             }
-            AME.estimate <- all.output.noCI$AME
-            AME.boot.matrix <- matrix(bootout[rownames(bootout) == "AME", ], nrow = 1)
-            AME.boot.sd <- apply(AME.boot.matrix, 1, sd, na.rm = TRUE)
-            AME.boot.CI <- matrix(t(apply(AME.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE)), nrow = 1)
-            AME.z.value <- AME.estimate / AME.boot.sd
-            AME.p.value <- 2 * pnorm(-abs(AME.z.value))
-            AME.output <- c(AME.estimate, AME.boot.sd, AME.z.value, AME.p.value, AME.boot.CI[, 1], AME.boot.CI[, 2])
-            names(AME.output) <- c("AME", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+
+
+            if (treat.type == "continuous") {
+                ME.output.all.list <- list()
+                pred.output.all.list <- list()
+                diff.output.all.list <- list()
+                ME.vcov.list <- list()
+                link.output.all.list <- list()
+                k <- 1
+                for (D.ref in D.sample) {
+                    label <- label.name[k]
+                    gen.general.ME.output <- all.output.noCI[[label]]$ME
+                    ME.output <- gen.general.ME.output$ME
+                    E.pred.output <- gen.general.ME.output$E.pred
+                    link.output <- gen.general.ME.output$link
+                    diff.estimate.output <- all.output.noCI[[label]]$diff
+
+                    ME.delta.sd <- gen.general.ME.output$ME.sd
+                    ME.output.all <- cbind(X.eval, ME.output, ME.delta.sd, ME.output - crit * ME.delta.sd, ME.output + crit * ME.delta.sd)
+                    colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(ME.output.all) <- NULL
+                    ME.output.all.list[[label]] <- ME.output.all
+
+                    pred.delta.sd <- gen.general.ME.output$predict.sd
+                    pred.output.all <- cbind(X.eval, E.pred.output, pred.delta.sd, E.pred.output - crit * pred.delta.sd, E.pred.output + crit * pred.delta.sd)
+                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(pred.output.all) <- NULL
+                    pred.output.all.list[[label]] <- pred.output.all
+
+                    link.delta.sd <- gen.general.ME.output$link.sd
+                    link.output.all <- cbind(X.eval, link.output, link.delta.sd, link.output - crit * link.delta.sd, link.output + crit * link.delta.sd)
+                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                    rownames(link.output.all) <- NULL
+                    link.output.all.list[[label]] <- link.output.all
+
+                    ME.vcov.list[[label]] <- NULL
+
+                    diff.estimate.value <- diff.estimate.output$difference
+                    diff.delta.sd <- diff.estimate.output$difference.sd
+                    z.value <- diff.estimate.value / diff.delta.sd
+                    p.value <- 2 * pnorm(-abs(z.value))
+                    diff.output.all <- cbind(
+                        diff.estimate.value, diff.delta.sd,
+                        z.value, p.value, diff.estimate.value - crit[1] * diff.delta.sd, diff.estimate.value + crit[1] * diff.delta.sd
+                    )
+                    colnames(diff.output.all) <- c("diff.estimate", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+                    rownames(diff.output.all) <- difference.name
+                    diff.output.all.list[[label]] <- diff.output.all
+
+                    k <- k + 1
+                }
+                AME.estimate.value <- all.output.noCI$AME$AME
+                AME.delta.sd <- all.output.noCI$AME$sd
+                AME.z.value <- AME.estimate.value / AME.delta.sd
+                AME.p.value <- 2 * pnorm(-abs(AME.z.value))
+                AME.output <- c(AME.estimate.value, AME.delta.sd, AME.z.value, AME.p.value, AME.estimate.value - crit[1] * AME.delta.sd, AME.estimate.value + crit[1] * AME.delta.sd)
+                names(AME.output) <- c("AME", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
+            }
         }
     }
 
@@ -1733,8 +2315,8 @@ interflex.kernel <- function(data,
                 E.base.output <- gen.general.TE.output$E.base
                 link.output <- gen.general.TE.output$link.1
                 link0.output <- gen.general.TE.output$link.0
-                diff.estimate.output <- all.output.noCI[[char]]$diff
-                ATE.estimate <- all.output.noCI[[char]]$ATE
+                diff.estimate.output <- all.output.noCI[[char]]$diff$difference
+                ATE.estimate <- all.output.noCI[[char]]$ATE$ATE
 
                 TE.output.all <- cbind(X.eval, TE.output)
                 colnames(TE.output.all) <- c("X", "TE")
@@ -1786,7 +2368,7 @@ interflex.kernel <- function(data,
                 ME.output <- gen.general.ME.output$ME
                 E.pred.output <- gen.general.ME.output$E.pred
                 link.output <- gen.general.ME.output$link
-                diff.estimate.output <- all.output.noCI[[label]]$diff
+                diff.estimate.output <- all.output.noCI[[label]]$diff$difference
 
                 ME.output.all <- cbind(X.eval, ME.output)
                 colnames(ME.output.all) <- c("X", "ME")
@@ -1810,7 +2392,7 @@ interflex.kernel <- function(data,
 
                 k <- k + 1
             }
-            AME.estimate <- all.output.noCI$AME
+            AME.estimate <- all.output.noCI$AME$AME
             AME.output <- c(AME.estimate)
             names(AME.output) <- c("AME")
         }

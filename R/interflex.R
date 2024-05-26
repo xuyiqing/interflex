@@ -1081,6 +1081,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             X.eval = X.eval,
             method = method, ## "probit"; "logit"; "poisson"; "nbinom"
             CI = CI,
+            vartype = vartype,
             nboots = nboots,
             parallel = parallel,
             cores = cores,
