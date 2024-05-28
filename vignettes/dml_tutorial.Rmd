@@ -263,7 +263,7 @@ When setting the option `estimator` to `DML`, the function will conduct the two-
 
 #### Simulation: binary treatment with discrete outcomes
 
-```{r message=FALSE, warning=FALSE}
+```{r simu_s6, message=FALSE, warning=FALSE}
 s6.DML.nn <- interflex(estimator="DML", data = s6, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete", base = 0)
 ```
@@ -289,7 +289,7 @@ The `DML` estimator supports three different machine learning algorithms for Sta
 
 #### Simulation: discrete treatment with discrete outcomes
 
-```{r message=FALSE}
+```{r simu_s9, message=FALSE}
 
 ## true treatment effects 
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
@@ -391,7 +391,7 @@ For practical demonstration, we use dataset **s7** to explore how selecting diff
 
 #### Simulation: continuous treatment with discrete outcome
 
-```{r message=FALSE, warning=FALSE}
+```{r simu_s7, message=FALSE, warning=FALSE}
 
 x_values <- runif(n,min=-3, max = 3) 
 d2_value <- median(d2)  # Example value for d2
@@ -595,7 +595,7 @@ lapply(out.dml.nn$est.dml, head, 20)
 
 ### Comparison across other estimators in interflex
 
-```{r }
+```{r application1}
 
 out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn",
                       Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
@@ -695,7 +695,7 @@ lapply(out.dml.nn$est.dml, head, 20)
 
 ### Comparison acorss other estimators in Interflex
 
-```{r }
+```{r applicaton2}
 
 out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn", 
           Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
