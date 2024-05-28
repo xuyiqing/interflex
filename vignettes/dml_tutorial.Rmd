@@ -24,32 +24,25 @@ knitr::opts_chunk$set(cache =TRUE)
 Load required packages:
 
 ```{r eval=FALSE, include=TRUE}
-require(Rcpp) # for processing C++ code
-require(mgcv) # for GAM
-require(sandwich) # for calculating standard errors
-require(pcse) # in case panel-corrected standard errors will be used
-require(foreach)  # for parallel computing in kernel estimation
-require(doParallel) # for parallel computing in kernel estimation
-require(lmtest) # for wald test
-require(lfe) # for fixed effects estimations
-require(Lmoments) # for L-kurtosis measure
-require(ggplot2)  # for plotting
-require(plotrix) # for plotting
-require(grid) # for plotting
-require(gridExtra) # for plotting
-require(ggplotify) # for plotting
-library(ggpubr) # for plotting 
-require(ggplotify) # for plotting
-require(RColorBrewer) # for plotting
-require(grDevices) # for plotting
-require(grid) # for plotting
-require(gtable) # for plotting
-require(MASS) # for wald test
-require(mvtnorm) # for simulation
-require(pROC) # for auc
-require(ModelMetrics) # for cross entrop
-require(foreign) # for reading in data 
-require(rmarkdown)
+# Function to install packages if not already installed
+install_all <- function(packages) {
+  installed_pkgs <- installed.packages()[, "Package"]
+  for (pkg in packages) {
+    if (!pkg %in% installed_pkgs) {
+      install.packages(pkg)
+    }
+  }
+}
+
+# Packages to be installed
+packages <- c(
+  "Rcpp", "mgcv", "sandwich", "pcse", "foreach", "doParallel", "lmtest", "lfe", "Lmoments", "ggplot2", "plotrix", "grid", "gridExtra", "ggplotify", "ggpubr", "RColorBrewer", "grDevices", "gtable", "MASS", "mvtnorm", "pROC", "ModelMetrics", "foreign", "rmarkdown")
+
+# Install the packages
+install_all(packages)
+
+# Load the packages
+lapply(packages, library, character.only = TRUE)
 ```
 
 ```{r eval=FALSE, include=TRUE}
@@ -57,8 +50,9 @@ require(rmarkdown)
 ##install the up-to-date development version of interflex from Github:
 ## if not already installed
 
-install.packages('devtools', repos = 'http://cran.us.r-project.org') 
+#install.packages('devtools', repos = 'http://cran.us.r-project.org') 
 devtools::install_github('xuyiqing/interflex')
+library(interflex)
 ```
 
 For further instruction on installing **interflex**, please see: <https://github.com/xuyiqing/interflex>
@@ -76,7 +70,7 @@ install.packages("reticulate")
 Then, we use [Miniconda](https://docs.anaconda.com/free/miniconda/), a minimal installer for Conda. Miniconda helps manage Python environments and packages. By default, the installation process will create a virtual environment named `r-reticulate`. 
 
 ```{r eval=FALSE, include=TRUE}
-reticulate::install_miniconda(update = T)
+reticulate::install_miniconda(update = TRUE)
 ```
 
 With Miniconda installed, we point the platform using `use_condaenv`. This step is incorporated in the **interflex** package.
@@ -88,7 +82,7 @@ reticulate::use_condaenv(condaenv = "r-reticulate")
 Finally, install the necessary Python libraries. These libraries include tools for statistical modeling and machine learning that are essential for using the interflex package.
 
 ```{r eval=FALSE, include=TRUE}
-py_install(packages = c("patsy", "numpy", "pandas", "scikit-learn", "doubleml", "econml"))
+reticulate::py_install(packages = c("patsy", "numpy", "pandas", "scikit-learn", "doubleml", "econml"))
 ```
 
 ------------------------------------------------------------------------
@@ -205,7 +199,6 @@ Load the simulated toy datasets (s6, s7, s9) for this tutorial. **s6** is a case
 ```{r}
 data(interflex)
 
-
 ### continuous outcome
 set.seed(1234)
 n <- 200
@@ -273,7 +266,6 @@ When setting the option `estimator` to `DML`, the function will conduct the two-
 ```{r message=FALSE, warning=FALSE}
 s6.DML.nn <- interflex(estimator="DML", data = s6, ml_method="nn",
                        Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), treat.type = "discrete", base = 0)
-
 ```
 
 The estimated treatment effects of "D" on "Y" across the support of "X" are saved in:
@@ -289,7 +281,6 @@ Users can then use the command plot to visualize the treatment effects. For comp
 plot.s6<-plot(s6.DML.nn, show.all = TRUE, Xdistr = 'none')$`1`
 TE <- exp(-1+1+x+1*x)/(1+exp(-1+1+x+1*x))-exp(-1+0+x+0*x)/(1+exp(-1+0+x+0*x))
 plot.s6 + geom_line(aes(x=x,y=TE),color='red')
-
 ```
 
 ### ML model selections
@@ -298,7 +289,7 @@ The `DML` estimator supports three different machine learning algorithms for Sta
 
 #### Simulation: discrete treatment with discrete outcomes
 
-```{r message=FALSE, fig.height=8}
+```{r message=FALSE}
 
 ## true treatment effects 
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
@@ -340,7 +331,9 @@ plot.s9.hgb.2<-plot(s9.DML.hgb, show.all = T)$`2`
 
 p1.hgb<-plot.s9.hgb.1 + geom_line(aes(x=x,y=TE1),color='red')
 p2.hgb<-plot.s9.hgb.2 + geom_line(aes(x=x,y=TE2),color='red')
+```
 
+```{r, fig.height=8}
 p1<-ggarrange(p1.nn, p2.nn)
 p1<-annotate_figure(p1, 
                     top = text_grob("Neural Network",
@@ -379,6 +372,9 @@ s9.DML.nn.2 <- interflex(estimator="DML", data = s9, ml_method="nn",
                        hidden_layer_sizes = c(3, 3, 2),
                        random_state = 1,
                        treat.type = "discrete")
+```
+
+```{r}
 plot(s9.DML.nn.2)
 ```
 
@@ -432,6 +428,9 @@ s7.DML.nn.4 <- interflex(estimator="DML", data = s7, ml_method="nn",
                       dml_method = "non-parametric", 
                        treat.type = "continuous")
 
+```
+
+```{r}
 s7.DML.nn.1<-plot(s7.DML.nn.1, show.all = TRUE)$`D=0.53 (50%)`
 s7.DML.nn.2<-plot(s7.DML.nn.2, show.all = TRUE)$`D=0.53 (50%)`
 s7.DML.nn.3<-plot(s7.DML.nn.3, show.all = TRUE)$`D=0.53 (50%)`
@@ -507,6 +506,10 @@ s7.DML.nn.poly2 <- interflex(estimator="DML", data = s7, ml_method="nn",
                        dml_method = "polynomial", poly_degree = 6,
                        treat.type = "continuous")
 
+
+```
+
+```{r}
 s7.DML.nn.lasso1<-plot(s7.DML.nn.lasso1, show.all = TRUE)$`D=0.53 (50%)`
 s7.DML.nn.lasso2<-plot(s7.DML.nn.lasso2, show.all = TRUE)$`D=0.53 (50%)`
 s7.DML.nn.poly1<-plot(s7.DML.nn.poly1, show.all = TRUE)$`D=0.53 (50%)`
@@ -557,10 +560,12 @@ The authors drew data from four studies conducted among populations that differ 
 
 ### Data overview
 
+
 ```{r}
-path <- "~/Desktop/interflex/Replication/"
-d<-read.dta(paste0(path,"Data/Huddy_APSR_2015/rep_huddy_2015a.dta"),convert.factor=FALSE)
-name<-"huddy_2015a"
+
+data("huddy_2015a")
+d<-huddy_2015a
+
 paged_table(head(d))
 d$pidstr2_threat<-d$pidstr2 * d$threat
 d$issuestr2_threat<-d$issuestr2 * d$threat
@@ -590,7 +595,7 @@ lapply(out.dml.nn$est.dml, head, 20)
 
 ### Comparison across other estimators in interflex
 
-```{r fig.width=10,fig.height=8}
+```{r }
 
 out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn",
                       Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
@@ -620,6 +625,10 @@ out.kernel<-interflex(estimator = "kernel", data=d, Y=Y,D=D,X=X,Z=Z,
                       Dlabel=Dlabel, Xlabel=Xlabel, Ylabel=Ylabel,
                       bw=0.917, Xdistr = "histogram", ylim=c(-0.18,0.6))
 
+
+```
+
+```{r fig.width=10,fig.height=8}
 ggarrange(out.raw, out.est1$figure, out.kernel$figure,
           out.dml.nn$figure, out.dml.rf$figure, out.dml.hgb$figure, 
           common.legend = TRUE, legend = "none",labels = c("Raw",
@@ -629,7 +638,6 @@ ggarrange(out.raw, out.est1$figure, out.kernel$figure,
                                                            "DML: rf",
                                                            "DML: hgb"
                                                            ))
-
 ```
 
 The lower left panel features a diagnostic scatterplot, illustrating that the relationship between anger and partisan identity is closely approximated by a linear fit in both treated and untreated groups, as indicated by the proximity of the linear and LOESS lines. This supports the assumption of a nearly linear interaction effect, with the impact of the threat on anger intensifying as partisan identity increases. Furthermore, the box plots demonstrate ample sufficient support for partisan identity ranging from approximately 0.3 to 1.
@@ -651,8 +659,10 @@ In the example, the dataset consists of 183 cases. The key variables include:
 ### Data overview
 
 ```{r}
-path <- "~/Desktop/interflex/Replication/"
-d<-read.dta(paste0(path,"Data/Vernby_AJPS_2013/AJPSReplicationdata_cleaned.RData"),convert.factor=FALSE)
+
+data("vernby_2013a")
+d<-vernby_2013a
+
 Y="school_diff" 
 D="noncitvotsh" 
 X="noncit15" 
@@ -685,7 +695,7 @@ lapply(out.dml.nn$est.dml, head, 20)
 
 ### Comparison acorss other estimators in Interflex
 
-```{r fig.width=11,fig.height=9}
+```{r }
 
 out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn", 
           Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
@@ -720,6 +730,9 @@ out.kernel<-interflex(estimator = "kernel", data=d, Y=Y,D=D,X=X,Z=Z,
                       Dlabel=Dlabel, Xlabel=Xlabel, Ylabel=Ylabel,
                       Xdistr = "histogram")
 
+```
+
+```{r fig.width=11,fig.height=9}
 ggarrange(out.raw, out.est1$figure, out.kernel$figure,
           out.dml.nn$figure, out.dml.rf$figure, out.dml.hgb$figure, 
           common.legend = TRUE, legend = "none",labels = c(
@@ -730,7 +743,6 @@ ggarrange(out.raw, out.est1$figure, out.kernel$figure,
                                                            "DML: rf",
                                                            "DML: hgb"
                                                            ))
-
 
 ```
 
