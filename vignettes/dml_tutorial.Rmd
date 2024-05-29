@@ -23,7 +23,7 @@ knitr::opts_chunk$set(cache =TRUE)
 
 Load required packages:
 
-```{r eval=FALSE, include=TRUE}
+```{r eval=TRUE, include=TRUE}
 # Function to install packages if not already installed
 install_all <- function(packages) {
   installed_pkgs <- installed.packages()[, "Package"]
@@ -51,7 +51,7 @@ lapply(packages, library, character.only = TRUE)
 ## if not already installed
 
 #install.packages('devtools', repos = 'http://cran.us.r-project.org') 
-devtools::install_github('xuyiqing/interflex')
+devtools::install_github('xuyiqing/interflex@dml')
 library(interflex)
 ```
 
@@ -82,7 +82,7 @@ reticulate::use_condaenv(condaenv = "r-reticulate")
 Finally, install the necessary Python libraries. These libraries include tools for statistical modeling and machine learning that are essential for using the interflex package.
 
 ```{r eval=FALSE, include=TRUE}
-reticulate::py_install(packages = c("patsy", "numpy", "pandas", "scikit-learn", "doubleml", "econml"))
+reticulate::py_install(packages = c("patsy", "numpy", "pandas", "scikit-learn==1.2.0", "doubleml", "econml"))
 ```
 
 ------------------------------------------------------------------------
@@ -406,7 +406,7 @@ marginal_effect <- function(D_value, X_value) {
 # Applying the function to the range of x values to calculate true ME
 ME <- sapply(x_values, function(x_val) marginal_effect(d2_value, x_val))
 
-
+library(interflex)
 s7.DML.nn.1 <- interflex(estimator="DML", data = s7, ml_method="nn",
                          Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
                          dml_method = "default",
@@ -543,7 +543,6 @@ p4.nn<-s7.DML.nn.poly2 +
 ggarrange(p1.nn, p2.nn,
           p3.nn, p4.nn, 
           ncol = 2, nrow = 2)
-
 ```
 
 ------------------------------------------------------------------------
