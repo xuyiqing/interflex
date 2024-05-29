@@ -21,9 +21,10 @@ knitr::opts_chunk$set(cache =TRUE)
 
 ## Packages and environment setup
 
-Load required packages:
+#Load required packages:
 
-```{r eval=TRUE, include=TRUE}
+```{r results='asis', echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
 # Function to install packages if not already installed
 install_all <- function(packages) {
   installed_pkgs <- installed.packages()[, "Package"]
