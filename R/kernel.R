@@ -18,7 +18,7 @@ interflex.kernel <- function(data,
                              X.eval = NULL,
                              method = "linear", ## "probit"; "logit"; "poisson"; "nbinom"
                              CI = TRUE,
-                             vartype = "delta", ## "delta"; "bootstrap"
+                             vartype = "bootstrap", ## "delta"; "bootstrap"
                              nboots = 200,
                              parallel = TRUE,
                              cores = 4,
@@ -54,6 +54,7 @@ interflex.kernel <- function(data,
                              scale = 1.1,
                              height = 7,
                              width = 10) {
+
     WEIGHTS <- NULL
     n <- dim(data)[1]
 
@@ -271,7 +272,7 @@ interflex.kernel <- function(data,
 
         dat1 <- as.matrix(data.touse[, use.variable])
         dat.FE <- as.matrix(data.touse[, FE], drop = FALSE)
-
+        
         invisible(
             capture.output(
                 fastplm_res <- tryCatch(fastplm(
@@ -283,7 +284,6 @@ interflex.kernel <- function(data,
                 type = "message"
             )
         )
-
 
         if (typeof(fastplm_res) != "list") {
             result <- rep(NA, 1 + n.coef)
@@ -351,7 +351,6 @@ interflex.kernel <- function(data,
             }
         }
         formula <- paste0(formula, "|", formula.iv)
-        # print(formula)
         formula <- as.formula(formula)
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
         density.mean <- exp(mean(log(Xdensity$y)))
@@ -549,7 +548,6 @@ interflex.kernel <- function(data,
     } else {
         CV <- FALSE
     }
-
     if (CV == TRUE) {
         # weights: name of a variable
         getError.CV <- function(train, test, bw, neval,
@@ -738,7 +736,6 @@ interflex.kernel <- function(data,
 
             output <- c(eff.eval.point, output)
             names(output) <- c("Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
-            # print(output)
             return(output)
         }
 
@@ -840,9 +837,6 @@ interflex.kernel <- function(data,
     } else {
         Error <- NULL
     }
-
-
-
     # Core Estimation, gen grid points
 
     count <- 1
@@ -868,7 +862,6 @@ interflex.kernel <- function(data,
     X.eval <- coef.grid[, "x0"]
     neval <- length(X.eval)
 
-    # print(neval)
     cat(paste0("Number of evaluation points:", neval, "\n"))
 
     gen.sd <- function(result, to.diff = FALSE) {
