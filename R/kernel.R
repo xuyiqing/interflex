@@ -147,7 +147,7 @@ interflex.kernel <- function(data,
             endogenous.var <- c(endogenous.var, c(D, "D.delta.x"))
             n.coef <- n.coef + 2
         }
-        
+
         # construct weight
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
         density.mean <- exp(mean(log(Xdensity$y)))
@@ -187,14 +187,14 @@ interflex.kernel <- function(data,
             result = result, model.vcov = model.vcov,
             model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse
         ))
-   }
+    }
 
     wls.fe <- function(x, data, bw, weights, Xdensity) {
         data.touse <- data
         data.touse[, "delta.x"] <- data.touse[, X] - x
         use.variable <- c(Y, "delta.x")
         n.coef <- 1
-        
+
         if (treat.type == "discrete") {
             for (char in other.treat) {
                 data.touse[, paste0("D.delta.x", ".", char)] <- data.touse[, paste0("D", ".", char)] * data.touse[, "delta.x"]
@@ -230,8 +230,8 @@ interflex.kernel <- function(data,
             result <- rep(NA, 1 + n.coef)
             return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
         }
-        
-        formula <- paste0(use.variable[1], "~", paste0(use.variable[2:length(use.variable)], collapse="+"), "|", paste0(FE, collapse="+"))
+
+        formula <- paste0(use.variable[1], "~", paste0(use.variable[2:length(use.variable)], collapse = "+"), "|", paste0(FE, collapse = "+"))
         fe_res <- feols(fml = as.formula(formula), data = data.touse, weights = w, vcov = "hetero")
 
         if (typeof(fe_res) != "list") {
@@ -249,8 +249,10 @@ interflex.kernel <- function(data,
         rownames(model.vcov) <- c("(Intercept)", rownames(model.vcov.original))
         colnames(model.vcov) <- c("(Intercept)", colnames(model.vcov.original))
 
-        return(list(result = result, model.vcov = model.vcov,
-                    model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse))
+        return(list(
+            result = result, model.vcov = model.vcov,
+            model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse
+        ))
     }
 
     wls.iv <- function(x, data, bw, weights, Xdensity) {
@@ -335,15 +337,18 @@ interflex.kernel <- function(data,
             names(result) <- c("x0", all.var.name)
             return(list(
                 result = result, model.vcov = NULL,
-                model.df = NULL, data.touse = NULL))
+                model.df = NULL, data.touse = NULL
+            ))
         }
 
         result <- c(x, iv.reg$coef)
         names(result) <- c("x0", names(iv.reg$coef))
         result[which(is.na(result))] <- 0
         return(result)
-        return(list(result = result, model.vcov = vcov(iv.reg, type="H2"), 
-                    model.df = iv.reg$df.residual, data.touse = data.touse))
+        return(list(
+            result = result, model.vcov = vcov(iv.reg, type = "H2"),
+            model.df = iv.reg$df.residual, data.touse = data.touse
+        ))
     }
 
     wls.nofe <- function(x, data, bw, weights, Xdensity) {
@@ -521,13 +526,13 @@ interflex.kernel <- function(data,
             }
 
             if (use_fe == TRUE) {
-                fe_res <- feols(fml = as.formula(paste0(Y, " ~ 1 | ", paste(FE, collapse="+"))), data = train, weights = w.touse.cv)
+                fe_res <- feols(fml = as.formula(paste0(Y, " ~ 1 | ", paste(FE, collapse = "+"))), data = train, weights = w.touse.cv)
                 FEvalues <- fixef(fe_res)
                 FEnumbers <- fe_res$fixef_sizes
                 FE_coef <- matrix(0, nrow = sum(FEnumbers), ncol = 1)
                 rowname <- c()
                 fe_index_name <- c()
-                for (fe in FE){
+                for (fe in FE) {
                     for (i in 1:FEnumbers[[fe]]) {
                         FE_coef[i, 1] <- FEvalues[[fe]][i]
                         rowname <- c(rowname, paste0(fe, ".", names(FEvalues[[fe]])[i]))
@@ -819,15 +824,15 @@ interflex.kernel <- function(data,
 
     cat(paste0("Number of evaluation points:", neval, "\n"))
 
-    gen.sd <- function(result, to.diff = FALSE) {
+    gen.sd <- function(result, char = NULL, D.ref=NULL, to.diff = FALSE) {
         coef.grid <- result$result
         x_prev <- coef.grid["x0"]
         model.vcov <- result$model.vcov
         data.touse <- result$data.touse
         x <- data.touse[which.min(abs(data.touse[[X]] - x_prev)), "delta.x"]
         if (treat.type == "discrete") {
-            link.1 <- coef.grid["(Intercept)"] + x * coef.grid[X] + 1 * coef.grid[paste0("D.", char)] + x * coef.grid[paste0("D.delta.x.", char)]
-            link.0 <- coef.grid["(Intercept)"] + x * coef.grid[X]
+            link.1 <- coef.grid["(Intercept)"] + x * coef.grid["delta.x"] + 1 * coef.grid[paste0("D.", char)] + x * coef.grid[paste0("D.delta.x.", char)]
+            link.0 <- coef.grid["(Intercept)"] + x * coef.grid["delta.x"]
             if (is.null(Z) == FALSE) {
                 for (a in Z) {
                     target.Z <- Z.ref[a]
@@ -841,13 +846,16 @@ interflex.kernel <- function(data,
                     vec.1 <- c(1, x, 1, x, Z.ref)
                     vec.0 <- c(1, x, 0, 0, Z.ref)
                     target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char), Z)
+                } else {
+                    vec.1 <- c(1, x, 1, x, Z.ref, x * Z.ref)
+                    vec.0 <- c(1, x, 0, 0, Z.ref, x * Z.ref)
+                    target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char), Z, paste0(Z, ".delta.x"))
                 }
             } else {
                 vec.1 <- c(1, x, 1, x)
                 vec.0 <- c(1, x, 0, 0)
                 target.slice <- c("(Intercept)", "delta.x", paste0("D.", char), paste0("D.delta.x.", char))
             }
-            temp.vcov.matrix <- model.vcov[target.slice, target.slice]
             if (method == "logit") {
                 vec <- vec.1 * exp(link.1) / (1 + exp(link.1))^2 - vec.0 * exp(link.0) / (1 + exp(link.0))^2
             }
@@ -860,6 +868,7 @@ interflex.kernel <- function(data,
             if (method == "linear") {
                 vec <- vec.1 - vec.0
             }
+            temp.vcov.matrix <- model.vcov[target.slice, target.slice]
             if (to.diff == TRUE) {
                 return(list(vec = vec, temp.vcov.matrix = temp.vcov.matrix))
             }
@@ -917,7 +926,7 @@ interflex.kernel <- function(data,
     # 2, estimate E.pred given treat/D;
     # 3, input: coef.grid; char(discrete)/D.ref(continuous);
     # 4, output: marginal effects/treatment effects/E.pred/E.base
-    gen.kernel.TE <- function(coef.grid, char = NULL, D.ref = NULL) {
+    gen.kernel.TE <- function(coef.grid, char = NULL, D.ref = NULL, base.flag=FALSE) {
         if (is.null(char) == TRUE) {
             treat.type <- "continuous"
         }
@@ -1147,7 +1156,12 @@ interflex.kernel <- function(data,
             return(gen.TE.output)
         }
 
-        TE.sd <- c(mapply(function(x) gen.sd(x), x = results))
+        if (base.flag == FALSE) {
+            TE.sd <- c(mapply(function(x) gen.sd(x, char = char, D.ref = D.ref), x = results))
+        } else {
+            TE.sd <- NULL
+        }
+        
         if (treat.type == "discrete") {
             if (char == base) {
                 link.sd <- c(sapply(results, function(x) gen.link.sd(x, base = TRUE)))
@@ -1200,7 +1214,6 @@ interflex.kernel <- function(data,
             ))
         }
     }
-
 
     ## Function C: estimate difference of TE/ME at different values of the moderator
     # 1,	input: coef.grid; char/D.ref; diff.values
@@ -1380,8 +1393,8 @@ interflex.kernel <- function(data,
                 difference <- c(est.ME(diff.values[2]) - est.ME(diff.values[1]))
             }
 
-            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
-            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
+            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
             vec1 <- vec.list1$vec
             vec2 <- vec.list2$vec
             vec <- vec2 - vec1
@@ -1404,9 +1417,9 @@ interflex.kernel <- function(data,
                 difference <- c(difference1, difference2, difference3)
             }
 
-            vec.list3 <- gen.sd(wls(x = diff.values[3], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
-            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
-            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), to.diff = TRUE)
+            vec.list3 <- gen.sd(wls(x = diff.values[3], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
             vec1 <- vec.list1$vec
             vec2 <- vec.list2$vec
             vec3 <- vec.list3$vec
@@ -1432,7 +1445,6 @@ interflex.kernel <- function(data,
         }
         return(list(difference = difference, difference.sd = difference.sd))
     }
-
 
     ## Function D: estimate ATE/AME
     gen.ATE <- function(data, coef.grid, model.vcovs, char = NULL) {
@@ -1719,7 +1731,6 @@ interflex.kernel <- function(data,
         }
     }
 
-
     all.output.noCI <- list()
     if (treat.type == "discrete") {
         for (char in other.treat) {
@@ -1737,7 +1748,7 @@ interflex.kernel <- function(data,
                 ATE = gen.ATE.output
             )
         }
-        gen.TE.output.base <- gen.kernel.TE(coef.grid = coef.grid, char = base)
+        gen.TE.output.base <- gen.kernel.TE(coef.grid = coef.grid, char = base, base.flag = TRUE)
     }
 
     if (treat.type == "continuous") {
@@ -1760,8 +1771,6 @@ interflex.kernel <- function(data,
         AME.estimate <- gen.ATE(coef.grid = coef.grid, model.vcovs = model.vcovs, data = data)
         all.output.noCI[["AME"]] <- AME.estimate
     }
-
-
 
     if (CI == TRUE) {
         if (vartype == "bootstrap") {
