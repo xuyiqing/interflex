@@ -23,7 +23,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       pairwise = TRUE,
                       nboots = 200,
                       nsimu = 1000,
-                      parallel = TRUE,
+                      parallel = FALSE,
                       cores = 4,
                       cl = NULL, # variable to be clustered on
                       Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value

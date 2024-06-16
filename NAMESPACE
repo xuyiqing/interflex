@@ -33,6 +33,7 @@ importFrom("lmtest","waldtest","lrtest")
 importFrom("lfe","felm")
 importFrom("MASS","glm.nb")
 importFrom("AER","ivreg")
+importFrom("fixest","feols", "fixef", "degrees_freedom")
 
 export(interflex)
 S3method("plot", "interflex")
