@@ -17,5 +17,5 @@ StripTrailingWhitespace: Yes
 
 BuildType: Package
 PackageUseDevtools: Yes
-PackagePath: /Users/tianzhuqin/Documents/interflex
+PackagePath: /Users/tianzhuqin/Documents/interflex 2
 PackageInstallArgs: --no-multiarch --with-keep.source
