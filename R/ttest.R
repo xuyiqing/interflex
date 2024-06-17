@@ -62,7 +62,7 @@ inter.test <- function(out,
     estimator <- out$estimator
 
     if (estimator == "kernel") {
-        if (out$CI == FALSE | out$vcov.matrix == NULL) {
+        if (out$CI == FALSE | length(out$vcov.matrix) == 0) {
             stop("ttest() can't work without vcov matrix. You may try set vartype as bootstrap for kernel method.")
         }
     }
