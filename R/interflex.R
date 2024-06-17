@@ -23,7 +23,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       pairwise = TRUE,
                       nboots = 200,
                       nsimu = 1000,
-                      parallel = TRUE,
+                      parallel = FALSE,
                       cores = 4,
                       cl = NULL, # variable to be clustered on
                       Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
@@ -84,7 +84,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       span = NULL,
                       scale = 1.1,
                       height = 7,
-                      width = 10) {
+                      width = 10,
+                      box.pos = "down") {
     ##################################################### CHECK ##############################################################
     ## in case data is in tibble format
     if (is.data.frame(data) == FALSE) {
@@ -1080,6 +1081,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             X.eval = X.eval,
             method = method, ## "probit"; "logit"; "poisson"; "nbinom"
             CI = CI,
+            vartype = vartype,
             nboots = nboots,
             parallel = parallel,
             cores = cores,
@@ -1173,7 +1175,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             file = file,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            box.pos = box.pos,
+            xlim = xlim,
+            ylim = ylim
         )
     }
 
