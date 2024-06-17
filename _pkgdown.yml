@@ -8,8 +8,10 @@ navbar:
       href: articles/continuous.html
     - text: "Discrete"
       href: articles/discrete.html
-    - text: "Functions"
-      href: reference/index.html
+    - text: "DML"
+      href: articles/dml.html
+#    - text: "Functions"
+#      href: reference/index.html
     - text: "Changelog"
       href: news/index.html
     - text: "Stata"
@@ -42,7 +44,7 @@ authors:
 
 home:
   title: interflex--flexiblely estimate interactive models
-  description: producing flexible marginal effect estimates with multiplicative interaction models
+  description: estimates, interprets, and visualizes marginal effects and performs diagnostics.
   links:
   - text: Yiqing's Homepage
     href: https://yiqingxu.org/

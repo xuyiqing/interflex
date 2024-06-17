@@ -1,5 +1,6 @@
 \name{interflex-package}
 \alias{interflex-package}
+\keyword{internal}
 \docType{package}
 \title{Multiplicative Interaction Models Diagnostics and Visualization}
 \description{Producing Flexible Marginal Effect Estimates with Multiplicative Interaction Models}

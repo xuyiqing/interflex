@@ -1,12 +1,12 @@
 ---
-title: 'Tutorial: Discrete Outcomes'
+title: 'Interflex with Discrete Outcomes'
 output:
   rmarkdown::html_vignette:
     toc: false
     toc_depth: 4
     number_sections: false
 vignette: >
-  %\VignetteIndexEntry{Tutorial: Discrete Outcomes}
+  %\VignetteIndexEntry{Interflex with Discrete Outcomes}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}  
 ---
@@ -18,10 +18,8 @@ vignette: >
     </style>
 -->   
 ```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(warning=FALSE)
 ```  
 
 Load the package as well as the simulated toy datasets for this tutorial. **s1**-**s5** are for the tutorial for **interflex** with [continuous](continuous.html) outcomes. The response variable **Y** in **s6**-**s9** are all binary(0/1), and the link function is logit.

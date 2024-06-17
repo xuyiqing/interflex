@@ -1,5 +1,6 @@
 \name{s4}
 \docType{data}
+\keyword{internal}
 \alias{s4}
 \title{s4}
 \description{Simulated dataset 4: dichotomous treatment with fixed effects.}
