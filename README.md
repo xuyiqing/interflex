@@ -9,17 +9,20 @@
 experimental](https://img.shields.io/badge/lifecycle-stable-green.svg)](https://www.tidyverse.org/lifecycle/#stablel)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![downloads:
+CRAN](https://cranlogs.r-pkg.org/badges/grand-total/interflex)](https://www.datasciencemeta.com/rpackages)
 <!-- badges: end -->
 
-**interflex** produces flexible marginal effect estimates with
-multiplicative interaction models.
+**interflex** estimates, interprets, and visualizes marginal effects and
+performs diagnostics.
 
-**Authors:** Jens Hainmueller, Jonathan Mummolo, [Yiqing
-Xu](https://yiqingxu.org/), and Ziyi Liu
+**Authors:** Jens Hainmueller, Jiehan Liu, Licheng Liu, Ziyi Liu,
+Jonathan Mummolo, Tianzhu Qin, and [Yiqing Xu](https://yiqingxu.org/)
+(maintainer)
 
-**Date:** April 1, 2021
+**Date:** June 18, 2024
 
-**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.2.6)
+**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.3.0)
 [CRAN](https://cran.r-project.org/web/packages/interflex/index.html)
 (1.2.6)
 
@@ -27,7 +30,9 @@ Xu](https://yiqingxu.org/), and Ziyi Liu
 [continuous](https://yiqingxu.org/packages/interflex/articles/continuous.html)
 and
 [discrete](https://yiqingxu.org/packages/interflex/articles/discrete.html)
-outcomes.
+outcomes, as well as a tutorial for double/debiased machine learning
+([DML](https://yiqingxu.org/packages/interflex/articles/dml.html))
+estimators.
 
 **Examples:** R code used in the tutorials can be downloaded from
 [here](examples.R).
@@ -59,27 +64,25 @@ automatically when **interflex** is being installed; if not, please
 install them manually:
 
 ``` r
-require(Rcpp) # for processing C++ code
-require(mgcv) # for GAM
-require(sandwich) # for calculating standard errors
-require(pcse) # in case panel-corrected standard errors will be used
-require(foreach)  # for parallel computing in kernel estimation
-require(doParallel) # for parallel computing in kernel estimation
-require(lmtest) # for wald test
-require(lfe) # for fixed effects estimations
-require(Lmoments) # for L-kurtosis measure
-require(ggplot2)  # for plotting
-require(plotrix) # for plotting
-require(grid) # for plotting
-require(gridExtra) # for plotting
-require(ggplotify) # for plotting
-require(RColorBrewer) # for plotting
-require(grDevices) # for plotting
-require(gtable) # for plotting
-require(MASS) # for wald test
-require(mvtnorm) # for simulation
-require(pROC) # for auc
-require(ModelMetrics) # for cross entropy
+# Function to install packages
+install_all <- function(packages) {
+  installed_pkgs <- installed.packages()[, "Package"]
+  for (pkg in packages) {
+    if (!pkg %in% installed_pkgs) {
+      install.packages(pkg, repos = 'http://cran.us.r-project.org')
+    }
+  }
+}
+
+# Packages to be installed
+packages <- c("Rcpp", "mgcv", "sandwich", "pcse", "foreach", "doParallel", 
+              "lmtest", "lfe", "Lmoments", "ggplot2", "plotrix", "grid", 
+              "gridExtra", "ggplotify", "ggpubr", "RColorBrewer", "grDevices", 
+              "gtable", "MASS", "mvtnorm", "pROC", "ModelMetrics", "foreign",
+              "patchwork", "rmarkdown")
+
+# Install the packages
+install_all(packages)
 ```
 
 Mac users who encounter “-lgfortran” or “-lquadmath” error during
@@ -97,6 +100,46 @@ Mac users who encounter **clang: error: unsupported option ‘-fopenmp’**,
 please consider (1) updating your R and/or (2) installing new R macro
 tools from
 [Github](https://github.com/rmacoslib/r-macos-rtools/releases/tag/v3.1.0).
+
+## Python Environment
+
+To use the double/debiased machine learning estimators in **interflex**,
+we rely on packages in Python. The integration between R and Python is
+facilitated by the **reticulate** package, which allows R to interface
+with Python seamlessly. The following steps set up a Python environment
+with all required dependencies.
+
+First, install the **reticulate** package in R. This package enables R
+to interface with Python.
+
+``` r
+install.packages("reticulate", repos = 'http://cran.us.r-project.org')
+```
+
+Then, we use [Miniconda](https://docs.anaconda.com/free/miniconda/), a
+minimal installer for Conda. Miniconda helps manage Python environments
+and packages. By default, the installation process will create a virtual
+environment named `r-reticulate`.
+
+``` r
+reticulate::install_miniconda(update = TRUE)
+```
+
+With Miniconda installed, we point the platform using `use_condaenv`.
+This step is incorporated in the **interflex** package.
+
+``` r
+reticulate::use_condaenv(condaenv = "r-reticulate")
+```
+
+Finally, install the necessary Python libraries. These libraries include
+tools for statistical modeling and machine learning that are essential
+for using the interflex package.
+
+``` r
+reticulate::py_install(packages = c("patsy", "numpy", "pandas", 
+                    "scikit-learn==1.2.0", "doubleml", "econml"))
+```
 
 ## Report bugs
 

@@ -1,12 +1,12 @@
 ---
-title: 'Tutorial: Continuous Outcomes'
+title: 'Interflex with Continuous Outcomes'
 output:
   rmarkdown::html_vignette:
     toc: false
     toc_depth: 4
     number_sections: false
 vignette: >
-  %\VignetteIndexEntry{Tutorial: Continuous Outcomes}
+  %\VignetteIndexEntry{Interflex with Continuous Outcomes}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}  
 ---
@@ -17,12 +17,12 @@ vignette: >
     text-align: justify}
     </style>
 -->   
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache =TRUE)
+knitr::opts_chunk$set(warning=FALSE)
+``` 
 
 Let's load the package as well as the simulated toy datasets. Note that **s6**-**s9** are for the tutorial for **interflex** with [discrete](discrete.html) outcomes.
 ```{r, message = FALSE}
@@ -229,7 +229,7 @@ Note that we can use the `file` option to save a plot to a file in **interflex**
 We move on to linear fixed effects models. Remember in **s4**, a large chunk of the variation in the outcome variable is driven by group fixed effects. Below is a scatterplot of the raw data (group index vs. outcome). Red and green dots represent treatment and control units, respectively. We can see that outcomes are highly correlated within a group.  
 ```{r fe1, cache=TRUE, message=FALSE, fig.height=4, fig.width=8}
 library(ggplot2)
-ggplot(s4, aes(x=group, y = Y, colour = as.factor(D))) + geom_point() + guides(colour=FALSE) 
+ggplot(s4, aes(x=unit, y = Y, colour = as.factor(D))) + geom_point() + guides(colour=FALSE) 
 ```
 
 When fixed effects are present, it is possible that we cannot observe a clear pattern of marginal effects in the raw plot as before, while binning estimates have wide confidence intervals:
@@ -241,7 +241,7 @@ interflex(estimator = "raw", Y = "Y", D = "D", X = "X", data = s4,
 
 ```{r fe3, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                        estimator = "binning", FE = NULL, cl = "group")
+                        estimator = "binning", FE = NULL, cl = "unit")
 plot(s4.binning)
 ```
 
@@ -249,8 +249,8 @@ The binning estimates are much more informative when fixed effects are included,
 ```{r fe4, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4$wgt <- 1
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                        estimator = "binning", FE = c("group", "year"), 
-                        cl = "group", weights = "wgt")
+                        estimator = "binning", FE = c("unit", "year"), 
+                        cl = "unit", weights = "wgt")
 plot(s4.binning)
 ```
 
@@ -258,21 +258,21 @@ When fixed effects are not taken into account, the kernel estimates are also les
 ```{r fe5, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
                        estimator = "kernel", FE = NULL, 
-                       cl = "group", weights = "wgt")
+                       cl = "unit", weights = "wgt")
 plot(s4.kernel)
 ```
 
 Controlling for fixed effects by using the `FE` option solves this problem. The estimates are now much closer to the population truth. Note that all uncertainty estimates are produced via bootstrapping. When the `cl` option is specified, a block bootstrap procedure will be performed.  
 ```{r fe6, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                       estimator = "kernel", FE = c("group","year"), cl = "group")
+                       estimator = "kernel", FE = c("unit","year"), cl = "unit")
 plot(s4.kernel)
 ```
 
 With large datasets, cross-validation or bootstrapping can take a while. One way to check the result quickly is to shut down the bootstrap procedure (using `CI = FALSE`). **interflex** will then present the point estimates only. Another way is to supply a reasonable bandwidth manually by using the `bw` option such that cross-validation will be skipped. 
 ```{r fe7, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                       estimator = "kernel", bw = 0.62, FE = c("group","year"), cl = "group", 
+                       estimator = "kernel", bw = 0.62, FE = c("unit","year"), cl = "unit", 
                        CI = FALSE, ylim = c(-9, 15), theme.bw = TRUE)
 plot(s4.kernel)
 ```
@@ -364,7 +364,8 @@ Starting from v.1.1.0, **interflex** allows users to compare treatment effects a
 
 ```{r dbt1, fig.height=5, fig.width=10, message=FALSE,results = "hide", cache = TRUE}
 s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), data = s5, 
-                      estimator = "kernel", diff.values = c(-2,0,2))
+                      estimator = "kernel", diff.values = c(-2,0,2),
+                      vartype = "bootstrap")
 plot(s5.kernel,diff.values = c(-2,0,2))
 ```
 

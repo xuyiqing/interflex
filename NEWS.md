@@ -1,3 +1,11 @@
+# interflex 1.3.0
+
+1. Add support for DML estimators.
+
+2. Replace `fastplm` with `fixest` for estimating fixed effects models
+
+3. Add analytical standard errors for the kernel estimator. 
+
 # interflex 1.2.1
 
 1. Allows users to conduct linear, binning and kernel estimation using glm functions including logit, probit, poisson and negative binomial model. 

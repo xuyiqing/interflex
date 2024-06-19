@@ -1,5 +1,6 @@
 \name{s1}
 \docType{data}
+\keyword{internal}
 \alias{s1}
 \title{s1}
 \description{Simulated dataset 1: dichotomous treatment with linear marginal effects.}

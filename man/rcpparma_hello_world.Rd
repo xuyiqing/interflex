@@ -1,5 +1,6 @@
 \name{RcppArmadillo-Functions}
 \alias{rcpparma_hello_world}
+\keyword{internal}
 \alias{rcpparma_innerproduct}
 \alias{rcpparma_outerproduct}
 \alias{rcpparma_bothproducts}

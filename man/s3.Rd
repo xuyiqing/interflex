@@ -1,5 +1,6 @@
 \name{s3}
 \docType{data}
+\keyword{internal}
 \alias{s3}
 \title{s3}
 \description{Simulated dataset 3: dichotomous treatment with nonlinear marginal effects.}
