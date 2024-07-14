@@ -41,3 +41,5 @@ docs
 .DS_Store
 
 R/DML copy.R
+
+.interflex.Rproj

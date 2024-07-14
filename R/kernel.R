@@ -386,11 +386,16 @@ interflex.kernel <- function(data,
         }
 
         formula <- as.formula(formula)
+        
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        # density.mean <- exp(mean(log(Xdensity$y)))
         bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        # bw.adapt <- bw * sqrt(density.mean/temp_density)
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
+        if (0 %in% w) {
+            w <- w + min(w[w != 0])
+        }
+        # density.mean <- exp(mean(log(Xdensity$y)))
+        # bw.adapt <- bw * sqrt(density.mean/temp_density)
+
         data.touse[, "WEIGHTS"] <- w
         if (max(data.touse[, "WEIGHTS"]) == 0) {
             result <- rep(NA, 1 + n.coef)
@@ -460,11 +465,9 @@ interflex.kernel <- function(data,
             )
             return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
         }
-
         glm.reg.summary <- summary(glm.reg, robust = "HC2")
         glm.reg.vcov <- vcovHC(glm.reg, type = "HC2")
         glm.reg.df <- glm.reg$df.residual
-
         if (glm.reg$converged == FALSE) {
             result <- rep(NA, 1 + length(glm.reg$coef))
             names(result) <- c(
@@ -539,7 +542,6 @@ interflex.kernel <- function(data,
                         fe_index_name <- c(fe_index_name, fe)
                     }
                 }
-
                 rownames(FE_coef) <- rowname
                 train[, Y] <- fe_res$residuals
             }
