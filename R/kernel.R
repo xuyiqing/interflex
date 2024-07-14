@@ -892,6 +892,10 @@ interflex.kernel <- function(data,
                     vec1 <- c(1, x, D.ref, D.ref * x, Z.ref)
                     vec0 <- c(0, 0, 1, x, rep(0, length(Z)))
                     target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
+                } else {
+                    vec1 <- c(1, x, D.ref, D.ref * x, Z.ref, x * Z.ref)
+                    vec0 <- c(0, 0, 1, x, rep(0, length(Z)), rep(0, length(Z)))
+                    target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z, paste0(Z, ".delta.x"))
                 }
             } else {
                 vec1 <- c(1, x, D.ref, D.ref * x)
@@ -973,7 +977,7 @@ interflex.kernel <- function(data,
                     target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
                     if (full.moderate == TRUE) {
                         vec <- c(vec, Z.ref * x)
-                        target.slice <- c(target.slice, Z.X)
+                        target.slice <- c(target.slice, paste0(Z, ".delta.x"))
                     }
                 } else {
                     vec <- c(1, x, D.ref, D.ref * x)

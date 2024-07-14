@@ -44,4 +44,4 @@ R/DML copy.R
 
 .interflex.Rproj
 
-vignettes/*_cache
+vignettes/*_cache*
