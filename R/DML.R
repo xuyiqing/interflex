@@ -8,7 +8,6 @@ interflex.DML <- function(data,
                           weights = NULL, # weighting variable
                           ml_method = "rf",
                           trimming_threshold = 0.01,
-                          n_folds = 5,
                           n_estimators = 500,
                           solver = "adam",
                           max_iter = 10000,
@@ -21,6 +20,11 @@ interflex.DML <- function(data,
                           casual_forest_criterion = "mse",
                           casual_forest_n_estimators = 1000,
                           casual_forest_in_impurity_decrease = 0.001,
+                          CV = FALSE,
+                          param_grid = NULL,
+                          n_folds = 10,
+                          n_jobs = -1,
+                          scoring = "neg_mean_squared_error",
                           figure = TRUE,
                           CI = CI,
                           order = NULL,
@@ -137,9 +141,10 @@ interflex.DML <- function(data,
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
             TE.output.all.python <- marginal_effect_for_binary_treatment(data_part,
                 ml_method = ml_method, Y = Y, D = D, X = X, Z = Z,
-                trimming_threshold = trimming_threshold, n_folds = n_folds,
+                trimming_threshold = trimming_threshold,
                 n_estimators = n_estimators,
-                solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state
+                solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state,
+                CV = CV, param_grid = param_grid, n_folds = n_folds, n_jobs = n_jobs, scoring=scoring
             )
             TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
             TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
@@ -158,7 +163,8 @@ interflex.DML <- function(data,
                 poly_degree = poly_degree, lasso_alpha = lasso_alpha,
                 casual_forest_criterion = casual_forest_criterion,
                 casual_forest_n_estimators = casual_forest_n_estimators,
-                casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease
+                casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease,
+                CV = CV, param_grid = param_grid, n_folds = n_folds, n_jobs = n_jobs, scoring=scoring
             )
             TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
             TE.output.all.list[[label]] <- TE.output.all
