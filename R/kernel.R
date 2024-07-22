@@ -55,6 +55,7 @@ interflex.kernel <- function(data,
                              height = 7,
                              width = 10) {
     WEIGHTS <- NULL
+    uniform.coverage <- NULL
     n <- dim(data)[1]
 
     binary <- FALSE
@@ -386,11 +387,16 @@ interflex.kernel <- function(data,
         }
 
         formula <- as.formula(formula)
+        
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        # density.mean <- exp(mean(log(Xdensity$y)))
         bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        # bw.adapt <- bw * sqrt(density.mean/temp_density)
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
+        if (0 %in% w) {
+            w <- w + min(w[w != 0])
+        }
+        # density.mean <- exp(mean(log(Xdensity$y)))
+        # bw.adapt <- bw * sqrt(density.mean/temp_density)
+
         data.touse[, "WEIGHTS"] <- w
         if (max(data.touse[, "WEIGHTS"]) == 0) {
             result <- rep(NA, 1 + n.coef)
@@ -460,11 +466,9 @@ interflex.kernel <- function(data,
             )
             return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
         }
-
         glm.reg.summary <- summary(glm.reg, robust = "HC2")
         glm.reg.vcov <- vcovHC(glm.reg, type = "HC2")
         glm.reg.df <- glm.reg$df.residual
-
         if (glm.reg$converged == FALSE) {
             result <- rep(NA, 1 + length(glm.reg$coef))
             names(result) <- c(
@@ -539,7 +543,6 @@ interflex.kernel <- function(data,
                         fe_index_name <- c(fe_index_name, fe)
                     }
                 }
-
                 rownames(FE_coef) <- rowname
                 train[, Y] <- fe_res$residuals
             }
@@ -890,6 +893,10 @@ interflex.kernel <- function(data,
                     vec1 <- c(1, x, D.ref, D.ref * x, Z.ref)
                     vec0 <- c(0, 0, 1, x, rep(0, length(Z)))
                     target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
+                } else {
+                    vec1 <- c(1, x, D.ref, D.ref * x, Z.ref, x * Z.ref)
+                    vec0 <- c(0, 0, 1, x, rep(0, length(Z)), rep(0, length(Z)))
+                    target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z, paste0(Z, ".delta.x"))
                 }
             } else {
                 vec1 <- c(1, x, D.ref, D.ref * x)
@@ -971,7 +978,7 @@ interflex.kernel <- function(data,
                     target.slice <- c("(Intercept)", "delta.x", D, "D.delta.x", Z)
                     if (full.moderate == TRUE) {
                         vec <- c(vec, Z.ref * x)
-                        target.slice <- c(target.slice, Z.X)
+                        target.slice <- c(target.slice, paste0(Z, ".delta.x"))
                     }
                 } else {
                     vec <- c(1, x, D.ref, D.ref * x)
@@ -2005,6 +2012,7 @@ interflex.kernel <- function(data,
                     rownames(link.output.all) <- NULL
                     link.output.all.list[[other.treat.origin[char]]] <- link.output.all
 
+
                     TE.vcov.list[[other.treat.origin[char]]] <- TE.boot.vcov
 
                     z.value <- diff.estimate.output / diff.boot.sd
@@ -2023,7 +2031,7 @@ interflex.kernel <- function(data,
                     names(ATE.output) <- c("ATE", "sd", "z-value", "p-value", "lower CI(95%)", "upper CI(95%)")
                     ATE.output.list[[other.treat.origin[char]]] <- ATE.output
                 }
-                
+                # base
                 base.boot.uniform.CI <- calculate_uniform_quantiles(base.boot.matrix,0.05)
                 base.boot.uniform.CI <- base.boot.uniform.CI$Q_j
 
@@ -2519,11 +2527,11 @@ interflex.kernel <- function(data,
             CV.output = Error,
             CI = CI,
             est.kernel = ME.output.all.list,
+            uniform.coverage = uniform.coverage,
             pred.kernel = pred.output.all.list,
             link.kernel = link.output.all.list,
             diff.estimate = diff.output.all.list,
             vcov.matrix = ME.vcov.list,
-            uniform.coverage = uniform.coverage,
             Avg.estimate = AME.output,
             Xlabel = Xlabel,
             Dlabel = Dlabel,
@@ -2646,5 +2654,3 @@ interflex.kernel <- function(data,
         }
         out
     }
-
-
