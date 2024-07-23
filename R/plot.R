@@ -563,6 +563,9 @@ plot.interflex <- function(x,
             for (char in other.treat) {
                 if (CI == TRUE) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)]))))
+                    if(ncol(est.kernel[[char]])>5){
+                        yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(6, 7)]))))
+                    }
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2]))))
                 }
@@ -576,6 +579,9 @@ plot.interflex <- function(x,
             for (label in label.name) {
                 if (CI == TRUE) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)]))))
+                    if(ncol(est.kernel[[char]])>5){
+                        yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(6, 7)]))))
+                    }
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2]))))
                 }
@@ -819,10 +825,16 @@ plot.interflex <- function(x,
                 tempest <- as.data.frame(tempest)
                 p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
                 if (CI == TRUE) {
-                    p1 <- p1 + geom_ribbon(
-                        data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
-                        fill = CI.color, alpha = CI.color.alpha
-                    )
+                    if(estimator == "kernel" | estimator == "linear"){
+                        p1 <- p1 + geom_ribbon(
+                            data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                            fill = CI.color, alpha = CI.color.alpha
+                        )                        
+                    }
+                    if(estimator == "DML"){
+                        p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_upper),linetype = 'dashed',color = 'gray50')
+                    }
+
                     if("CI_uniform_lower" %in% colnames(tempest)){
                         p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_uniform_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_uniform_upper),linetype = 'dashed',color = 'gray50')
                     }
@@ -893,10 +905,15 @@ plot.interflex <- function(x,
                 }
                 p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
                 if (CI == TRUE) {
-                    p1 <- p1 + geom_ribbon(
-                        data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
-                        fill = CI.color, alpha = CI.color.alpha
-                    ) 
+                    if(estimator == "kernel" | estimator == "linear"){
+                        p1 <- p1 + geom_ribbon(
+                            data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                            fill = CI.color, alpha = CI.color.alpha
+                        )                        
+                    }
+                    if(estimator == "DML"){
+                        p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_upper),linetype = 'dashed',color = 'gray50')
+                    }
                     if("CI_uniform_lower" %in% colnames(tempest)){
                         p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_uniform_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_uniform_upper),linetype = 'dashed',color = 'gray50')
                     }
