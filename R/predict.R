@@ -415,8 +415,14 @@ predict.interflex <- function(
     for (char in all.treat) {
         temp.pred <- pred[[char]]
         if (CI == TRUE) {
-            colnames(temp.pred) <- c("X", "EY", "sd", "CI_lower", "CI_upper")
-            yrange <- c(yrange, na.omit(unlist(temp.pred[, c(4, 5)])))
+            if(dim(temp.pred)[2]==5){
+                colnames(temp.pred) <- c("X", "EY", "sd", "CI_lower", "CI_upper")
+                yrange <- c(yrange, na.omit(unlist(temp.pred[, c(4, 5)])))                
+            }else{
+                colnames(temp.pred) <- c("X", "EY", "sd", "CI_lower", "CI_upper", "CI_uniform_lower", "CI_uniform_upper")
+                yrange <- c(yrange, na.omit(unlist(temp.pred[, c(6, 7)])))                 
+            }
+
             pred[[char]] <- as.data.frame(temp.pred)
         }
         if (CI == FALSE) {
@@ -449,6 +455,12 @@ predict.interflex <- function(
                     data = pred[[char]], aes(x = X, ymin = CI_lower, ymax = CI_upper),
                     alpha = 0.3, fill = platte[k]
                 )
+                if("CI_uniform_lower" %in% colnames(pred[[char]])){
+                    p <- p + geom_ribbon(
+                        data = pred[[char]], aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper),
+                        alpha = 0, color = platte[k], linetype = 2
+                    )
+                }
             }
 
             if (treat.type == "discrete") {
@@ -582,11 +594,24 @@ predict.interflex <- function(
                 data = tograph, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment),
                 alpha = 0.2, show.legend = T, size = 0
             )
+            if("CI_uniform_lower" %in% colnames(tograph)){
+                p <- p + geom_ribbon(
+                        data = tograph, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment),
+                        alpha = 0, linetype = 2
+                    )
+            }
             if (treat.type == "discrete") {
                 if (is.null(subtitles) == TRUE) {
                     p <- p + scale_fill_manual(values = platte[1:ntreat])
                 } else {
                     p <- p + scale_fill_manual(values = platte[1:ntreat], labels = subtitles)
+                }
+                if("CI_uniform_lower" %in% colnames(tograph)){
+                    if (is.null(subtitles) == TRUE) {
+                        p <- p + scale_color_manual(values = platte[1:ntreat])
+                    } else {
+                        p <- p + scale_color_manual(values = platte[1:ntreat], labels = subtitles)
+                    }
                 }
             }
 
@@ -595,6 +620,13 @@ predict.interflex <- function(
                     p <- p + scale_fill_manual(values = platte[1:ntreat], labels = label.name)
                 } else {
                     p <- p + scale_fill_manual(values = platte[1:ntreat], labels = subtitles)
+                }
+                if("CI_uniform_lower" %in% colnames(tograph)){
+                    if (is.null(subtitles) == TRUE) {
+                        p <- p + scale_color_manual(values = platte[1:ntreat], labels = label.name)
+                    } else {
+                        p <- p + scale_color_manual(values = platte[1:ntreat], labels = subtitles)
+                    }
                 }
             }
         }
