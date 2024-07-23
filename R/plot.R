@@ -579,7 +579,7 @@ plot.interflex <- function(x,
             for (label in label.name) {
                 if (CI == TRUE) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)]))))
-                    if(ncol(est.lin[[char]])>5){
+                    if(ncol(est.lin[[label]])>5){
                         yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(6, 7)]))))
                     }
                 } else {
