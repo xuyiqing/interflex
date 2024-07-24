@@ -96,7 +96,8 @@ The estimated treatment effects of "D" on "Y" across the support of "X" are save
 s6.linear$est.lin
 ```
 
-Users can then use the command **plot** to visualize the treatment effects
+Users can then use the command **plot** to visualize the treatment effects and their point-wise confidence interval. We also report the uniform/simultaneous confidence interval, as depicted by the dashed lines.
+
 ```{r dlinear3, results = "hide", fig.height=5, fig.width=8}
 s6.plot <- plot(s6.linear)
 s6.plot
@@ -304,7 +305,8 @@ With the kernel method, a bandwidth is first selected via a 10-fold cross-valida
 For **s8**, the kernel estimator can much better approximates the "True" TE than the linear estimator.
 ```{r dkernel1, cache=TRUE, results = "hide", fig.height=5, fig.width=8}
 s8.kernel <- interflex(estimator = 'kernel', data = s8, method='logit', 
-                       Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
+                       Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'),vartype = "bootstrap",
+                      nboots = 1000, parallel = TRUE, cores = 31)
 plot(s8.kernel)
 ```
 
@@ -323,7 +325,8 @@ s8.kernel$CV.output
 For **s6**, the program will choose a relatively large bandwidth via cross-validation, thus the results produced by kernel estimator is similar to the results from the linear estimator.
 ```{r dkernel3, cache=TRUE, results = "hide", fig.height=5, fig.width=8}
 s6.kernel <- interflex(estimator = 'kernel', data = s6, method = 'logit', 
-                       Y = 'Y',D = 'D', X = 'X',Z =c('Z1','Z2'))
+                       Y = 'Y',D = 'D', X = 'X',Z =c('Z1','Z2'),vartype = "bootstrap",
+                      nboots = 1000, parallel = TRUE, cores = 31)
 plot.interflex(s6.kernel)
 ```
 
@@ -358,7 +361,8 @@ s8.kernel$Avg.estimate
 The fully moderated model for the kernel estimator adds the interaction terms between covariates and moderator to the local weighted regression. 
 ```{r dkernel7, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 s8.kernel.full <- interflex(estimator = 'kernel', data = s8, method='logit', 
-                            Y = 'Y',D = 'D', X = 'X', Z = c('Z1','Z2'), full.moderate=TRUE)
+                            Y = 'Y',D = 'D', X = 'X', Z = c('Z1','Z2'), full.moderate=TRUE,vartype = "bootstrap",
+                      nboots = 1000, parallel = TRUE, cores = 31)
 plot(s8.kernel.full)
 ```
 
@@ -405,7 +409,8 @@ Lastly, we can use the kernel estimator to get more consistent results.
 ```{r dmulti6, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 s9.kernel <- interflex(estimator = 'kernel', data = s9, 
                        Y ='Y', D = 'D', X = 'X', Z = c('Z1','Z2'),
-                       method='logit')
+                       method='logit',vartype = "bootstrap",
+                      nboots = 1000, parallel = TRUE, cores = 31)
 plot(s9.kernel)
 ```
 
