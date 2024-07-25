@@ -108,12 +108,14 @@ def marginal_effect_for_treatment(df, ml_method, Y, D, X, Z, d_ref = 1,
         if CV_y:
             stage_model_y = lambda: GridSearchCV(estimator=MLPClassifier() if discrete_outcome else MLPRegressor(),
                                                  param_grid=param_grid_y, cv=n_folds_y, n_jobs=n_jobs, scoring=scoring_y)
+            model_y = stage_model_y().fit(df[[X]], df[[Y]].values.ravel()).best_estimator_
         else:
             model_y = MLPClassifier(solver=solver, max_iter=max_iter, alpha=alpha, hidden_layer_sizes=hidden_layer_sizes, random_state=random_state) if discrete_outcome else MLPRegressor(solver=solver, max_iter=max_iter, alpha=alpha, hidden_layer_sizes=hidden_layer_sizes, random_state=random_state)
         
         if CV_t:
             stage_model_t = lambda: GridSearchCV(estimator=MLPClassifier() if discrete_treatment else MLPRegressor(),
                                                  param_grid=param_grid_t, cv=n_folds_t, n_jobs=n_jobs, scoring=scoring_t)
+            model_t = stage_model_t().fit(df[[X]], df[[D]].values.ravel()).best_estimator_
         else:
             model_t = MLPClassifier(solver=solver, max_iter=max_iter, alpha=alpha, hidden_layer_sizes=hidden_layer_sizes, random_state=random_state) if discrete_treatment else MLPRegressor(solver=solver, max_iter=max_iter, alpha=alpha, hidden_layer_sizes=hidden_layer_sizes, random_state=random_state)
 
