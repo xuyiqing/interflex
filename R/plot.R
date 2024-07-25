@@ -529,7 +529,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (char in other.treat) {
                 if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(3, 4)]))))
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(4, 5)]))))
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, 2]))))
                 }
@@ -810,9 +810,7 @@ plot.interflex <- function(x,
                 p1 <- p.group[[char]]
                 tempest <- est[[char]]
                 if (CI == TRUE) {
-                    if (estimator == "DML") {
-                        colnames(tempest) <- c("X", "TE", "CI_lower", "CI_upper")
-                    } else if(ncol(tempest)==5) {
+                    if(ncol(tempest)==5) {
                         colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                     } else{
                         colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper","CI_uniform_lower","CI_uniform_upper")

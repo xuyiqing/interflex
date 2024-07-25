@@ -165,7 +165,7 @@ def marginal_effect_for_treatment(df, ml_method, Y, D, X, Z, d_ref = 1,
     length = 50
     new_data = {"x": np.linspace(df[X].min(), df[X].max(), length)}
     df_cate = est.effect_inference(new_data["x"].reshape(length, 1), T0=0, T1=d_ref).summary_frame(alpha=0.05, value=0, decimals=99)
-    print(df_cate)
+
     df_cate["X"] = new_data["x"]
     df_cate["ME"] = df_cate["point_estimate"]
     if dml_method_lower == "regularization":
