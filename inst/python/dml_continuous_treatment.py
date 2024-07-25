@@ -24,6 +24,8 @@ def marginal_effect_for_continuous_treatment(df, ml_method, Y, D, X, Z, d_ref = 
             param_grid = json.loads(param_grid)
         except json.JSONDecodeError:
             raise Exception("'param_grid' should be a dictionary-like string.")
+    else:
+        pass
 
     ### Initialization
     n_folds = int(n_folds)
@@ -88,8 +90,6 @@ def marginal_effect_for_continuous_treatment(df, ml_method, Y, D, X, Z, d_ref = 
                                 n_estimators=casual_forest_n_estimators,
                                 min_impurity_decrease=casual_forest_in_impurity_decrease,
                                 random_state=random_state, discrete_outcome=discrete_outcome)
-            ## this line influence the hyperparameters
-            # est.tune(df[[Y]], df[[D]], X=df[[X]], W=df[[*Z]])
 
         else:
             raise Exception("'dml_method' should be one of 'default', 'polynomial', 'regularization', and 'non-parametric'.")
@@ -156,6 +156,7 @@ def marginal_effect_for_continuous_treatment(df, ml_method, Y, D, X, Z, d_ref = 
     length = 50
     new_data = {"x": np.linspace(df[X].min(), df[X].max(), length)}
     df_cate = est.effect_inference(new_data["x"].reshape(length, 1), T0=0, T1=d_ref).summary_frame(alpha=0.05, value=0, decimals=99)
+
     df_cate["X"] = new_data["x"]
     df_cate["ME"] = df_cate["point_estimate"]
     if dml_method_lower == "regularization":

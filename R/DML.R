@@ -20,11 +20,19 @@ interflex.DML <- function(data,
                           casual_forest_criterion = "mse",
                           casual_forest_n_estimators = 1000,
                           casual_forest_in_impurity_decrease = 0.001,
-                          CV = FALSE,
-                          param_grid = NULL,
-                          n_folds = 10,
+                          CV_y = FALSE,
+                          param_grid_y = NULL,
+                          n_folds_y = 10,
+                          scoring_y = "neg_mean_squared_error",
+                          CV_t = FALSE,
+                          param_grid_t = NULL,
+                          n_folds_t = 10,
+                          scoring_t = "neg_mean_squared_error",
+                          CV_f = FALSE,
+                          param_grid_f = NULL,
+                          n_folds_f = 10,
+                          scoring_f = "neg_mean_squared_error",
                           n_jobs = -1,
-                          scoring = "neg_mean_squared_error",
                           figure = TRUE,
                           CI = CI,
                           order = NULL,
@@ -135,27 +143,34 @@ interflex.DML <- function(data,
 
     TE.output.all.list <- list()
     if (treat.type == "discrete") {
-        python_script_path <- system.file("python/dml_binary_treatment.py", package = "interflex")
+        python_script_path <- system.file("python/dml_treatment.py", package = "interflex")
         reticulate::source_python(python_script_path)
         for (char in other.treat) {
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
-            TE.output.all.python <- marginal_effect_for_binary_treatment(data_part,
-                ml_method = ml_method, Y = Y, D = D, X = X, Z = Z,
-                trimming_threshold = trimming_threshold,
+            TE.output.all.python <- marginal_effect_for_treatment(data,
+                ml_method = ml_method, Y = Y, D = D, X = X, Z = Z, d_ref = char,
                 n_estimators = n_estimators,
                 solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state,
-                CV = CV, param_grid = param_grid, n_folds = n_folds, n_jobs = n_jobs, scoring=scoring
+                dml_method = dml_method,
+                poly_degree = poly_degree, lasso_alpha = lasso_alpha,
+                casual_forest_criterion = casual_forest_criterion,
+                casual_forest_n_estimators = casual_forest_n_estimators,
+                casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease,
+                CV_y=CV_y, param_grid_y=param_grid_y, n_folds_y=n_folds_y, scoring_y=scoring_y,
+                CV_t=CV_t, param_grid_t=param_grid_t, n_folds_t=n_folds_t, scoring_t=scoring_t,
+                CV_f=CV_f, param_grid_f=param_grid_f, n_folds_f=n_folds_f, scoring_f=scoring_f,
+                n_jobs=n_jobs
             )
             TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
             TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
         }
     } else if (treat.type == "continuous") {
-        python_script_path <- system.file("python/dml_continuous_treatment.py", package = "interflex")
+        python_script_path <- system.file("python/dml_treatment.py", package = "interflex")
         reticulate::source_python(python_script_path)
         k <- 1
         for (d_ref in D.sample) {
             label <- label.name[k]
-            TE.output.all.python <- marginal_effect_for_continuous_treatment(data,
+            TE.output.all.python <- marginal_effect_for_treatment(data,
                 ml_method = ml_method, Y = Y, D = D, X = X, Z = Z, d_ref = d_ref,
                 n_estimators = n_estimators,
                 solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state,
@@ -164,7 +179,10 @@ interflex.DML <- function(data,
                 casual_forest_criterion = casual_forest_criterion,
                 casual_forest_n_estimators = casual_forest_n_estimators,
                 casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease,
-                CV = CV, param_grid = param_grid, n_folds = n_folds, n_jobs = n_jobs, scoring=scoring
+                CV_y=CV_y, param_grid_y=param_grid_y, n_folds_y=n_folds_y, scoring_y=scoring_y,
+                CV_t=CV_t, param_grid_t=param_grid_t, n_folds_t=n_folds_t, scoring_t=scoring_t,
+                CV_f=CV_f, param_grid_f=param_grid_f, n_folds_f=n_folds_f, scoring_f=scoring_f,
+                n_jobs=n_jobs
             )
             TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
             TE.output.all.list[[label]] <- TE.output.all
