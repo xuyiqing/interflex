@@ -147,8 +147,8 @@ interflex.DML <- function(data,
         reticulate::source_python(python_script_path)
         for (char in other.treat) {
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
-            data_part[data[[D]] == treat.base, D] <- 0
-            data_part[data[[D]] == char, D] <- 1
+            data_part[data_part[[D]] == treat.base, D] <- 0
+            data_part[data_part[[D]] == char, D] <- 1
             TE.output.all.python <- marginal_effect_for_treatment(data_part,
                 ml_method = ml_method, Y = Y, D = D, X = X, Z = Z, d_ref = 1,
                 n_estimators = n_estimators,
