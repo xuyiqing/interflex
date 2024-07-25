@@ -22,6 +22,9 @@ def marginal_effect_for_treatment(df, ml_method, Y, D, X, Z, d_ref = 1,
                                   CV_t=False, param_grid_t=None, n_folds_t=10, scoring_t='neg_mean_squared_error',
                                   CV_f=False, param_grid_f=None, n_folds_f=10, scoring_f='neg_mean_squared_error',
                                   n_jobs=-1):
+    
+    df[D] = df[D].astype(float)
+    
     if param_grid_y is not None:
         try:
             param_grid_y = json.loads(param_grid_y)
@@ -157,12 +160,12 @@ def marginal_effect_for_treatment(df, ml_method, Y, D, X, Z, d_ref = 1,
         raise Exception("'dml_method' should be one of 'default', 'polynomial', 'regularization', and 'non-parametric'.")
         
     est.fit(df[[Y]], df[[D]], X=df[[X]], W=df[[*Z]])
-    
+
     ### Get results
     length = 50
     new_data = {"x": np.linspace(df[X].min(), df[X].max(), length)}
     df_cate = est.effect_inference(new_data["x"].reshape(length, 1), T0=0, T1=d_ref).summary_frame(alpha=0.05, value=0, decimals=99)
-
+    print(df_cate)
     df_cate["X"] = new_data["x"]
     df_cate["ME"] = df_cate["point_estimate"]
     if dml_method_lower == "regularization":

@@ -45,6 +45,3 @@ R/DML copy.R
 .interflex.Rproj
 
 vignettes/*_cache*
-
-inst/python/dml_continuous*
-inst/python/dml_binary*
