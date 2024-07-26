@@ -489,7 +489,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (char in other.treat) {
                 if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(3, 4)]))))
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(4, 5)]))))
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, 2]))))
                 }
@@ -657,7 +657,7 @@ interflex.plot.pool <- function(
                 est.touse <- est[[char]]
                 if (CI == TRUE) {
                     if (estimator == "DML") {
-                        colnames(est.touse) <- c("X", "TE", "CI_lower", "CI_upper")
+                        colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                     } else {
                         if(dim(est.touse)[2]==5){
                             colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")                            
