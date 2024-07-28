@@ -131,12 +131,17 @@ plot(out)
 print(out$tests$p.wald)
 ```
 
-We see that the Wald test cannot reject the NULL hypothesis that the linear interaction model and the three-bin model are statistically equivalent. If we only want to conduct the linear estimator, we can set `estimator = "linear"`, We also report the uniform/simultaneous confidence interval, as depicted by the dashed lines:
+We see that the Wald test cannot reject the NULL hypothesis that the linear interaction model and the three-bin model are statistically equivalent. If we only want to conduct the linear estimator, we can set `estimator = "linear"`, We also report the uniform/simultaneous confidence interval (when setting `vartype = "bootstrap"`), as depicted by the dashed lines. You can access uniform confidence interval from 
 ```{r binning1ab, message = FALSE, fig.height=5, fig.width=5, cache = TRUE}
 out2 <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, 
                   estimator = "linear", vcov.type = "robust", 
                   main = "Marginal Effects", ylim = c(-15, 15))
 plot(out2)
+```
+
+You can access estimates, as well as pointwise and uniform confidence intervals, from `est.lin`.
+```{r}
+head(out2$est.lin$`1`)
 ```
 
 **plot** allows users to adjust graphic options without re-estimating the model. The first entry must be a `interflex` object. Note that we use `bin.labs = FALSE` to hide the label on the top of each bin and `Xdistr = "none"` to remove the distribution of the moderator (not recommended). We use `cex.axis` and `cex.lab` to adjust the font sizes of axis numbers and labels.
@@ -194,12 +199,17 @@ out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, vartype = 'boot
 out$figure
 ```
 
+You can access estimates, as well as pointwise and uniform confidence intervals, from `est.kernel`.
+```{r}
+head(out$est.kernel$`1`)
+```
+
 If you specify a bandwidth manually (for example, by setting `bw = 1`), the cross-validation step will be skipped. The `main` option controls the title of the plot while the `xlim` and `ylim` options control the ranges of the x-axis and y-axis, respectively.
 ```{r kernel2, cache=TRUE, message=FALSE, results = "hide", fig.height=5, fig.width=5}
 out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, 
-                 estimator = "kernel", nboots = 1000, bw = 1, 
-                 main = "The Linear Case", parallel = TRUE, cores = 31,vartype = 'bootstrap',
-                 xlim = c(-0.5,6.5), ylim = c(-15, 15))
+       estimator = "kernel", nboots = 1000, bw = 1, 
+       main = "The Linear Case", parallel = TRUE, cores = 31,vartype = 'bootstrap',
+       xlim = c(-0.5,6.5), ylim = c(-15, 15))
 out$figure
 ```
 
@@ -229,8 +239,8 @@ Note that we can use the `file` option to save a plot to a file in **interflex**
 We move on to linear fixed effects models. Remember in **s4**, a large chunk of the variation in the outcome variable is driven by group fixed effects. Below is a scatterplot of the raw data (group index vs. outcome). Red and green dots represent treatment and control units, respectively. We can see that outcomes are highly correlated within a group.  
 ```{r fe1, cache=TRUE, message=FALSE, fig.height=4, fig.width=8}
 library(ggplot2)
-ggplot() + 
-  geom_point(data = s4,aes(x=group, y = Y, colour = as.factor(D))) + guides(colour=FALSE) 
+ggplot() + geom_point(data = s4,aes(x = unit, y = Y, colour = as.factor(D))) + 
+  guides(colour=FALSE) 
 ```
 
 When fixed effects are present, it is possible that we cannot observe a clear pattern of marginal effects in the raw plot as before, while binning estimates have wide confidence intervals:
@@ -242,7 +252,7 @@ interflex(estimator = "raw", Y = "Y", D = "D", X = "X", data = s4,
 
 ```{r fe3, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                        estimator = "binning", FE = NULL, cl = "group")
+                        estimator = "binning", FE = NULL, cl = "unit")
 plot(s4.binning)
 ```
 
@@ -250,8 +260,8 @@ The binning estimates are much more informative when fixed effects are included,
 ```{r fe4, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4$wgt <- 1
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                        estimator = "binning", FE = c("group", "year"), 
-                        cl = "group", weights = "wgt")
+                        estimator = "binning", FE = c("unit", "year"), 
+                        cl = "unit", weights = "wgt")
 plot(s4.binning)
 ```
 
@@ -260,14 +270,14 @@ When fixed effects are not taken into account, the kernel estimates are also les
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
                        estimator = "kernel", FE = NULL, vartype = 'bootstrap',
                        nboots = 1000, parallel = TRUE, cores = 31,
-                       cl = "group", weights = "wgt")
+                       cl = "unit", weights = "wgt")
 plot(s4.kernel)
 ```
 
 Controlling for fixed effects by using the `FE` option solves this problem. The estimates are now much closer to the population truth. Note that all uncertainty estimates are produced via bootstrapping. When the `cl` option is specified, a block bootstrap procedure will be performed.  
 ```{r fe6, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                       estimator = "kernel", FE = c("group","year"), cl = "group",vartype = 'bootstrap',
+                       estimator = "kernel", FE = c("unit","year"), cl = "unit",vartype = 'bootstrap',
                        nboots = 1000, parallel = TRUE, cores = 31,weights = "wgt")
 plot(s4.kernel)
 ```
@@ -275,7 +285,7 @@ plot(s4.kernel)
 With large datasets, cross-validation or bootstrapping can take a while. One way to check the result quickly is to shut down the bootstrap procedure (using `CI = FALSE`). **interflex** will then present the point estimates only. Another way is to supply a reasonable bandwidth manually by using the `bw` option such that cross-validation will be skipped. 
 ```{r fe7, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                       estimator = "kernel", bw = 0.62, FE = c("group","year"), cl = "group", 
+                       estimator = "kernel", bw = 0.62, FE = c("unit","year"), cl = "unit", 
                        vartype = 'bootstrap',
                        nboots = 1000, parallel = TRUE, cores = 31,
                        CI = FALSE, ylim = c(-9, 15), theme.bw = TRUE)

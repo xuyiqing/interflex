@@ -56,7 +56,7 @@ Or you can install the up-to-date development version from Github:
 
 ``` r
 install.packages('devtools', repos = 'http://cran.us.r-project.org') # if not already installed
-devtools::install_github('xuyiqing/interflex')
+devtools::install_github('xuyiqing/interflex@dml')
 ```
 
 **interflex** depends on the following packages, which will be installed
@@ -138,7 +138,7 @@ for using the interflex package.
 
 ``` r
 reticulate::py_install(packages = c("patsy", "numpy", "pandas", 
-                    "scikit-learn==1.4.0", "doubleml", "econml"))
+                    "scikit-learn==1.2.0", "doubleml", "econml"))
 ```
 
 ## Report bugs
