@@ -6,39 +6,32 @@ interflex.DML <- function(data,
                           diff.info,
                           Z = NULL, # covariates
                           weights = NULL, # weighting variable
-                          ml_method = "rf",
-                          trimming_threshold = 0.01,
-                          n_estimators = 500,
-                          solver = "adam",
-                          max_iter = 10000,
-                          alpha = 1e-5,
-                          hidden_layer_sizes = c(5, 3, 2),
-                          random_state = 1,
-                          dml_method = "default",
-                          poly_degree = 3,
-                          lasso_alpha = 0.1,
-                          casual_forest_criterion = "mse",
-                          casual_forest_n_estimators = 1000,
-                          casual_forest_in_impurity_decrease = 0.001,
-                          CV_y = FALSE,
-                          param_grid_y = NULL,
-                          n_folds_y = 10,
-                          scoring_y = "neg_mean_squared_error",
-                          CV_t = FALSE,
-                          param_grid_t = NULL,
-                          n_folds_t = 10,
-                          scoring_t = "neg_mean_squared_error",
-                          CV_f = FALSE,
-                          param_grid_f = NULL,
-                          n_folds_f = 10,
-                          scoring_f = "neg_mean_squared_error",
-                          n_jobs = -1,
+                          CV.first = 2,
+                          model.y = "rf",
+                          param.y = NULL,
+                          CV.y = FALSE,
+                          param.grid.y = NULL,
+                          n.folds.y = 10,
+                          scoring.y = "neg_mean_squared_error",
+                          model.t = "rf",
+                          param.t = NULL,
+                          CV.t = FALSE,
+                          param.grid.t = NULL,
+                          n.folds.t = 10,
+                          scoring.t = "neg_mean_squared_error",
+                          model.final = "linear",
+                          param.final = NULL,
+                          CV.final = FALSE,
+                          param.grid.final = NULL,
+                          n.folds.final = 10,
+                          scoring.final = "neg_mean_squared_error",
+                          n.jobs = -1,
                           figure = TRUE,
                           CI = CI,
                           order = NULL,
                           subtitles = NULL,
                           show.subtitles = NULL,
-                          Xdistr = "histogram", # c("density","histogram","none")
+                          Xdistr = "histogram", # ("density","histogram","none")
                           main = NULL,
                           Ylabel = NULL,
                           Dlabel = NULL,
@@ -143,50 +136,68 @@ interflex.DML <- function(data,
 
     TE.output.all.list <- list()
     if (treat.type == "discrete") {
-        python_script_path <- system.file("python/dml_treatment.py", package = "interflex")
+        python_script_path <- system.file("python/dml.py", package = "interflex")
         reticulate::source_python(python_script_path)
         for (char in other.treat) {
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
             data_part[data_part[[D]] == treat.base, D] <- 0
             data_part[data_part[[D]] == char, D] <- 1
-            TE.output.all.python <- marginal_effect_for_treatment(data_part,
-                ml_method = ml_method, Y = Y, D = D, X = X, Z = Z, d_ref = 1,
-                n_estimators = n_estimators,
-                solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state,
-                dml_method = dml_method,
-                poly_degree = poly_degree, lasso_alpha = lasso_alpha,
-                casual_forest_criterion = casual_forest_criterion,
-                casual_forest_n_estimators = casual_forest_n_estimators,
-                casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease,
-                CV_y=CV_y, param_grid_y=param_grid_y, n_folds_y=n_folds_y, scoring_y=scoring_y,
-                CV_t=CV_t, param_grid_t=param_grid_t, n_folds_t=n_folds_t, scoring_t=scoring_t,
-                CV_f=CV_f, param_grid_f=param_grid_f, n_folds_f=n_folds_f, scoring_f=scoring_f,
-                n_jobs=n_jobs
+            result <- marginal_effect_for_treatment(data_part,
+                Y = Y, D = D, X = X, Z = Z, d_ref = 1,
+                CV_first = CV.first,
+                model_y = model.y,
+                param_y = param.y,
+                CV_y = CV.y,
+                param_grid_y = param.grid.y,
+                n_folds_y = n.folds.y,
+                scoring_y = scoring.y,
+                model_t = model.t,
+                param_t = param.t,
+                CV_t = CV.t,
+                param_grid_t = param.grid.t,
+                n_folds_t = n.folds.t,
+                scoring_t = scoring.t,
+                model_final = model.final,
+                param_final = param.final,
+                CV_final = CV.final,
+                param_grid_final = param.grid.final,
+                n_folds_final = n.folds.final,
+                scoring_final = scoring.final,
+                n_jobs = n.jobs
             )
-            TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
+            TE.output.all <- data.frame(result[1], check.names = FALSE)
             TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
         }
     } else if (treat.type == "continuous") {
-        python_script_path <- system.file("python/dml_treatment.py", package = "interflex")
+        python_script_path <- system.file("python/dml.py", package = "interflex")
         reticulate::source_python(python_script_path)
         k <- 1
         for (d_ref in D.sample) {
             label <- label.name[k]
-            TE.output.all.python <- marginal_effect_for_treatment(data,
-                ml_method = ml_method, Y = Y, D = D, X = X, Z = Z, d_ref = d_ref,
-                n_estimators = n_estimators,
-                solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state,
-                dml_method = dml_method,
-                poly_degree = poly_degree, lasso_alpha = lasso_alpha,
-                casual_forest_criterion = casual_forest_criterion,
-                casual_forest_n_estimators = casual_forest_n_estimators,
-                casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease,
-                CV_y=CV_y, param_grid_y=param_grid_y, n_folds_y=n_folds_y, scoring_y=scoring_y,
-                CV_t=CV_t, param_grid_t=param_grid_t, n_folds_t=n_folds_t, scoring_t=scoring_t,
-                CV_f=CV_f, param_grid_f=param_grid_f, n_folds_f=n_folds_f, scoring_f=scoring_f,
-                n_jobs=n_jobs
+            result <- marginal_effect_for_treatment(data,
+                Y = Y, D = D, X = X, Z = Z, d_ref = d_ref,
+                CV_first = CV.first,
+                model_y = model.y,
+                param_y = dict(param.y),
+                CV_y = CV.y,
+                param_grid_y = dict(param.grid.y),
+                n_folds_y = n.folds.y,
+                scoring_y = scoring.y,
+                model_t = model.t,
+                param_t = dict(param.t),
+                CV_t = CV.t,
+                param_grid_t = dict(param.grid.t),
+                n_folds_t = n.folds.t,
+                scoring_t = scoring.t,
+                model_final = model.final,
+                param_final = dict(param.final),
+                CV_final = CV.final,
+                param_grid_final = dict(param.grid.final),
+                n_folds_final = n.folds.final,
+                scoring_final = scoring.final,
+                n_jobs = n.jobs
             )
-            TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
+            TE.output.all <- data.frame(result[1], check.names = FALSE)
             TE.output.all.list[[label]] <- TE.output.all
             k <- k + 1
         }
@@ -203,6 +214,9 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = treat_den,
             count.tr = treat.hist,
+            model.y = result[2][[1]],
+            model.t = result[3][[1]],
+            model.final = result[4][[1]],
             estimator = "DML"
         )
     } else if (treat.type == "continuous") {
@@ -217,6 +231,9 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = de.tr,
             count.tr = NULL,
+            model.y = result[2][[1]],
+            model.t = result[3][[1]],
+            model.final = result[4][[1]],
             estimator = "DML"
         )
     }
