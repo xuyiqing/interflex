@@ -5,6 +5,7 @@ warnings.filterwarnings("ignore")
 
 import json
 import numpy as np
+from sklearn.preprocessing import PolynomialFeatures, SplineTransformer
 from sklearn.linear_model import LinearRegression, ElasticNet
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.model_selection import GridSearchCV
@@ -275,6 +276,8 @@ def marginal_effect_for_treatment(
     param_grid_final=None,
     n_folds_final=10,
     scoring_final="neg_mean_squared_error",
+    featurizer_model_final=None,
+    featurizer_param_final=None,
     n_jobs=-1,
 ):
 
@@ -299,6 +302,22 @@ def marginal_effect_for_treatment(
         discrete_treatment = False
     else:
         discrete_treatment = True
+
+    featurizer_model_final_lower = featurizer_model_final.lower()
+    if featurizer_model_final_lower in {"p", "poly", "polynomial"}:
+        if featurizer_param_final is None:
+            featurizer_final = PolynomialFeatures()
+        else:
+            featurizer_final = PolynomialFeatures(**featurizer_param_final)
+    elif featurizer_model_final_lower in {"s", "spline"}:
+        if featurizer_param_final is None:
+            featurizer_final = SplineTransformer()
+        else:
+            featurizer_final = SplineTransformer(**featurizer_param_final)
+    else:
+        raise Exception(
+            "'featurizer_model_final' should be one of 'poly', and 'spline'."
+        )
 
     model_y_set = set_model(
         model_y,
@@ -337,6 +356,7 @@ def marginal_effect_for_treatment(
         discrete_outcome=discrete_outcome,
         discrete_treatment=discrete_treatment,
         cv=FSCF_n_folds,
+        featurizer=featurizer_final,
     )
 
     est.fit(df[[Y]].values.ravel(), df[[D]].values.ravel(), X=df[[X]], W=df[[*Z]])
@@ -353,6 +373,7 @@ def marginal_effect_for_treatment(
         discrete_outcome=discrete_outcome,
         discrete_treatment=discrete_treatment,
         cv=FSCF_n_folds,
+        featurizer=featurizer_final,
     )
 
     if model_final in {

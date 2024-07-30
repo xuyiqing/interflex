@@ -25,6 +25,8 @@ interflex.DML <- function(data,
                           param.grid.final = NULL,
                           n.folds.final = 10,
                           scoring.final = "neg_mean_squared_error",
+                          featurizer.model.final = NULL,
+                          featurizer.param.final = NULL,
                           n.jobs = -1,
                           figure = TRUE,
                           CI = CI,
@@ -163,6 +165,8 @@ interflex.DML <- function(data,
                 param_grid_final = reticulate::dict(param.grid.final),
                 n_folds_final = n.folds.final,
                 scoring_final = scoring.final,
+                featurizer_model_final = featurizer.model.final,
+                featurizer_param_final = featurizer.param.final,
                 n_jobs = n.jobs
             )
             TE.output.all <- data.frame(result[1], check.names = FALSE)
@@ -195,6 +199,8 @@ interflex.DML <- function(data,
                 param_grid_final = reticulate::dict(param.grid.final),
                 n_folds_final = n.folds.final,
                 scoring_final = scoring.final,
+                featurizer_model_final = featurizer.model.final,
+                featurizer_param_final = featurizer.param.final,
                 n_jobs = n.jobs
             )
             TE.output.all <- data.frame(result[1], check.names = FALSE)
