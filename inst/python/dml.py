@@ -256,7 +256,7 @@ def marginal_effect_for_treatment(
     Z,
     d_ref=1,
     # model
-    CV_first=2,
+    FSCF_n_folds=2,
     model_y="rf",
     param_y=None,
     CV_y=False,
@@ -281,7 +281,7 @@ def marginal_effect_for_treatment(
     df[D] = df[D].astype(float)
 
     ### Initialization
-    CV_first = int(CV_first)
+    FSCF_n_folds = int(FSCF_n_folds)
     n_folds_y = int(n_folds_y)
     n_folds_t = int(n_folds_t)
     n_folds_final = int(n_folds_final)
@@ -336,7 +336,23 @@ def marginal_effect_for_treatment(
         model_final=model_final_set,
         discrete_outcome=discrete_outcome,
         discrete_treatment=discrete_treatment,
-        cv=CV_first,
+        cv=FSCF_n_folds,
+    )
+
+    est.fit(df[[Y]].values.ravel(), df[[D]].values.ravel(), X=df[[X]], W=df[[*Z]])
+
+    if CV_final and (model_final not in {"default", "linear", "l", "d"}):
+        model_final_set_after_cv = est.model_cate.best_estimator_
+    else:
+        model_final_set_after_cv = est.model_cate
+
+    est = NonParamDML(
+        model_y=est.models_y[0][0],
+        model_t=est.models_t[0][0],
+        model_final=model_final_set_after_cv,
+        discrete_outcome=discrete_outcome,
+        discrete_treatment=discrete_treatment,
+        cv=FSCF_n_folds,
     )
 
     if model_final in {
@@ -381,17 +397,9 @@ def marginal_effect_for_treatment(
     df_cate["upper CI(95%)"] = df_cate["ci_upper"]
     df_cate = df_cate[["X", "ME", "sd", "lower CI(95%)", "upper CI(95%)"]]
 
-    if CV_final and (model_final not in {"default", "linear", "l", "d"}):
-        return (
-            df_cate.to_dict("list"),
-            est.models_y[0][0].get_params(),
-            est.models_t[0][0].get_params(),
-            est.model_cate.best_estimator_.get_params(),
-        )
-    else:
-        return (
-            df_cate.to_dict("list"),
-            est.models_y[0][0].get_params(),
-            est.models_t[0][0].get_params(),
-            est.model_cate.get_params(),
-        )
+    return (
+        df_cate.to_dict("list"),
+        est.models_y[0][0].get_params(),
+        est.models_t[0][0].get_params(),
+        est.model_cate.get_params(),
+    )

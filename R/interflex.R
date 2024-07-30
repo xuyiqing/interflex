@@ -35,7 +35,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       kfold = 10,
                       grid = 30,
                       metric = NULL,
-                      CV.first = 2,
+                      FSCF.n.folds = 2,
                       model.y = "rf",
                       param.y = NULL,
                       CV.y = FALSE,
@@ -1195,7 +1195,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             X = X, # moderator
             Z = Z, # covariates
             weights = weights, # weighting variable
-            CV.first = CV.first,
+            FSCF.n.folds = FSCF.n.folds,
             model.y = model.y,
             param.y = param.y,
             CV.y = CV.y,
