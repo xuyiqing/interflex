@@ -58,6 +58,10 @@ interflex.DML <- function(data,
                           scale = 1.1,
                           height = 7,
                           width = 10) {
+    if(is.null(featurizer.model.final)){
+        featurizer.model.final <- "spline"
+    }
+
     diff.values.plot <- diff.info[["diff.values.plot"]]
     treat.type <- treat.info[["treat.type"]]
     if (treat.type == "discrete") {
