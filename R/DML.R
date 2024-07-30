@@ -58,7 +58,7 @@ interflex.DML <- function(data,
                           scale = 1.1,
                           height = 7,
                           width = 10) {
-    if(is.null(featurizer.model.final)){
+    if (is.null(featurizer.model.final)) {
         featurizer.model.final <- "spline"
     }
 
@@ -170,7 +170,7 @@ interflex.DML <- function(data,
                 n_folds_final = n.folds.final,
                 scoring_final = scoring.final,
                 featurizer_model_final = featurizer.model.final,
-                featurizer_param_final = featurizer.param.final,
+                featurizer_param_final = reticulate::dict(featurizer.param.final),
                 n_jobs = n.jobs
             )
             TE.output.all <- data.frame(result[1], check.names = FALSE)
@@ -204,7 +204,7 @@ interflex.DML <- function(data,
                 n_folds_final = n.folds.final,
                 scoring_final = scoring.final,
                 featurizer_model_final = featurizer.model.final,
-                featurizer_param_final = featurizer.param.final,
+                featurizer_param_final = reticulate::dict(featurizer.param.final),
                 n_jobs = n.jobs
             )
             TE.output.all <- data.frame(result[1], check.names = FALSE)

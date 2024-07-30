@@ -44,7 +44,7 @@ def set_model(model, param, CV, discrete_outcome, param_grid, n_folds, scoring, 
                 scoring=scoring,
             )
         else:
-            if param is not None:
+            if param != {}:
                 model = ElasticNet(**param)
             else:
                 model = ElasticNet()
@@ -69,7 +69,7 @@ def set_model(model, param, CV, discrete_outcome, param_grid, n_folds, scoring, 
                 scoring=scoring,
             )
         else:
-            if param is not None:
+            if param != {}:
                 model = (
                     RandomForestClassifier(**param)
                     if discrete_outcome
@@ -110,7 +110,7 @@ def set_model(model, param, CV, discrete_outcome, param_grid, n_folds, scoring, 
                 scoring=scoring,
             )
         else:
-            if param is not None:
+            if param != {}:
                 model = (
                     HistGradientBoostingClassifier(**param)
                     if discrete_outcome
@@ -133,7 +133,7 @@ def set_model(model, param, CV, discrete_outcome, param_grid, n_folds, scoring, 
                 scoring=scoring,
             )
         else:
-            if param is not None:
+            if param != {}:
                 model = (
                     MLPClassifier(**param)
                     if discrete_outcome
@@ -144,7 +144,7 @@ def set_model(model, param, CV, discrete_outcome, param_grid, n_folds, scoring, 
 
     else:
         raise Exception(
-            "'model_y', 'model_t' and 'model_f' should be one of 'linear', 'regularization', 'rf', 'hgb', and 'nn'."
+            "'model_y' and 'model_t' should be one of 'linear', 'regularization', 'rf', 'hgb', and 'nn'."
         )
 
     return model
@@ -170,7 +170,7 @@ def set_model_final(model, param, CV, param_grid, n_folds, scoring, n_jobs):
                 scoring=scoring,
             )
         else:
-            if param is not None:
+            if param != {}:
                 model = DebiasedLasso(**param)
             else:
                 model = DebiasedLasso()
@@ -191,7 +191,7 @@ def set_model_final(model, param, CV, param_grid, n_folds, scoring, n_jobs):
                 scoring=scoring,
             )
         else:
-            if param is not None:
+            if param != {}:
                 model = RegressionForest(**param)
             else:
                 model = RegressionForest()
@@ -220,29 +220,29 @@ def set_model_final(model, param, CV, param_grid, n_folds, scoring, n_jobs):
                 scoring=scoring,
             )
         else:
-            if param is not None:
+            if param != {}:
                 model = HistGradientBoostingRegressor(**param)
             else:
                 model = HistGradientBoostingRegressor()
 
-    elif model_lower in {"network", "neural_network", "neural network", "nn"}:
-        if CV:
-            model = GridSearchCV(
-                estimator=MLPRegressor(),
-                param_grid=param_grid,
-                cv=n_folds,
-                n_jobs=n_jobs,
-                scoring=scoring,
-            )
-        else:
-            if param is not None:
-                model = MLPRegressor(**param)
-            else:
-                model = MLPRegressor()
+    # elif model_lower in {"network", "neural_network", "neural network", "nn"}:
+    #     if CV:
+    #         model = GridSearchCV(
+    #             estimator=MLPRegressor(),
+    #             param_grid=param_grid,
+    #             cv=n_folds,
+    #             n_jobs=n_jobs,
+    #             scoring=scoring,
+    #         )
+    #     else:
+    #         if param != {}:
+    #             model = MLPRegressor(**param)
+    #         else:
+    #             model = MLPRegressor()
 
     else:
         raise Exception(
-            "'model_y', 'model_t' and 'model_f' should be one of 'linear', 'regularization', 'rf', 'hgb', and 'nn'."
+            "'model_final' should be one of 'linear', 'regularization', 'rf', and 'hgb'."
         )
 
     return model
@@ -259,25 +259,25 @@ def marginal_effect_for_treatment(
     # model
     FSCF_n_folds=2,
     model_y="rf",
-    param_y=None,
+    param_y={},
     CV_y=False,
-    param_grid_y=None,
+    param_grid_y={},
     n_folds_y=10,
     scoring_y="neg_mean_squared_error",
     model_t="rf",
-    param_t=None,
+    param_t={},
     CV_t=False,
-    param_grid_t=None,
+    param_grid_t={},
     n_folds_t=10,
     scoring_t="neg_mean_squared_error",
     model_final="linear",
-    param_final=None,
+    param_final={},
     CV_final=False,
-    param_grid_final=None,
+    param_grid_final={},
     n_folds_final=10,
     scoring_final="neg_mean_squared_error",
     featurizer_model_final=None,
-    featurizer_param_final=None,
+    featurizer_param_final={},
     n_jobs=-1,
 ):
 
@@ -305,12 +305,12 @@ def marginal_effect_for_treatment(
 
     featurizer_model_final_lower = featurizer_model_final.lower()
     if featurizer_model_final_lower in {"p", "poly", "polynomial"}:
-        if featurizer_param_final is None:
+        if featurizer_param_final == {}:
             featurizer_final = PolynomialFeatures()
         else:
             featurizer_final = PolynomialFeatures(**featurizer_param_final)
     elif featurizer_model_final_lower in {"s", "spline"}:
-        if featurizer_param_final is None:
+        if featurizer_param_final == {}:
             featurizer_final = SplineTransformer()
         else:
             featurizer_final = SplineTransformer(**featurizer_param_final)
