@@ -1,25 +1,23 @@
 Package: interflex
 Type: Package
-Version: 1.3.0
-Title: Marginal Effects Estimation, Diagnostics and Visualization
-Date: 2021-05-02
+Version: 1.3.1
+Title: Multiplicative Interaction Models Diagnostics and Visualization
+Date: 2024-08-01
 Authors@R: c(person("Jens Hainmueller", role=c("aut")),
-             person("Jiehan Liu", role=c("aut")),
-             person("Licheng Liu", role=c("aut")),
-	     person("Ziyi Liu", role=c("aut")),
 	     person("Jonathan Mummolo", role=c("aut")),
-	     person("Tianzhu Qin", role=c("aut")),
-	     person("Yiqing Xu", role=c("aut","cre"), email = "yiqingxu@stanford.edu"))
-Description: Estimates, interprets, and visualizes marginal effects and performs diagnostics.
+	     person("Yiqing Xu", role=c("aut"), email = "yiqingxu@stanford.edu"),
+	     person("Ziyi Liu", role=c("aut","cre"), email = "zyliu2020@uchicago.edu"))
+Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
 URL: https://yiqingxu.org/packages/interflex/
 License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16),
         lfe (>= 2.6-2291), gridExtra, grid, ggplotify,
         RColorBrewer,pcse, gtable, MASS, mvtnorm, pROC,
-        ModelMetrics, Rcpp, lmtest, AER, future, patchwork (>= 1.2.0)
+        ModelMetrics, Rcpp, lmtest, AER, future
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true
 NeedsCompilation: yes
-Maintainer: Yiqing Xu <yiqingxu@stanford.edu>
-Depends: R (>= 4.0.0)
+Maintainer: Ziyi Liu <zyliu2020@uchicago.edu>
+Packaged: 2021-04-19 13:25:46 UTC; BEIJING-c024
+Depends: R (>= 3.5.0)
