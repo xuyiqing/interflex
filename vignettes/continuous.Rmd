@@ -131,7 +131,7 @@ plot(out)
 print(out$tests$p.wald)
 ```
 
-We see that the Wald test cannot reject the NULL hypothesis that the linear interaction model and the three-bin model are statistically equivalent. If we only want to conduct the linear estimator, we can set `estimator = "linear"`, We also report the uniform/simultaneous confidence interval (when setting `vartype = "bootstrap"`), as depicted by the dashed lines. You can access uniform confidence interval from 
+We see that the Wald test cannot reject the NULL hypothesis that the linear interaction model and the three-bin model are statistically equivalent. If we only want to conduct the linear estimator, we can set `estimator = "linear"`, We also report the uniform/simultaneous confidence interval (when setting `vartype = "bootstrap"`), as depicted by the dashed lines.
 ```{r binning1ab, message = FALSE, fig.height=5, fig.width=5, cache = TRUE}
 out2 <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, 
                   estimator = "linear", vcov.type = "robust", 

@@ -20,9 +20,9 @@ performs diagnostics.
 Jonathan Mummolo, Tianzhu Qin, and [Yiqing Xu](https://yiqingxu.org/)
 (maintainer)
 
-**Date:** June 18, 2024
+**Date:** August 2, 2024
 
-**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.3.0)
+**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.3.1)
 [CRAN](https://cran.r-project.org/web/packages/interflex/index.html)
 (1.2.6)
 
@@ -49,14 +49,17 @@ April 2019, pp. 163–192.
 You can install the **interflex** package from CRAN:
 
 ``` r
-install.packages('interflex', type = "source", repos = 'http://cran.us.r-project.org') 
+install.packages('interflex', type = "source", 
+                 repos = 'http://cran.us.r-project.org') 
 ```
 
 Or you can install the up-to-date development version from Github:
 
 ``` r
-install.packages('devtools', repos = 'http://cran.us.r-project.org') # if not already installed
-devtools::install_github('xuyiqing/interflex@dml')
+# if not already installed
+install.packages('devtools', repos = 'http://cran.us.r-project.org') 
+# install from github
+devtools::install_github('xuyiqing/interflex')
 ```
 
 **interflex** depends on the following packages, which will be installed
@@ -75,8 +78,8 @@ install_all <- function(packages) {
 }
 
 # Packages to be installed
-packages <- c("Rcpp", "mgcv", "sandwich", "pcse", "foreach", "doParallel", 
-              "lmtest", "lfe", "Lmoments", "ggplot2", "plotrix", "grid", 
+packages <- c("Rcpp", "mgcv", "sandwich", "pcse", "fixest", "foreach", "doParallel", 
+              "lfe", "lmtest", "Lmoments", "ggplot2", "plotrix", "grid", 
               "gridExtra", "ggplotify", "ggpubr", "RColorBrewer", "grDevices", 
               "gtable", "MASS", "mvtnorm", "pROC", "ModelMetrics", "foreign",
               "patchwork", "rmarkdown")
