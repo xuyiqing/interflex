@@ -753,7 +753,12 @@ interflex.kernel <- function(data,
                 .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
                 .inorder = FALSE
             ) %dopar% {
-                cv.new(bw, neval = neval)
+                cv.output.sub <- try(cv.new(bw, neval = neval),silent = TRUE)
+                if('try-error' %in% class(cv.output.sub)){
+                    return(NA)
+                }else{
+                    return(cv.output.sub)
+                }
             })
 
             suppressWarnings(stopCluster(pcl))
@@ -761,7 +766,12 @@ interflex.kernel <- function(data,
         } else {
             Error <- matrix(NA, length(bw.grid), 6)
             for (i in 1:length(bw.grid)) {
-                suppressWarnings(Error[i, ] <- cv.new(bw = bw.grid[i], neval = neval))
+                suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval),silent = TRUE))
+                if('try-error' %in% class(cv.output.sub)){
+                    Error[i, ] <- NA
+                }else{
+                    Error[i, ] <- cv.output.sub
+                }
                 cat(".")
             }
         }
