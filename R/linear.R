@@ -1525,9 +1525,10 @@ interflex.linear <- function(data,
 
                 # save
                 TE.vcov.list[[other.treat.origin[char]]] <- TE.delta.vcov
+                TE.uniform.q <- calculate_delta_uniformCI(TE.delta.vcov,alpha=0.05,N=2000)
 
-                TE.output.all <- cbind(X.eval, TE.output, TE.output.sd, TE.output - crit * TE.output.sd, TE.output + crit * TE.output.sd)
-                colnames(TE.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)")
+                TE.output.all <- cbind(X.eval, TE.output, TE.output.sd, TE.output - crit * TE.output.sd, TE.output + crit * TE.output.sd, TE.output - TE.uniform.q * TE.output.sd, TE.output + TE.uniform.q * TE.output.sd)
+                colnames(TE.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(TE.output.all) <- NULL
                 TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
 
@@ -1607,9 +1608,11 @@ interflex.linear <- function(data,
 
                 # save
                 ME.vcov.list[[label.name[k]]] <- ME.delta.vcov
+                ME.uniform.q <- calculate_delta_uniformCI(ME.delta.vcov,alpha=0.05,N=2000)
+                
 
-                ME.output.all <- cbind(X.eval, ME.output, ME.output.sd, ME.output - crit * ME.output.sd, ME.output + crit * ME.output.sd)
-                colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)")
+                ME.output.all <- cbind(X.eval, ME.output, ME.output.sd, ME.output - crit * ME.output.sd, ME.output + crit * ME.output.sd, ME.output - ME.uniform.q * ME.output.sd, ME.output + ME.uniform.q * ME.output.sd)
+                colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(ME.output.all) <- NULL
                 ME.output.all.list[[label.name[k]]] <- ME.output.all
 
@@ -1875,6 +1878,17 @@ interflex.linear <- function(data,
                 diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
                 ATE.boot.CI <- matrix(t(apply(ATE.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE)), nrow = 1)
 
+
+                TE.boot.uniform.CI <- calculate_uniform_quantiles(TE.boot.matrix,0.05)
+                uniform.coverage <- TE.boot.uniform.CI$coverage
+                TE.boot.uniform.CI <- TE.boot.uniform.CI$Q_j
+
+                pred.boot.uniform.CI <- calculate_uniform_quantiles(pred.boot.matrix,0.05)
+                pred.boot.uniform.CI <- pred.boot.uniform.CI$Q_j
+
+                link.1.boot.uniform.CI <- calculate_uniform_quantiles(link.1.boot.matrix,0.05)
+                link.1.boot.uniform.CI <- link.1.boot.uniform.CI$Q_j
+
                 if (length(diff.values) == 2) {
                     diff.boot.CI <- matrix(diff.boot.CI, nrow = 1)
                 }
@@ -1886,20 +1900,21 @@ interflex.linear <- function(data,
                 rownames(TE.boot.vcov) <- NULL
                 colnames(TE.boot.vcov) <- NULL
 
-                TE.output.all <- cbind(X.eval, TE.output, TE.boot.sd, TE.boot.CI[, 1], TE.boot.CI[, 2])
-                colnames(TE.output.all) <- c("X", "TE", "sd", "lower CI(95%)", "upper CI(95%)")
+                TE.output.all <- cbind(X.eval, TE.output, TE.boot.sd, TE.boot.CI[, 1], TE.boot.CI[, 2],TE.boot.uniform.CI[,1],TE.boot.uniform.CI[,2])
+                colnames(TE.output.all) <- c("X", "TE", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(TE.output.all) <- NULL
                 TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
 
-                pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2])
-                colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2], pred.boot.uniform.CI[,1], pred.boot.uniform.CI[,2])
+                colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(pred.output.all) <- NULL
                 pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
 
-                link.output.all <- cbind(X.eval, link.1.output, link.1.boot.sd, link.1.boot.CI[, 1], link.1.boot.CI[, 2])
-                colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                link.output.all <- cbind(X.eval, link.1.output, link.1.boot.sd, link.1.boot.CI[, 1], link.1.boot.CI[, 2], link.1.boot.uniform.CI[,1], link.1.boot.uniform.CI[,2])
+                colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(link.output.all) <- NULL
                 link.output.all.list[[other.treat.origin[char]]] <- link.output.all
+
 
                 TE.vcov.list[[other.treat.origin[char]]] <- TE.boot.vcov
 
@@ -1920,13 +1935,20 @@ interflex.linear <- function(data,
                 ATE.output.list[[other.treat.origin[char]]] <- ATE.output
             }
             # base
-            base.output.all <- cbind(X.eval, E.base.output, base.boot.sd, base.boot.CI[, 1], base.boot.CI[, 2])
-            colnames(base.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+            base.boot.uniform.CI <- calculate_uniform_quantiles(base.boot.matrix,0.05)
+            base.boot.uniform.CI <- base.boot.uniform.CI$Q_j
+
+            link.0.boot.uniform.CI <- calculate_uniform_quantiles(link.0.boot.matrix,0.05)
+            link.0.boot.uniform.CI <- link.0.boot.uniform.CI$Q_j
+
+            # base
+            base.output.all <- cbind(X.eval, E.base.output, base.boot.sd, base.boot.CI[, 1], base.boot.CI[, 2],base.boot.uniform.CI[,1],base.boot.uniform.CI[,2])
+            colnames(base.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
             rownames(base.output.all) <- NULL
             pred.output.all.list[[all.treat.origin[base]]] <- base.output.all
 
-            link.0.output.all <- cbind(X.eval, link.0.output, link.0.boot.sd, link.0.boot.CI[, 1], link.0.boot.CI[, 2])
-            colnames(link.0.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+            link.0.output.all <- cbind(X.eval, link.0.output, link.0.boot.sd, link.0.boot.CI[, 1], link.0.boot.CI[, 2],link.0.boot.uniform.CI[,1], link.0.boot.uniform.CI[,2])
+            colnames(link.0.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
             rownames(link.0.output.all) <- NULL
             link.output.all.list[[all.treat.origin[base]]] <- link.0.output.all
         }
@@ -1972,18 +1994,30 @@ interflex.linear <- function(data,
                 link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
                 diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
 
-                ME.output.all <- cbind(X.eval, ME.output, ME.boot.sd, ME.boot.CI[, 1], ME.boot.CI[, 2])
-                colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)")
+
+                ME.boot.uniform.CI <- calculate_uniform_quantiles(ME.boot.matrix,0.05)
+                uniform.coverage <- ME.boot.uniform.CI$coverage
+                ME.boot.uniform.CI <- ME.boot.uniform.CI$Q_j
+
+                pred.boot.uniform.CI <- calculate_uniform_quantiles(pred.boot.matrix,0.05)
+                pred.boot.uniform.CI <- pred.boot.uniform.CI$Q_j
+
+                link.boot.uniform.CI <- calculate_uniform_quantiles(link.boot.matrix,0.05)
+                link.boot.uniform.CI <- link.boot.uniform.CI$Q_j
+
+
+                ME.output.all <- cbind(X.eval, ME.output, ME.boot.sd, ME.boot.CI[, 1], ME.boot.CI[, 2], ME.boot.uniform.CI[,1], ME.boot.uniform.CI[,2])
+                colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(ME.output.all) <- NULL
                 ME.output.all.list[[label]] <- ME.output.all
 
-                pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2])
-                colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2], pred.boot.uniform.CI[, 1], pred.boot.uniform.CI[, 2])
+                colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(pred.output.all) <- NULL
                 pred.output.all.list[[label]] <- pred.output.all
 
-                link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2])
-                colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)")
+                link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2],link.boot.uniform.CI[,1],link.boot.uniform.CI[,2])
+                colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(link.output.all) <- NULL
                 link.output.all.list[[label]] <- link.output.all
 

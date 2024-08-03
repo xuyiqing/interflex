@@ -489,7 +489,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (char in other.treat) {
                 if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(3, 4)]))))
+                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(4, 5)]))))
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, 2]))))
                 }
@@ -657,9 +657,15 @@ interflex.plot.pool <- function(
                 est.touse <- est[[char]]
                 if (CI == TRUE) {
                     if (estimator == "DML") {
-                        colnames(est.touse) <- c("X", "TE", "CI_lower", "CI_upper")
-                    } else {
                         colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
+                    } else {
+                        if(dim(est.touse)[2]==5){
+                            colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")                            
+                        }
+                        else{
+                            colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper","CI_uniform_lower", "CI_uniform_upper")    
+                        }
+
                     }
                 }
                 if (CI == FALSE) {
@@ -680,8 +686,18 @@ interflex.plot.pool <- function(
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = TE, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
             if (CI == TRUE) {
-                p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
-                p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
+                #if(estimator!='DML'){
+                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
+                    p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
+                    if("CI_uniform_lower" %in% colnames(tempest)){
+                        p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = F)
+                        p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
+                    }
+                #}
+                #else{
+                #    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = F)
+                #    p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
+                #}
             }
 
             if (is.null(diff.values) == FALSE) {
@@ -735,7 +751,17 @@ interflex.plot.pool <- function(
             for (label in label.name) {
                 est.touse <- est[[label]]
                 if (CI == TRUE) {
-                    colnames(est.touse) <- c("X", "ME", "sd", "CI_lower", "CI_upper")
+                    if(dim(est.touse)[2]==5){
+                        if(estimator == 'DML'){
+                            colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper") 
+                        }else{
+                            colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper") 
+                        }
+                                                   
+                    }
+                    else{
+                        colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper","CI_uniform_lower", "CI_uniform_upper")    
+                    }
                 }
                 if (CI == FALSE) {
                     est.touse <- est.touse[, c(1, 2)]
@@ -756,8 +782,18 @@ interflex.plot.pool <- function(
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = ME, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
             if (CI == TRUE) {
-                p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = FALSE)
-                p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
+                #if(estimator!='DML'){
+                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
+                    p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
+                    if("CI_uniform_lower" %in% colnames(tempest)){
+                        p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = F)
+                        p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
+                    }
+                #}
+                #else{
+                #    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = F)
+                #    p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
+                #}
             }
 
             if (is.null(diff.values) == FALSE) {
