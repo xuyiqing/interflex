@@ -761,7 +761,7 @@ interflex.kernel <- function(data,
         } else {
             Error <- matrix(NA, length(bw.grid), 6)
             for (i in 1:length(bw.grid)) {
-                Error[i, ] <- cv.new(bw = bw.grid[i], neval = neval)
+                suppressWarnings(Error[i, ] <- cv.new(bw = bw.grid[i], neval = neval))
                 cat(".")
             }
         }
@@ -1925,7 +1925,7 @@ interflex.kernel <- function(data,
             } else {
                 bootout <- matrix(NA, all.length, 0)
                 for (i in 1:nboots) {
-                    tempdata <- try(one.boot(),silent = TRUE)
+                    suppressWarnings(tempdata <- try(one.boot(),silent = TRUE))
                     if('try-error' %in% class(tempdata)){
                         bootout <- cbind(bootout, NA)
                     }
