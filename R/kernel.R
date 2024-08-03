@@ -1911,7 +1911,13 @@ interflex.kernel <- function(data,
                         .export = c("one.boot"), .packages = c("MASS", "AER"),
                         .inorder = FALSE
                     ) %dopar% {
-                        one.boot()
+                        output.all <- try(one.boot(),silent = TRUE)
+                        if('try-error' %in% class(output.all)){
+                            return(NA)
+                        }
+                        else{
+                            return(output.all)
+                        }
                     }
                 )
                 suppressWarnings(stopCluster(pcl))
@@ -1919,10 +1925,16 @@ interflex.kernel <- function(data,
             } else {
                 bootout <- matrix(NA, all.length, 0)
                 for (i in 1:nboots) {
-                    tempdata <- one.boot()
-                    if (is.null(tempdata) == FALSE) {
-                        bootout <- cbind(bootout, tempdata)
+                    tempdata <- try(one.boot(),silent = TRUE)
+                    if('try-error' %in% class(tempdata)){
+                        bootout <- cbind(bootout, NA)
                     }
+                    else{
+                        bootout <- cbind(bootout, tempdata)
+                    }                    
+                    #if (is.null(tempdata) == FALSE) {
+                    #    bootout <- cbind(bootout, tempdata)
+                    #}
                     if (i %% 50 == 0) cat(i) else cat(".")
                 }
                 cat("\r")
