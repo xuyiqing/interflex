@@ -181,8 +181,8 @@ def marginal_effect_for_treatment(
     df_cate["sd"] = np.sqrt(
         (np.dot(spline_grid_np, cate._blp_omega) * spline_grid_np).sum(axis=1)
     )
-    df_cate["lower CI(95%)"] = df_cate["X"] + norm.ppf(q=0.05 / 2) * df_cate["sd"]
-    df_cate["upper CI(95%)"] = df_cate["X"] + norm.ppf(q=1 - 0.05 / 2) * df_cate["sd"]
+    df_cate["lower CI(95%)"] = df_cate["ME"] + norm.ppf(q=0.05 / 2) * df_cate["sd"]
+    df_cate["upper CI(95%)"] = df_cate["ME"] + norm.ppf(q=1 - 0.05 / 2) * df_cate["sd"]
     df_cate["lower uniform CI(95%)"] = df_cate["2.5 %"]
     df_cate["upper uniform CI(95%)"] = df_cate["97.5 %"]
     df_cate = df_cate[
