@@ -148,6 +148,7 @@ def marginal_effect_for_treatment(
         )
         model_y_key = "ml_l"
 
+    params = {"model.y": None, "model.t": None}
     if CV:
         dml_model.tune(
             param_grids={model_y_key: param_grid_y, "ml_m": param_grid_t},
@@ -157,6 +158,11 @@ def marginal_effect_for_treatment(
             search_mode="grid_search",
             return_tune_res=True,
         )
+        if "ml_g" in dml_model.params:
+            params["model.y"] = dml_model.params["ml_g"][D][0][0]
+        elif "ml_g1" in dml_model.params:
+            params["model.y"] = dml_model.params["ml_g1"][D][0][0]
+        params["model.t"] = dml_model.params["ml_m"][D][0][0]
 
     dml_model.fit()
 
@@ -179,13 +185,6 @@ def marginal_effect_for_treatment(
     df_cate["lower CI(95%)"] = df_cate["2.5 %"]
     df_cate["upper CI(95%)"] = df_cate["97.5 %"]
     df_cate = df_cate[["X", "ME", "sd", "lower CI(95%)", "upper CI(95%)"]]
-
-    params = dict()
-    if "ml_g" in dml_model.params:
-        params["model.y"] = dml_model.params["ml_g"][D][0][0]
-    elif "ml_g1" in dml_model.params:
-        params["model.y"] = dml_model.params["ml_g1"][D][0][0]
-    params["model.t"] = dml_model.params["ml_m"][D][0][0]
 
     return (
         df_cate.to_dict("list"),
