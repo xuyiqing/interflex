@@ -193,7 +193,7 @@ def marginal_effect_for_treatment(
             "lower CI(95%)",
             "upper CI(95%)",
             "lower uniform CI(95%)",
-            "upper  uniform CI(95%)",
+            "upper uniform CI(95%)",
         ]
     ]
 
