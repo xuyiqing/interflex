@@ -11,9 +11,10 @@ from sklearn.ensemble import (
     HistGradientBoostingClassifier,
     HistGradientBoostingRegressor,
 )
+from scipy.stats import norm
 
 
-def set_model(model, param, discrete_outcome, n_jobs):
+def set_model(model, param, discrete_outcome):
     model_lower = model.lower()
     if model_lower in {
         "default",
@@ -182,9 +183,21 @@ def marginal_effect_for_treatment(
     df_cate["sd"] = np.sqrt(
         (np.dot(spline_grid_np, cate._blp_omega) * spline_grid_np).sum(axis=1)
     )
-    df_cate["lower CI(95%)"] = df_cate["2.5 %"]
-    df_cate["upper CI(95%)"] = df_cate["97.5 %"]
-    df_cate = df_cate[["X", "ME", "sd", "lower CI(95%)", "upper CI(95%)"]]
+    df_cate["lower CI(95%)"] = df_cate["X"] + norm.ppf(q=0.05 / 2) * df_cate["sd"]
+    df_cate["upper CI(95%)"] = df_cate["X"] + norm.ppf(q=1 - 0.05 / 2) * df_cate["sd"]
+    df_cate["lower uniform CI(95%)"] = df_cate["2.5 %"]
+    df_cate["upper uniform CI(95%)"] = df_cate["97.5 %"]
+    df_cate = df_cate[
+        [
+            "X",
+            "ME",
+            "sd",
+            "lower CI(95%)",
+            "upper CI(95%)",
+            "lower uniform CI(95%)",
+            "upper  uniform CI(95%)",
+        ]
+    ]
 
     return (
         df_cate.to_dict("list"),
