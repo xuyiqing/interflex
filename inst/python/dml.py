@@ -119,14 +119,12 @@ def marginal_effect_for_treatment(
         model_y,
         param_y,
         discrete_outcome,
-        n_jobs,
     )
 
     model_t_set = set_model(
         model_t,
         param_t,
         discrete_treatment,
-        n_jobs,
     )
 
     data_dml_base = dml.DoubleMLData(
