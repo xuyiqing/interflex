@@ -6,27 +6,16 @@ interflex.DML <- function(data,
                           diff.info,
                           Z = NULL, # covariates
                           weights = NULL, # weighting variable
-                          FSCF.n.folds = 2,
                           model.y = "rf",
                           param.y = NULL,
-                          CV.y = FALSE,
                           param.grid.y = NULL,
-                          n.folds.y = 10,
                           scoring.y = "neg_mean_squared_error",
                           model.t = "rf",
                           param.t = NULL,
-                          CV.t = FALSE,
                           param.grid.t = NULL,
-                          n.folds.t = 10,
                           scoring.t = "neg_mean_squared_error",
-                          model.final = "linear",
-                          param.final = NULL,
-                          CV.final = FALSE,
-                          param.grid.final = NULL,
-                          n.folds.final = 10,
-                          scoring.final = "neg_mean_squared_error",
-                          featurizer.model.final = NULL,
-                          featurizer.param.final = NULL,
+                          CV = FALSE,
+                          n.folds = 10,
                           n.jobs = -1,
                           figure = TRUE,
                           CI = CI,
@@ -58,10 +47,6 @@ interflex.DML <- function(data,
                           scale = 1.1,
                           height = 7,
                           width = 10) {
-    if (is.null(featurizer.model.final)) {
-        featurizer.model.final <- "spline"
-    }
-
     diff.values.plot <- diff.info[["diff.values.plot"]]
     treat.type <- treat.info[["treat.type"]]
     if (treat.type == "discrete") {
@@ -141,73 +126,50 @@ interflex.DML <- function(data,
     reticulate::use_condaenv(condaenv = "r-reticulate")
 
     TE.output.all.list <- list()
+    python_script_path <- system.file("python/dml.py", package = "interflex")
+    reticulate::source_python(python_script_path)
     if (treat.type == "discrete") {
-        python_script_path <- system.file("python/dml.py", package = "interflex")
-        reticulate::source_python(python_script_path)
         for (char in other.treat) {
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
-            data_part[data_part[[D]] == treat.base, D] <- 0
-            data_part[data_part[[D]] == char, D] <- 1
+            data_part[data_part[[D]] == treat.base, D] <- 0L
+            data_part[data_part[[D]] == char, D] <- 1L
             result <- marginal_effect_for_treatment(data_part,
-                Y = Y, D = D, X = X, Z = Z, d_ref = 1,
-                FSCF_n_folds = FSCF.n.folds,
+                Y = Y, D = D, X = X, Z = Z,
                 model_y = model.y,
                 param_y = reticulate::dict(param.y),
-                CV_y = CV.y,
                 param_grid_y = reticulate::dict(param.grid.y),
-                n_folds_y = n.folds.y,
                 scoring_y = scoring.y,
                 model_t = model.t,
                 param_t = reticulate::dict(param.t),
-                CV_t = CV.t,
                 param_grid_t = reticulate::dict(param.grid.t),
-                n_folds_t = n.folds.t,
                 scoring_t = scoring.t,
-                model_final = model.final,
-                param_final = reticulate::dict(param.final),
-                CV_final = CV.final,
-                param_grid_final = reticulate::dict(param.grid.final),
-                n_folds_final = n.folds.final,
-                scoring_final = scoring.final,
-                featurizer_model_final = featurizer.model.final,
-                featurizer_param_final = reticulate::dict(featurizer.param.final),
+                CV = CV,
+                n_folds = n.folds,
                 n_jobs = n.jobs
             )
             TE.output.all <- data.frame(result[1], check.names = FALSE)
             TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
         }
     } else if (treat.type == "continuous") {
-        python_script_path <- system.file("python/dml.py", package = "interflex")
-        reticulate::source_python(python_script_path)
+        result <- marginal_effect_for_treatment(data,
+            Y = Y, D = D, X = X, Z = Z,
+            model_y = model.y,
+            param_y = reticulate::dict(param.y),
+            param_grid_y = reticulate::dict(param.grid.y),
+            scoring_y = scoring.y,
+            model_t = model.t,
+            param_t = reticulate::dict(param.t),
+            param_grid_t = reticulate::dict(param.grid.t),
+            scoring_t = scoring.t,
+            CV = CV,
+            n_folds = n.folds,
+            n_jobs = n.jobs
+        )
+        TE.output.all <- data.frame(result[1], check.names = FALSE)
+
         k <- 1
         for (d_ref in D.sample) {
             label <- label.name[k]
-            result <- marginal_effect_for_treatment(data,
-                Y = Y, D = D, X = X, Z = Z, d_ref = d_ref,
-                FSCF_n_folds = FSCF.n.folds,
-                model_y = model.y,
-                param_y = reticulate::dict(param.y),
-                CV_y = CV.y,
-                param_grid_y = reticulate::dict(param.grid.y),
-                n_folds_y = n.folds.y,
-                scoring_y = scoring.y,
-                model_t = model.t,
-                param_t = reticulate::dict(param.t),
-                CV_t = CV.t,
-                param_grid_t = reticulate::dict(param.grid.t),
-                n_folds_t = n.folds.t,
-                scoring_t = scoring.t,
-                model_final = model.final,
-                param_final = reticulate::dict(param.final),
-                CV_final = CV.final,
-                param_grid_final = reticulate::dict(param.grid.final),
-                n_folds_final = n.folds.final,
-                scoring_final = scoring.final,
-                featurizer_model_final = featurizer.model.final,
-                featurizer_param_final = reticulate::dict(featurizer.param.final),
-                n_jobs = n.jobs
-            )
-            TE.output.all <- data.frame(result[1], check.names = FALSE)
             TE.output.all.list[[label]] <- TE.output.all
             k <- k + 1
         }
@@ -224,9 +186,7 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = treat_den,
             count.tr = treat.hist,
-            model.y = result[2][[1]],
-            model.t = result[3][[1]],
-            model.final = result[4][[1]],
+            dml.models = result[2][[1]],
             estimator = "DML"
         )
     } else if (treat.type == "continuous") {
@@ -241,9 +201,7 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = de.tr,
             count.tr = NULL,
-            model.y = result[2][[1]],
-            model.t = result[3][[1]],
-            model.final = result[4][[1]],
+            dml.models = result[2][[1]],
             estimator = "DML"
         )
     }
