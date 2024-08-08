@@ -506,7 +506,7 @@ interflex.plot.pool <- function(
                 if (CI == TRUE) {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(4, 5)]))))
                     if(ncol(est.dml[[label]])>5){
-                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(6, 7)]))))
+                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(6, 7)]))))
                     }
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, 2]))))
