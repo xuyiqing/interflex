@@ -113,6 +113,8 @@ def marginal_effect_for_treatment(
 
     if type(Z) is str:
         Z = [Z]
+    elif Z is None:
+        Z = []
     covariates = Z.copy()
     covariates.append(X)
 
