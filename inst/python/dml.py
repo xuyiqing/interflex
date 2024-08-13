@@ -101,15 +101,20 @@ def marginal_effect_for_treatment(
     if n_jobs == -1:
         n_jobs = multiprocessing.cpu_count()
 
-    if len(df[Y].unique()) > 5:
-        discrete_outcome = False
-    else:
+    if sorted(list(df[Y].unique())) == [0, 1]:
         discrete_outcome = True
+    else:
+        discrete_outcome = False
 
     if len(df[D].unique()) > 5:
         discrete_treatment = False
     else:
         discrete_treatment = True
+
+    if len(df[X].unique()) > 5:
+        discrete_moderator = False
+    else:
+        discrete_moderator = True
 
     if type(Z) is str:
         Z = [Z]
@@ -170,6 +175,38 @@ def marginal_effect_for_treatment(
 
     dml_model.fit()
 
+    df_gate = pd.DataFrame()
+    if discrete_moderator:
+        groups = pd.get_dummies(df[X])
+        gate = dml_model.gate(groups=groups)
+        df_gate = gate.confint(level=0.95, joint=True, n_rep_boot=2000)
+
+        np_basis = pd.DataFrame(
+            np.diag(v=np.full((gate._basis.shape[1]), True))
+        ).to_numpy()
+        df_gate["X"] = df_gate.index
+        df_gate["ME"] = df_gate["effect"]
+        df_gate["sd"] = np.sqrt(
+            (np.dot(np_basis, gate._blp_omega) * np_basis).sum(axis=1)
+        )
+        df_gate["lower CI(95%)"] = df_gate["ME"] + norm.ppf(q=0.05 / 2) * df_gate["sd"]
+        df_gate["upper CI(95%)"] = (
+            df_gate["ME"] + norm.ppf(q=1 - 0.05 / 2) * df_gate["sd"]
+        )
+        df_gate["lower uniform CI(95%)"] = df_gate["2.5 %"]
+        df_gate["upper uniform CI(95%)"] = df_gate["97.5 %"]
+        df_gate = df_gate[
+            [
+                "X",
+                "ME",
+                "sd",
+                "lower CI(95%)",
+                "upper CI(95%)",
+                "lower uniform CI(95%)",
+                "upper uniform CI(95%)",
+            ]
+        ].reset_index(drop=True)
+
     design_matrix = patsy.dmatrix("bs(x, df=5, degree=2)", {"x": df[X]})
     spline_basis = pd.DataFrame(design_matrix)
     cate = dml_model.cate(spline_basis)
@@ -178,7 +215,7 @@ def marginal_effect_for_treatment(
     spline_grid = pd.DataFrame(
         patsy.build_design_matrices([design_matrix.design_info], new_data)[0]
     )
-    spline_grid_np = spline_grid.to_numpy()
+    spline_grid_np = spline_grid.to_numpy(df[X])
 
     df_cate = cate.confint(spline_grid, level=0.95, joint=True, n_rep_boot=2000)
     df_cate["X"] = new_data["x"]
@@ -204,5 +241,6 @@ def marginal_effect_for_treatment(
 
     return (
         df_cate.to_dict("list"),
+        df_gate.to_dict("list"),
         params,
     )

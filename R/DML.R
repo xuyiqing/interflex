@@ -126,6 +126,7 @@ interflex.DML <- function(data,
     reticulate::use_condaenv(condaenv = "r-reticulate")
 
     TE.output.all.list <- list()
+    TE.G.output.all.list <- list()
     python_script_path <- system.file("python/dml.py", package = "interflex")
     reticulate::source_python(python_script_path)
     if (treat.type == "discrete") {
@@ -148,7 +149,9 @@ interflex.DML <- function(data,
                 n_jobs = n.jobs
             )
             TE.output.all <- data.frame(result[1], check.names = FALSE)
+            TE.G.output.all <- data.frame(result[2], check.names = FALSE)
             TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
+            TE.G.output.all.list[[other.treat.origin[char]]] <- TE.G.output.all
         }
     } else if (treat.type == "continuous") {
         result <- marginal_effect_for_treatment(data,
@@ -166,11 +169,13 @@ interflex.DML <- function(data,
             n_jobs = n.jobs
         )
         TE.output.all <- data.frame(result[1], check.names = FALSE)
+        TE.G.output.all <- data.frame(result[2], check.names = FALSE)
 
         k <- 1
         for (d_ref in D.sample) {
             label <- label.name[k]
             TE.output.all.list[[label]] <- TE.output.all
+            TE.G.output.all.list[[label]] <- TE.G.output.all
             k <- k + 1
         }
     }
@@ -179,6 +184,7 @@ interflex.DML <- function(data,
             diff.info = diff.info,
             treat.info = treat.info,
             est.dml = TE.output.all.list,
+            g.est.dml = TE.G.output.all.list,
             Xlabel = Xlabel,
             Dlabel = Dlabel,
             Ylabel = Ylabel,
@@ -186,7 +192,7 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = treat_den,
             count.tr = treat.hist,
-            dml.models = result[2][[1]],
+            dml.models = result[3][[1]],
             estimator = "DML"
         )
     } else if (treat.type == "continuous") {
@@ -194,6 +200,7 @@ interflex.DML <- function(data,
             diff.info = diff.info,
             treat.info = treat.info,
             est.dml = TE.output.all.list,
+            g.est.dml = TE.G.output.all.list,
             Xlabel = Xlabel,
             Dlabel = Dlabel,
             Ylabel = Ylabel,
@@ -201,7 +208,7 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = de.tr,
             count.tr = NULL,
-            dml.models = result[2][[1]],
+            dml.models = result[3][[1]],
             estimator = "DML"
         )
     }
