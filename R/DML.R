@@ -17,6 +17,8 @@ interflex.DML <- function(data,
                           CV = FALSE,
                           n.folds = 10,
                           n.jobs = -1,
+                          cf.n.folds = 5,
+                          cf.n.rep = 1,
                           figure = TRUE,
                           CI = CI,
                           order = NULL,
@@ -146,7 +148,9 @@ interflex.DML <- function(data,
                 scoring_t = scoring.t,
                 CV = CV,
                 n_folds = n.folds,
-                n_jobs = n.jobs
+                n_jobs = n.jobs,
+                cf_n_folds = cf.n.folds,
+                cf_n_rep = cf.n.rep
             )
             TE.output.all <- data.frame(result[1], check.names = FALSE)
             TE.G.output.all <- data.frame(result[2], check.names = FALSE)
@@ -166,7 +170,9 @@ interflex.DML <- function(data,
             scoring_t = scoring.t,
             CV = CV,
             n_folds = n.folds,
-            n_jobs = n.jobs
+            n_jobs = n.jobs,
+            cf_n_folds = cf.n.folds,
+            cf_n_rep = cf.n.rep
         )
         TE.output.all <- data.frame(result[1], check.names = FALSE)
         TE.G.output.all <- data.frame(result[2], check.names = FALSE)

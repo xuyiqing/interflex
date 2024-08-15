@@ -94,10 +94,14 @@ def marginal_effect_for_treatment(
     CV=False,
     n_folds=10,
     n_jobs=-1,
+    cf_n_folds=5,
+    cf_n_rep=1,
 ):
     ### Initialization
     n_folds = int(n_folds)
     n_jobs = int(n_jobs)
+    cf_n_folds = int(cf_n_folds)
+    cf_n_rep = int(cf_n_rep)
     if n_jobs == -1:
         n_jobs = multiprocessing.cpu_count()
 
@@ -138,7 +142,10 @@ def marginal_effect_for_treatment(
     )
 
     data_dml_base = dml.DoubleMLData(
-        df[[X, Y, D, *Z]], y_col=Y, d_cols=D, x_cols=covariates
+        df[[X, Y, D, *Z]],
+        y_col=Y,
+        d_cols=D,
+        x_cols=covariates,
     )
 
     if discrete_treatment:
@@ -146,6 +153,8 @@ def marginal_effect_for_treatment(
             data_dml_base,
             ml_g=model_y_set,
             ml_m=model_t_set,
+            n_folds=cf_n_folds,
+            n_rep=cf_n_rep,
         )
         model_y_key = "ml_g"
 
@@ -154,6 +163,8 @@ def marginal_effect_for_treatment(
             data_dml_base,
             ml_l=model_y_set,
             ml_m=model_t_set,
+            n_folds=cf_n_folds,
+            n_rep=cf_n_rep,
         )
         model_y_key = "ml_l"
 
@@ -168,10 +179,10 @@ def marginal_effect_for_treatment(
             return_tune_res=True,
         )
         if "ml_g" in dml_model.params:
-            params["model.y"] = dml_model.params["ml_g"][D][0][0]
+            params["model.y"] = dml_model.params["ml_g"][D]
         elif "ml_g1" in dml_model.params:
-            params["model.y"] = dml_model.params["ml_g1"][D][0][0]
-        params["model.t"] = dml_model.params["ml_m"][D][0][0]
+            params["model.y"] = dml_model.params["ml_g1"][D]
+        params["model.t"] = dml_model.params["ml_m"][D]
 
     dml_model.fit()
 
