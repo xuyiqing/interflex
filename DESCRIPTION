@@ -1,23 +1,24 @@
 Package: interflex
 Type: Package
-Version: 1.2.6
+Version: 1.3.1
 Title: Multiplicative Interaction Models Diagnostics and Visualization
-Date: 2021-05-02
+Date: 2024-08-08
 Authors@R: c(person("Jens Hainmueller", role=c("aut")),
 	     person("Jonathan Mummolo", role=c("aut")),
+	     person("Tianzhu Qin", role=c("aut")),
 	     person("Yiqing Xu", role=c("aut"), email = "yiqingxu@stanford.edu"),
-	     person("Ziyi Liu", role=c("aut","cre"), email = "zyliu2020@uchicago.edu"))
+	     person("Ziyi Liu", role=c("aut","cre"), email = "zyliu2023@berkeley.edu"))
 Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
 URL: https://yiqingxu.org/packages/interflex/
 License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16),
-        lfe (>= 2.6-2291), gridExtra, grid, ggplotify,
+        lfe (>= 2.6-2291), gridExtra, grid, ggplotify, fixest,
         RColorBrewer,pcse, gtable, MASS, mvtnorm, pROC,
-        ModelMetrics, Rcpp, lmtest, AER, future
+        ModelMetrics, Rcpp, lmtest, AER, future, reticulate
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true
 NeedsCompilation: yes
-Maintainer: Ziyi Liu <zyliu2020@uchicago.edu>
-Packaged: 2021-04-19 13:25:46 UTC; BEIJING-c024
+Maintainer: Yiqing Xu <yiqingxu@stanford.edu>
+Packaged: 2024-08-08 13:25:46 UTC; BEIJING-c024
 Depends: R (>= 3.5.0)
