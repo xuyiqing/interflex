@@ -6,8 +6,9 @@ Date: 2024-08-08
 Authors@R: c(person("Jens Hainmueller", role=c("aut")),
 	     person("Jonathan Mummolo", role=c("aut")),
 	     person("Tianzhu Qin", role=c("aut")),
-	     person("Yiqing Xu", role=c("aut"), email = "yiqingxu@stanford.edu"),
-	     person("Ziyi Liu", role=c("aut","cre"), email = "zyliu2023@berkeley.edu"))
+	     person("Jiehan Liu", role=c("aut")),
+	     person("Ziyi Liu", role=c("aut")),
+	     person("Yiqing Xu", role=c("aut","cre"), email = "yiqingxu@stanford.edu"))
 Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
 URL: https://yiqingxu.org/packages/interflex/
 License: MIT + file LICENSE
