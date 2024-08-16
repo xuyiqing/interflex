@@ -25,6 +25,7 @@ plot.interflex <- function(x,
                            ncols = NULL,
                            # pool plot
                            pool = FALSE,
+                           by.group = FALSE, # if g.est is in the output
                            legend.title = NULL,
                            line.size = 1.2,
                            color = NULL,
@@ -52,6 +53,8 @@ plot.interflex <- function(x,
     CI_upper <- NULL
     ME <- NULL
     x0 <- NULL
+
+
 
     if (pool == TRUE) {
         p <- interflex.plot.pool(
@@ -97,6 +100,12 @@ plot.interflex <- function(x,
     out <- x
     if (!class(out) %in% c("interflex")) {
         stop("Not an \"interflex\" object.")
+    }
+
+    if(by.group){
+        if(!"g.est.dml" %in% names(out)){
+            stop("Group-specific Average Treatment Effects have to be estimated first.\n")
+        }
     }
 
     treat.info <- out$treat.info
@@ -526,6 +535,10 @@ plot.interflex <- function(x,
     if (estimator == "DML") {
         if (treat.type == "discrete") {
             est.dml <- out$est.dml
+            if(by.group==TRUE){
+                est.dml <- out$g.est.dml
+            }
+
             yrange <- c(0)
             for (char in other.treat) {
                 if (CI == TRUE) {
@@ -541,6 +554,9 @@ plot.interflex <- function(x,
         }
         if (treat.type == "continuous") {
             est.dml <- out$est.dml
+            if(by.group==TRUE){
+                est.dml <- out$g.est.dml
+            }
             yrange <- c(0)
             for (label in label.name) {
                 if (CI == TRUE) {
@@ -827,20 +843,41 @@ plot.interflex <- function(x,
                     colnames(tempest) <- c("X", "TE")
                 }
                 tempest <- as.data.frame(tempest)
-                p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
+                if(by.group == FALSE){
+                    p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)                    
+                }
+                else{
+                    p1 <- p1 + geom_point(
+                                data = tempest, aes(x = X, y = TE),
+                                fill = line.color,size = 3*line.size,alpha = 0.5
+                            ) 
+                }
+
                 if (CI == TRUE) {
                     if(estimator == "kernel" | estimator == "linear" | estimator == "DML"){
-                        p1 <- p1 + geom_ribbon(
-                            data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
-                            fill = CI.color, alpha = CI.color.alpha
-                        )                        
+                        if(by.group==FALSE){
+                            p1 <- p1 + geom_ribbon(
+                                data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                                fill = CI.color, alpha = CI.color.alpha
+                            )                              
+                        }
+                        else{
+                            p1 <- p1 + geom_errorbar(
+                                data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),linewidth = line.size,width = 0.2
+                            ) 
+                        }
+                      
                     }
-                    #if(estimator == "DML"){
-                    #    p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_upper),linetype = 'dashed',color = 'gray50')
-                    #}
 
                     if("CI_uniform_lower" %in% colnames(tempest)){
-                        p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_uniform_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_uniform_upper),linetype = 'dashed',color = 'gray50')
+                        if(by.group==FALSE){
+                            p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_uniform_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_uniform_upper),linetype = 'dashed',color = 'gray50')
+                        }
+                        else{
+                            p1 <- p1 + geom_errorbar(
+                                data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper),linetype = 'dashed',linewidth = line.size,width = 0.2
+                            )
+                        }
                     }
                 }
                 # ymin=min(yrange)-maxdiff/5
@@ -907,19 +944,39 @@ plot.interflex <- function(x,
                     colnames(tempest) <- c("X", "ME")
                     tempest <- as.data.frame(tempest)
                 }
-                p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
+                if(by.group == FALSE){
+                    p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)                    
+                }
+                else{
+                    p1 <- p1 + geom_point(
+                                data = tempest, aes(x = X, y = ME),
+                                fill = line.color,size = 3*line.size,alpha = 0.5
+                            )
+                }
+
                 if (CI == TRUE) {
                     if(estimator == "kernel" | estimator == "linear" | estimator == "DML"){
-                        p1 <- p1 + geom_ribbon(
-                            data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
-                            fill = CI.color, alpha = CI.color.alpha
-                        )                        
+                        if(by.group == FALSE){
+                            p1 <- p1 + geom_ribbon(
+                                data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
+                                fill = CI.color, alpha = CI.color.alpha
+                            )                            
+                        }
+                        else{
+                            p1 <- p1 + geom_errorbar(
+                                data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),linewidth = line.size,width = 0.2
+                            ) 
+                        }
                     }
-                    #if(estimator == "DML"){
-                    #    p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_upper),linetype = 'dashed',color = 'gray50')
-                    #}
                     if("CI_uniform_lower" %in% colnames(tempest)){
-                        p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_uniform_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_uniform_upper),linetype = 'dashed',color = 'gray50')
+                        if(by.group == FALSE){
+                            p1 <- p1 + geom_line(data = tempest,aes(x=X, y = CI_uniform_lower),linetype = 'dashed',color = 'gray50') + geom_line(data = tempest,aes(x=X, y = CI_uniform_upper),linetype = 'dashed',color = 'gray50')
+                        }
+                        else{
+                            p1 <- p1 + geom_errorbar(
+                                data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper),linetype = 'dashed',linewidth = line.size,width = 0.2
+                            )
+                        }
                     }
                 }
                 # ymin=min(yrange)-maxdiff/5
