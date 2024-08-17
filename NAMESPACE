@@ -35,6 +35,7 @@ importFrom("MASS","glm.nb","mvrnorm")
 importFrom("AER","ivreg")
 importFrom("fixest","feols", "fixef", "degrees_freedom")
 importFrom("reticulate","use_condaenv", "source_python", "dict")
+importFrom("grf","causal_forest")
 
 export(interflex)
 S3method("plot", "interflex")

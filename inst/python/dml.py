@@ -96,6 +96,7 @@ def marginal_effect_for_treatment(
     n_jobs=-1,
     cf_n_folds=5,
     cf_n_rep=1,
+    gate=False,
 ):
     ### Initialization
     n_folds = int(n_folds)
@@ -114,11 +115,6 @@ def marginal_effect_for_treatment(
         discrete_treatment = False
     else:
         discrete_treatment = True
-
-    if len(df[X].unique()) > 5:
-        discrete_moderator = False
-    else:
-        discrete_moderator = True
 
     if type(Z) is str:
         Z = [Z]
@@ -187,7 +183,7 @@ def marginal_effect_for_treatment(
     dml_model.fit()
 
     df_gate = pd.DataFrame()
-    if discrete_moderator:
+    if gate:
         groups = pd.get_dummies(df[X])
         gate = dml_model.gate(groups=groups)
         df_gate = gate.confint(level=0.95, joint=True, n_rep_boot=2000)

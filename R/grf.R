@@ -1,4 +1,4 @@
-interflex.DML <- function(data,
+interflex.grf <- function(data,
                           Y, # outcome
                           D, # treatment indicator
                           X, # moderator
@@ -6,20 +6,7 @@ interflex.DML <- function(data,
                           diff.info,
                           Z = NULL, # covariates
                           weights = NULL, # weighting variable
-                          model.y = "rf",
-                          param.y = NULL,
-                          param.grid.y = NULL,
-                          scoring.y = "neg_mean_squared_error",
-                          model.t = "rf",
-                          param.t = NULL,
-                          param.grid.t = NULL,
-                          scoring.t = "neg_mean_squared_error",
-                          CV = FALSE,
-                          n.folds = 10,
-                          n.jobs = -1,
-                          cf.n.folds = 5,
-                          cf.n.rep = 1,
-                          gate = FALSE,
+                          num.trees = 4000,
                           figure = TRUE,
                           CI = CI,
                           order = NULL,
@@ -50,6 +37,9 @@ interflex.DML <- function(data,
                           scale = 1.1,
                           height = 7,
                           width = 10) {
+    covariates <- c(X, Z)
+    length.covariates <- length(covariates)
+
     diff.values.plot <- diff.info[["diff.values.plot"]]
     treat.type <- treat.info[["treat.type"]]
     if (treat.type == "discrete") {
@@ -129,7 +119,6 @@ interflex.DML <- function(data,
     reticulate::use_condaenv(condaenv = "r-reticulate")
 
     TE.output.all.list <- list()
-    TE.G.output.all.list <- list()
     python_script_path <- system.file("python/dml.py", package = "interflex")
     reticulate::source_python(python_script_path)
     if (treat.type == "discrete") {
@@ -137,63 +126,29 @@ interflex.DML <- function(data,
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
             data_part[data_part[[D]] == treat.base, D] <- 0L
             data_part[data_part[[D]] == char, D] <- 1L
-            result <- marginal_effect_for_treatment(data_part,
-                Y = Y, D = D, X = X, Z = Z,
-                model_y = model.y,
-                param_y = reticulate::dict(param.y),
-                param_grid_y = reticulate::dict(param.grid.y),
-                scoring_y = scoring.y,
-                model_t = model.t,
-                param_t = reticulate::dict(param.t),
-                param_grid_t = reticulate::dict(param.grid.t),
-                scoring_t = scoring.t,
-                CV = CV,
-                n_folds = n.folds,
-                n_jobs = n.jobs,
-                cf_n_folds = cf.n.folds,
-                cf_n_rep = cf.n.rep,
-                gate = gate
-            )
-            TE.output.all <- data.frame(result[1], check.names = FALSE)
-            TE.G.output.all <- data.frame(result[2], check.names = FALSE)
-            TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
-            TE.G.output.all.list[[other.treat.origin[char]]] <- TE.G.output.all
-        }
-    } else if (treat.type == "continuous") {
-        result <- marginal_effect_for_treatment(data,
-            Y = Y, D = D, X = X, Z = Z,
-            model_y = model.y,
-            param_y = reticulate::dict(param.y),
-            param_grid_y = reticulate::dict(param.grid.y),
-            scoring_y = scoring.y,
-            model_t = model.t,
-            param_t = reticulate::dict(param.t),
-            param_grid_t = reticulate::dict(param.grid.t),
-            scoring_t = scoring.t,
-            CV = CV,
-            n_folds = n.folds,
-            n_jobs = n.jobs,
-            cf_n_folds = cf.n.folds,
-            cf_n_rep = cf.n.rep,
-            gate = gate
-        )
-        TE.output.all <- data.frame(result[1], check.names = FALSE)
-        TE.G.output.all <- data.frame(result[2], check.names = FALSE)
+            data_part$D <- as.numeric(data_part$D)
+            causal.forest <- causal_forest(data_part[covariates], data_part[[Y]], data_part[[D]], num.trees = num.trees)
+            X.test <- matrix(0, 50, length.covariates)
+            X.test[, 1] <- seq(min(data_part[[X]]), max(data_part[[X]]), length.out = 50)
+            causal.forest.hat <- predict(causal.forest, X.test, estimate.variance = TRUE)
+            causal.forest.hat.pred <- causal.forest.hat$predictions
+            causal.forest.hat.sigma <- sqrt(causal.forest.hat$variance.estimates)
 
-        k <- 1
-        for (d_ref in D.sample) {
-            label <- label.name[k]
-            TE.output.all.list[[label]] <- TE.output.all
-            TE.G.output.all.list[[label]] <- TE.G.output.all
-            k <- k + 1
+            TE.output.all <- data.frame(
+                "X" = X.test[, 1],
+                "ME" = causal.forest.hat.pred,
+                "sd" = causal.forest.hat.sigma,
+                "lower CI(95%)" = causal.forest.hat.pred - 1.96 * causal.forest.hat.sigma,
+                "upper CI(95%)" = causal.forest.hat.pred + 1.96 * causal.forest.hat.sigma
+            )
+            TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
         }
     }
     if (treat.type == "discrete") {
         final.output <- list(
             diff.info = diff.info,
             treat.info = treat.info,
-            est.dml = TE.output.all.list,
-            g.est.dml = TE.G.output.all.list,
+            est.grf = TE.output.all.list,
             Xlabel = Xlabel,
             Dlabel = Dlabel,
             Ylabel = Ylabel,
@@ -201,24 +156,7 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = treat_den,
             count.tr = treat.hist,
-            dml.models = result[3][[1]],
-            estimator = "DML"
-        )
-    } else if (treat.type == "continuous") {
-        final.output <- list(
-            diff.info = diff.info,
-            treat.info = treat.info,
-            est.dml = TE.output.all.list,
-            g.est.dml = TE.G.output.all.list,
-            Xlabel = Xlabel,
-            Dlabel = Dlabel,
-            Ylabel = Ylabel,
-            de = de,
-            hist.out = hist.out,
-            de.tr = de.tr,
-            count.tr = NULL,
-            dml.models = result[3][[1]],
-            estimator = "DML"
+            estimator = "grf"
         )
     }
 
