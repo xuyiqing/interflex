@@ -93,7 +93,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     n <- dim(data)[1]
 
     ## estimator
-    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "DML")) {
+    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml", "DML")) {
         stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf or DML.\n")
     }
 
@@ -1228,7 +1228,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             width = width
         )
     }
-    if (estimator == "DML") {
+    if ((estimator == "DML") | (estimator == "dml")) {
         output <- interflex.DML(
             data = data,
             Y = Y, # outcome
