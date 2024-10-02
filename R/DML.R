@@ -1,4 +1,4 @@
-interflex.DML <- function(data,
+interflex.dml <- function(data,
                           Y, # outcome
                           D, # treatment indicator
                           X, # moderator
@@ -65,6 +65,15 @@ interflex.DML <- function(data,
         label.name <- names(D.sample)
         # names(label.name) <- D.sample
     }
+
+    n <- dim(data)[1]
+    if (is.null(weights) == TRUE) {
+        w <- rep(1, n)
+    } else {
+        w <- data[, weights]
+    }
+    data[["WEIGHTS"]] <- w
+
     if (TRUE) {
         if (treat.type == "discrete") {
             if (is.null(weights) == TRUE) {
@@ -126,12 +135,12 @@ interflex.DML <- function(data,
     treat.base <- treat.info[["base"]]
 
     # reticulate::use_virtualenv("r-reticulate", required = TRUE)
-    reticulate::use_condaenv(condaenv = "r-reticulate")
+    # use_condaenv(condaenv = "r-reticulate", required = TRUE)
 
     TE.output.all.list <- list()
     TE.G.output.all.list <- list()
     python_script_path <- system.file("python/dml.py", package = "interflex")
-    reticulate::source_python(python_script_path)
+    source_python(python_script_path)
     if (treat.type == "discrete") {
         for (char in other.treat) {
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
@@ -140,12 +149,12 @@ interflex.DML <- function(data,
             result <- marginal_effect_for_treatment(data_part,
                 Y = Y, D = D, X = X, Z = Z,
                 model_y = model.y,
-                param_y = reticulate::dict(param.y),
-                param_grid_y = reticulate::dict(param.grid.y),
+                param_y = dict(param.y),
+                param_grid_y = dict(param.grid.y),
                 scoring_y = scoring.y,
                 model_t = model.t,
-                param_t = reticulate::dict(param.t),
-                param_grid_t = reticulate::dict(param.grid.t),
+                param_t = dict(param.t),
+                param_grid_t = dict(param.grid.t),
                 scoring_t = scoring.t,
                 CV = CV,
                 n_folds = n.folds,
@@ -163,12 +172,12 @@ interflex.DML <- function(data,
         result <- marginal_effect_for_treatment(data,
             Y = Y, D = D, X = X, Z = Z,
             model_y = model.y,
-            param_y = reticulate::dict(param.y),
-            param_grid_y = reticulate::dict(param.grid.y),
+            param_y = dict(param.y),
+            param_grid_y = dict(param.grid.y),
             scoring_y = scoring.y,
             model_t = model.t,
-            param_t = reticulate::dict(param.t),
-            param_grid_t = reticulate::dict(param.grid.t),
+            param_t = dict(param.t),
+            param_grid_t = dict(param.grid.t),
             scoring_t = scoring.t,
             CV = CV,
             n_folds = n.folds,
@@ -202,7 +211,7 @@ interflex.DML <- function(data,
             de.tr = treat_den,
             count.tr = treat.hist,
             dml.models = result[3][[1]],
-            estimator = "DML"
+            estimator = "dml"
         )
     } else if (treat.type == "continuous") {
         final.output <- list(
@@ -218,7 +227,7 @@ interflex.DML <- function(data,
             de.tr = de.tr,
             count.tr = NULL,
             dml.models = result[3][[1]],
-            estimator = "DML"
+            estimator = "dml"
         )
     }
 

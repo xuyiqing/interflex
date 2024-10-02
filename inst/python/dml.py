@@ -1,9 +1,13 @@
+import gc
+
+gc.collect()
+
 import patsy
 import multiprocessing
 import pandas as pd
 import numpy as np
 import doubleml as dml
-from sklearn.linear_model import LinearRegression, ElasticNet
+from sklearn.linear_model import LinearRegression, LogisticRegression, ElasticNet
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.ensemble import (
     RandomForestClassifier,
@@ -19,10 +23,11 @@ def set_model(model, param, discrete_outcome):
     if model_lower in {
         "default",
         "linear",
+        "logistic",
         "l",
         "d",
     }:
-        model_set = LinearRegression()
+        model_set = LogisticRegression() if discrete_outcome else LinearRegression()
 
     elif model_lower in {"regularization", "r"}:
         model_set = ElasticNet(**param)
@@ -216,8 +221,9 @@ def marginal_effect_for_treatment(
 
     design_matrix = patsy.dmatrix("bs(x, df=5, degree=2)", {"x": df[X]})
     spline_basis = pd.DataFrame(design_matrix)
+    spline_basis.to_csv("/Users/tianzhuqin/Documents/DML-Interaction/1.csv")
     cate = dml_model.cate(spline_basis)
-
+    spline_basis.to_csv("/Users/tianzhuqin/Documents/DML-Interaction/2.csv")
     new_data = {"x": np.linspace(df[X].min(), df[X].max(), 50)}
     spline_grid = pd.DataFrame(
         patsy.build_design_matrices([design_matrix.design_info], new_data)[0]
@@ -245,7 +251,6 @@ def marginal_effect_for_treatment(
             "upper uniform CI(95%)",
         ]
     ]
-
     return (
         df_cate.to_dict("list"),
         df_gate.to_dict("list"),

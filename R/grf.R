@@ -115,12 +115,7 @@ interflex.grf <- function(data,
 
     treat.base <- treat.info[["base"]]
 
-    # reticulate::use_virtualenv("r-reticulate", required = TRUE)
-    reticulate::use_condaenv(condaenv = "r-reticulate")
-
     TE.output.all.list <- list()
-    python_script_path <- system.file("python/dml.py", package = "interflex")
-    reticulate::source_python(python_script_path)
     if (treat.type == "discrete") {
         for (char in other.treat) {
             data_part <- data[data[[D]] %in% c(treat.base, char), ]

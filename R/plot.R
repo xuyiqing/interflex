@@ -151,7 +151,7 @@ plot.interflex <- function(x,
         }
     }
 
-    if (estimator == "binning" | estimator == "linear" | estimator == "DML" | estimator == "grf") {
+    if (estimator == "binning" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
         if (is.null(CI) == TRUE) {
             CI <- TRUE
         }
@@ -401,7 +401,7 @@ plot.interflex <- function(x,
     if (treat.type == "discrete" & (estimator == "linear" | estimator == "binning")) {
         tempxx <- out$est.lin[[other.treat[1]]][, "X"]
     }
-    if (treat.type == "discrete" & estimator == "DML") {
+    if (treat.type == "discrete" & estimator == "dml") {
         tempxx <- out$est.dml[[other.treat[1]]][, "X"]
     }
     if (treat.type == "discrete" & estimator == "grf") {
@@ -413,7 +413,7 @@ plot.interflex <- function(x,
     if (treat.type == "continuous" & (estimator == "linear" | estimator == "binning")) {
         tempxx <- out$est.lin[[label.name[1]]][, "X"]
     }
-    if (treat.type == "continuous" & estimator == "DML") {
+    if (treat.type == "continuous" & estimator == "dml") {
         tempxx <- out$est.dml[[label.name[1]]][, "X"]
     }
     if (treat.type == "continuous" & estimator == "kernel") {
@@ -436,7 +436,7 @@ plot.interflex <- function(x,
         if (treat.type == "discrete" & (estimator == "linear")) {
             tempxx <- out$est.lin[[other.treat[1]]][, "X"]
         }
-        if (treat.type == "discrete" & (estimator == "DML")) {
+        if (treat.type == "discrete" & (estimator == "dml")) {
             tempxx <- out$est.dml[[other.treat[1]]][, "X"]
         }
         if (treat.type == "discrete" & (estimator == "grf")) {
@@ -448,7 +448,7 @@ plot.interflex <- function(x,
         if (treat.type == "continuous" & estimator == "linear") {
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
-        if (treat.type == "continuous" & estimator == "DML") {
+        if (treat.type == "continuous" & estimator == "dml") {
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "kernel") {
@@ -538,7 +538,7 @@ plot.interflex <- function(x,
         }
     }
 
-    if (estimator == "DML") {
+    if (estimator == "dml") {
         if (treat.type == "discrete") {
             est.dml <- out$est.dml
             if (by.group == TRUE) {
@@ -850,10 +850,10 @@ plot.interflex <- function(x,
     }
 
     # ME/TE in kernel/linear
-    if (estimator == "kernel" | estimator == "linear" | estimator == "DML" | estimator == "grf") {
+    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
         if (estimator == "kernel") {
             est <- est.kernel
-        } else if (estimator == "DML") {
+        } else if (estimator == "dml") {
             est <- est.dml
         } else if (estimator == "grf") {
             est <- est.grf
@@ -887,7 +887,7 @@ plot.interflex <- function(x,
                 }
 
                 if (CI == TRUE) {
-                    if (estimator == "kernel" | estimator == "linear" | estimator == "DML" | estimator == "grf") {
+                    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
                         if (by.group == FALSE) {
                             p1 <- p1 + geom_ribbon(
                                 data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
@@ -987,7 +987,7 @@ plot.interflex <- function(x,
                 }
 
                 if (CI == TRUE) {
-                    if (estimator == "kernel" | estimator == "linear" | estimator == "DML" | estimator == "grf") {
+                    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
                         if (by.group == FALSE) {
                             p1 <- p1 + geom_ribbon(
                                 data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),

@@ -1,5 +1,5 @@
 ## Input Check
-interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "DML"
+interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "dml"
                       data,
                       Y, # outcome
                       D, # treatment indicator
@@ -92,9 +92,11 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
     n <- dim(data)[1]
 
+    estimator <- tolower(estimator)
+
     ## estimator
-    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml", "DML")) {
-        stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf or DML.\n")
+    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml")) {
+        stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf or dml.\n")
     }
 
     ## Y
@@ -1228,8 +1230,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             width = width
         )
     }
-    if ((estimator == "DML") | (estimator == "dml")) {
-        output <- interflex.DML(
+    if (estimator == "dml") {
+        output <- interflex.dml(
             data = data,
             Y = Y, # outcome
             D = D, # treatment indicator

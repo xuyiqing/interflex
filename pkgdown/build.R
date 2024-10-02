@@ -1,4 +1,3 @@
-
 setwd("~/github/interflex")
 
 # initializing

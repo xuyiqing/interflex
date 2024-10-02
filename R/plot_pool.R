@@ -106,7 +106,7 @@ interflex.plot.pool <- function(
         }
     }
 
-    if (estimator == "binning" | estimator == "linear" | estimator == "DML" | estimator == "grf") {
+    if (estimator == "binning" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
         if (is.null(CI) == TRUE) {
             CI <- TRUE
         }
@@ -276,7 +276,7 @@ interflex.plot.pool <- function(
     if (treat.type == "discrete" & (estimator == "linear" | estimator == "binning")) {
         tempxx <- out$est.lin[[other.treat[1]]][, "X"]
     }
-    if (treat.type == "discrete" & estimator == "DML") {
+    if (treat.type == "discrete" & estimator == "dml") {
         tempxx <- out$est.dml[[other.treat[1]]][, "X"]
     }
     if (treat.type == "discrete" & estimator == "grf") {
@@ -288,7 +288,7 @@ interflex.plot.pool <- function(
     if (treat.type == "continuous" & (estimator == "linear" | estimator == "binning")) {
         tempxx <- out$est.lin[[label.name[1]]][, "X"]
     }
-    if (treat.type == "continuous" & estimator == "DML") {
+    if (treat.type == "continuous" & estimator == "dml") {
         tempxx <- out$est.dml[[label.name[1]]][, "X"]
     }
     if (treat.type == "continuous" & estimator == "kernel") {
@@ -388,7 +388,7 @@ interflex.plot.pool <- function(
         if (treat.type == "discrete" & estimator == "linear") {
             tempxx <- out$est.lin[[other.treat[1]]][, "X"]
         }
-        if (treat.type == "discrete" & (estimator == "DML")) {
+        if (treat.type == "discrete" & (estimator == "dml")) {
             tempxx <- out$est.dml[[other.treat[1]]][, "X"]
         }
         if (treat.type == "discrete" & (estimator == "grf")) {
@@ -400,7 +400,7 @@ interflex.plot.pool <- function(
         if (treat.type == "continuous" & estimator == "linear") {
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
-        if (treat.type == "continuous" & estimator == "DML") {
+        if (treat.type == "continuous" & estimator == "dml") {
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "kernel") {
@@ -489,7 +489,7 @@ interflex.plot.pool <- function(
         ymin <- min(yrange) - maxdiff / 5
     }
 
-    if (estimator == "DML") {
+    if (estimator == "dml") {
         if (treat.type == "discrete") {
             est.dml <- out$est.dml
             yrange <- c(0)
@@ -679,10 +679,10 @@ interflex.plot.pool <- function(
         p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
     }
 
-    if (estimator == "kernel" | estimator == "linear" | estimator == "DML" | estimator == "grf") {
+    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
         if (estimator == "kernel") {
             est <- est.kernel
-        } else if (estimator == "DML") {
+        } else if (estimator == "dml") {
             est <- est.dml
         } else if (estimator == "grf") {
             est <- est.grf
@@ -694,7 +694,7 @@ interflex.plot.pool <- function(
             for (char in other.treat) {
                 est.touse <- est[[char]]
                 if (CI == TRUE) {
-                    if (estimator == "DML") {
+                    if (estimator == "dml") {
                         colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                     } else {
                         if (dim(est.touse)[2] == 5) {
@@ -722,7 +722,7 @@ interflex.plot.pool <- function(
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = TE, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
             if (CI == TRUE) {
-                # if(estimator!='DML'){
+                # if(estimator!='dml'){
                 p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
                 if ("CI_uniform_lower" %in% colnames(tempest)) {
@@ -788,7 +788,7 @@ interflex.plot.pool <- function(
                 est.touse <- est[[label]]
                 if (CI == TRUE) {
                     if (dim(est.touse)[2] == 5) {
-                        if (estimator == "DML") {
+                        if (estimator == "dml") {
                             colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                         } else {
                             colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
@@ -816,7 +816,7 @@ interflex.plot.pool <- function(
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = ME, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
             if (CI == TRUE) {
-                # if(estimator!='DML'){
+                # if(estimator!='dml'){
                 p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
                 if ("CI_uniform_lower" %in% colnames(tempest)) {

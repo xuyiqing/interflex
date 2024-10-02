@@ -35,13 +35,13 @@ vignettes/discrete_cache
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
-.DS_Store
 
 docs
 .DS_Store
 
-R/DML copy.R
-
 .interflex.Rproj
+.lintr
+.Rproj.user
+.Rhistory
 
 vignettes/*_cache*
