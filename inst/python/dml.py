@@ -221,9 +221,7 @@ def marginal_effect_for_treatment(
 
     design_matrix = patsy.dmatrix("bs(x, df=5, degree=2)", {"x": df[X]})
     spline_basis = pd.DataFrame(design_matrix)
-    spline_basis.to_csv("/Users/tianzhuqin/Documents/DML-Interaction/1.csv")
     cate = dml_model.cate(spline_basis)
-    spline_basis.to_csv("/Users/tianzhuqin/Documents/DML-Interaction/2.csv")
     new_data = {"x": np.linspace(df[X].min(), df[X].max(), 50)}
     spline_grid = pd.DataFrame(
         patsy.build_design_matrices([design_matrix.design_info], new_data)[0]
