@@ -141,7 +141,7 @@ for using the interflex package.
 
 ``` r
 reticulate::py_install(packages = c("patsy", "numpy", "pandas", 
-                    "scikit-learn==1.2.0", "doubleml", "econml"))
+                    "scikit-learn", "doubleml", "econml"))
 ```
 
 ## Report bugs
