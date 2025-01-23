@@ -179,10 +179,7 @@ def marginal_effect_for_treatment(
             search_mode="grid_search",
             return_tune_res=True,
         )
-        if "ml_g" in dml_model.params:
-            params["model.y"] = dml_model.params["ml_g"][D]
-        elif "ml_g1" in dml_model.params:
-            params["model.y"] = dml_model.params["ml_g1"][D]
+        params["model.y"] = dml_model.params[model_y_key][D]
         params["model.t"] = dml_model.params["ml_m"][D]
 
     dml_model.fit()
