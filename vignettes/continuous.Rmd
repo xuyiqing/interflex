@@ -1,12 +1,12 @@
 ---
-title: 'Tutorial: Continuous Outcomes'
+title: 'Interflex with Continuous Outcomes'
 output:
   rmarkdown::html_vignette:
     toc: false
     toc_depth: 4
     number_sections: false
 vignette: >
-  %\VignetteIndexEntry{Tutorial: Continuous Outcomes}
+  %\VignetteIndexEntry{Interflex with Continuous Outcomes}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}  
 ---
@@ -17,12 +17,12 @@ vignette: >
     text-align: justify}
     </style>
 -->   
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache =TRUE)
+knitr::opts_chunk$set(warning=FALSE)
+``` 
 
 Let's load the package as well as the simulated toy datasets. Note that **s6**-**s9** are for the tutorial for **interflex** with [discrete](discrete.html) outcomes.
 ```{r, message = FALSE}
@@ -31,7 +31,7 @@ data(interflex)
 ls()
 ```
 
-**s1** is a case of a dichotomous treatment indicator with linear marginal effects; **s2** is a case of a continuous treatment indicator with linear marginal effects; **s3** is a case of a dichotomous treatment indicator with *nonlinear* marginal effects; **s4** is a case of a dichotomous treatment indicator, nonlinear marginal effects, with additive two-way fixed effects; and  **s5** is a case of a *discrete* treatment indicator, *nonlinear* marginal effects, with additive two-way fixed effects. **s1**-**s5** are generated using the following code:
+**s1** is a case of a dichotomous treatment indicator with linear conditional marginal effects (CME); **s2** is a case of a continuous treatment indicator with linear CME; **s3** is a case of a dichotomous treatment indicator with *nonlinear* CME; **s4** is a case of a dichotomous treatment indicator, nonlinear CME, with additive two-way fixed effects; and  **s5** is a case of a *discrete* treatment indicator, *nonlinear* CME, with additive two-way fixed effects. **s1**-**s5** are generated using the following code:
 ```{r, eval = FALSE}
 set.seed(1234)
 n<-200
@@ -82,7 +82,7 @@ y1 <- y1 + e + z1 + z2
 s5 <- cbind.data.frame(D=d1, X=x, Y=y1, Z1 = z1,Z2 = z2)
 ```
 
-The implied population marginal effects for the DGPs of **s1** and **s2** are $$ME(X) = 3X - 9;$$ the implied population marginal effects for the DGPs of **s3** and **s4** are $$ME(X) = 2X^{2} - 5.$$ For **s5**, if we set treatment "A" as our base category, the implied population marginal effects for group "B" and group "C" are, respectively, $$ME(X) = 2X + 1\quad\text{and}\quad ME(X) = -X^{2} + 4.$$ 
+The implied population CME for the DGPs of **s1** and **s2** are $$ME(X) = 3X - 9;$$ the implied population CME for the DGPs of **s3** and **s4** are $$ME(X) = 2X^{2} - 5.$$ For **s5**, if we set treatment "A" as our base category, the implied population CME for group "B" and group "C" are, respectively, $$ME(X) = 2X + 1\quad\text{and}\quad ME(X) = -X^{2} + 4.$$ 
 
 The **interflex** package ships the following functions: **interflex**, **inter.raw**, **inter.gam**,  **plot**.  The functionalities of **inter.binning** and **inter.kernel** covered by **interflex**, but they are still supported for backward compatibility.
 
@@ -131,12 +131,17 @@ plot(out)
 print(out$tests$p.wald)
 ```
 
-We see that the Wald test cannot reject the NULL hypothesis that the linear interaction model and the three-bin model are statistically equivalent. If we only want to conduct the linear estimator, we can set `estimator = "linear"`:
+We see that the Wald test cannot reject the NULL hypothesis that the linear interaction model and the three-bin model are statistically equivalent. If we only want to conduct the linear estimator, we can set `estimator = "linear"`, We also report the uniform/simultaneous confidence interval (when setting `vartype = "bootstrap"`), as depicted by the dashed lines.
 ```{r binning1ab, message = FALSE, fig.height=5, fig.width=5, cache = TRUE}
 out2 <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, 
                   estimator = "linear", vcov.type = "robust", 
-                  main = "Marginal Effects", ylim = c(-15, 15))
+                  main = "Conditional Marginal Effects", ylim = c(-15, 15))
 plot(out2)
+```
+
+You can access estimates, as well as pointwise and uniform confidence intervals, from `est.lin`.
+```{r}
+head(out2$est.lin$`1`)
 ```
 
 **plot** allows users to adjust graphic options without re-estimating the model. The first entry must be a `interflex` object. Note that we use `bin.labs = FALSE` to hide the label on the top of each bin and `Xdistr = "none"` to remove the distribution of the moderator (not recommended). We use `cex.axis` and `cex.lab` to adjust the font sizes of axis numbers and labels.
@@ -144,7 +149,7 @@ plot(out2)
 plot(out, xlab = "Moderate is X", Xdistr = "none", bin.labs = FALSE, cex.axis = 0.8, cex.lab = 0.8)
 ```
 
-Next, we use `Xunif = TRUE` to transform the moderator into a uniformly distributed random variable (based on the rank order in values of the orginal moderator) before estimating the marginal effects. `nbins = 4` sets the number of bins to 4.
+Next, we use `Xunif = TRUE` to transform the moderator into a uniformly distributed random variable (based on the rank order in values of the orginal moderator) before estimating the CME. `nbins = 4` sets the number of bins to 4.
 ```{r binning1b, message = FALSE, fig.height=5, fig.width=5}
 out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, 
                  estimator = "binning", nbins = 4, 
@@ -167,7 +172,7 @@ out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s2,
 out$figure
 ```
 
-The binning estimates for the dichotomous, nonlinear case (i.e. **s3**) are shown below. A linear interaction model clearly gives misleading marginal effects estimates. The marginal effects plot is stored in `out$figure` while the estimates and standard errors are stored in `out$est.linear` (linear) and `out$est.bin` (binning). The tests results are stored in `out$tests` (binning). 
+The binning estimates for the dichotomous, nonlinear case (i.e. **s3**) are shown below. A linear interaction model clearly gives misleading CME estimates. The CME plot is stored in `out$figure` while the estimates and standard errors are stored in `out$est.linear` (linear) and `out$est.bin` (binning). The tests results are stored in `out$tests` (binning). 
 ```{r binning4, fig.height=5, fig.width=5, message = FALSE, cache = TRUE}
 out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s3, 
                  estimator = "binning")
@@ -188,31 +193,36 @@ Starting from v.1.1.0, we introduce adaptive bandwidth selection to **interflex*
 Even with an optimized algorithm, the bootstrap procedure for large datasets can be slow. We incorporate parallel computing (`parallel=TRUE`) to speed it up. You can choose the number of `cores` to be used for parallel computing; otherwise the program will detect the number of logical cores in your computer and use as many cores as possible (warning: this will significantly slow down your computer!). 
 
 ```{r kernel1, fig.height=5, fig.width=5, message=FALSE, cache=TRUE}
-out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, 
-                 estimator = "kernel", nboots = 200, 
-                 parallel = TRUE, cores = 4)
+out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, vartype = 'bootstrap',
+                 estimator = "kernel", nboots = 1000, 
+                 parallel = TRUE, cores = 31)
 out$figure
+```
+
+You can access estimates, as well as pointwise and uniform confidence intervals, from `est.kernel`.
+```{r}
+head(out$est.kernel$`1`)
 ```
 
 If you specify a bandwidth manually (for example, by setting `bw = 1`), the cross-validation step will be skipped. The `main` option controls the title of the plot while the `xlim` and `ylim` options control the ranges of the x-axis and y-axis, respectively.
 ```{r kernel2, cache=TRUE, message=FALSE, results = "hide", fig.height=5, fig.width=5}
 out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s1, 
-                 estimator = "kernel", nboots = 200, bw = 1, 
-                 main = "The Linear Case", 
-                 xlim = c(-0.5,6.5), ylim = c(-15, 15))
+       estimator = "kernel", nboots = 1000, bw = 1, 
+       main = "The Linear Case", parallel = TRUE, cores = 31,vartype = 'bootstrap',
+       xlim = c(-0.5,6.5), ylim = c(-15, 15))
 out$figure
 ```
 
-For dataset **s3**, the kernel method produces non-linear marginal effects estimates that are much closer to the effects implied by the true DGP.
+For dataset **s3**, the kernel method produces non-linear CME estimates that are much closer to the effects implied by the true DGP.
 ```{r kernel3, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=5}
-out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s3, 
-                 estimator = "kernel", theme.bw = TRUE)
+out <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s3, vartype = 'bootstrap',
+                 estimator = "kernel", theme.bw = TRUE, nboots = 1000, parallel = TRUE, cores = 31)
 out$figure
 ```
 
 Again, if we only want to change the look of a marginal effect plot, we can use **plot** to save time. `CI = FALSE` removes the confidence interval ribbon. 
 ```{r kernel3a, cache=TRUE, fig.height=5, fig.width=5,results = "hide"}
-plot(out, main = "Nonlinear Marginal Effects", 
+plot(out, main = "Nonlinear Conditional Marginal Effects", 
      ylab = "Coefficients", Xdistr = "density", 
      xlim = c(-3,3), ylim = c(-10,12), CI = FALSE, 
      cex.main = 0.8, cex.lab = 0.7, cex.axis = 0.7)
@@ -229,10 +239,11 @@ Note that we can use the `file` option to save a plot to a file in **interflex**
 We move on to linear fixed effects models. Remember in **s4**, a large chunk of the variation in the outcome variable is driven by group fixed effects. Below is a scatterplot of the raw data (group index vs. outcome). Red and green dots represent treatment and control units, respectively. We can see that outcomes are highly correlated within a group.  
 ```{r fe1, cache=TRUE, message=FALSE, fig.height=4, fig.width=8}
 library(ggplot2)
-ggplot(s4, aes(x=group, y = Y, colour = as.factor(D))) + geom_point() + guides(colour=FALSE) 
+ggplot() + geom_point(data = s4,aes(x = unit, y = Y, colour = as.factor(D))) + 
+  guides(colour=FALSE) 
 ```
 
-When fixed effects are present, it is possible that we cannot observe a clear pattern of marginal effects in the raw plot as before, while binning estimates have wide confidence intervals:
+When fixed effects are present, it is possible that we cannot observe a clear pattern of CME in the raw plot as before, while binning estimates have wide confidence intervals:
 ```{r fe2a, results = "hide", cache=TRUE, message=FALSE, fig.height=4, fig.width=8}
 interflex(estimator = "raw", Y = "Y", D = "D", X = "X", data = s4, 
           weights = NULL,ncols=2)
@@ -241,7 +252,7 @@ interflex(estimator = "raw", Y = "Y", D = "D", X = "X", data = s4,
 
 ```{r fe3, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                        estimator = "binning", FE = NULL, cl = "group")
+                        estimator = "binning", FE = NULL, cl = "unit")
 plot(s4.binning)
 ```
 
@@ -249,30 +260,34 @@ The binning estimates are much more informative when fixed effects are included,
 ```{r fe4, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4$wgt <- 1
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                        estimator = "binning", FE = c("group", "year"), 
-                        cl = "group", weights = "wgt")
+                        estimator = "binning", FE = c("unit", "year"), 
+                        cl = "unit", weights = "wgt")
 plot(s4.binning)
 ```
 
 When fixed effects are not taken into account, the kernel estimates are also less precisely estimated. Because the model is incorrectly specified, cross-validated bandwidths also tend to be bigger than optimal. 
 ```{r fe5, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                       estimator = "kernel", FE = NULL, 
-                       cl = "group", weights = "wgt")
+                       estimator = "kernel", FE = NULL, vartype = 'bootstrap',
+                       nboots = 1000, parallel = TRUE, cores = 31,
+                       cl = "unit", weights = "wgt")
 plot(s4.kernel)
 ```
 
 Controlling for fixed effects by using the `FE` option solves this problem. The estimates are now much closer to the population truth. Note that all uncertainty estimates are produced via bootstrapping. When the `cl` option is specified, a block bootstrap procedure will be performed.  
 ```{r fe6, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                       estimator = "kernel", FE = c("group","year"), cl = "group")
+                       estimator = "kernel", FE = c("unit","year"), cl = "unit",vartype = 'bootstrap',
+                       nboots = 1000, parallel = TRUE, cores = 31,weights = "wgt")
 plot(s4.kernel)
 ```
 
 With large datasets, cross-validation or bootstrapping can take a while. One way to check the result quickly is to shut down the bootstrap procedure (using `CI = FALSE`). **interflex** will then present the point estimates only. Another way is to supply a reasonable bandwidth manually by using the `bw` option such that cross-validation will be skipped. 
 ```{r fe7, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
-                       estimator = "kernel", bw = 0.62, FE = c("group","year"), cl = "group", 
+                       estimator = "kernel", bw = 0.62, FE = c("unit","year"), cl = "unit", 
+                       vartype = 'bootstrap',
+                       nboots = 1000, parallel = TRUE, cores = 31,
                        CI = FALSE, ylim = c(-9, 15), theme.bw = TRUE)
 plot(s4.kernel)
 ```
@@ -286,7 +301,7 @@ Next, we will show how **interflex** can be applied when there are more than two
 interflex(estimator = "raw",Y = "Y", D = "D", X = "X", data = s5, ncols = 3)
 ```
 
-By default, **interflex** will produce $(n-1)$ marginal effects plots, taking one category as the baseline (if not specified, the base group is selected based on the numeric/character order of the treatment values). Here we also specify `vartype = "bootstrap"` in order to estimate the confidence intervals.
+By default, **interflex** will produce $(n-1)$ CME plots, taking one category as the baseline (if not specified, the base group is selected based on the numeric/character order of the treatment values). Here we also specify `vartype = "bootstrap"` in order to estimate the confidence intervals.
 ```{r mta1a, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=8}
 s5.binning <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), data = s5, 
                         estimator = "binning", vartype = "bootstrap")
@@ -313,10 +328,11 @@ plot(s5.binning2)
 ```
 
 
-For dataset **s5**, because of the nonlinear interaction effects, the kernel estimator will produce marginal effects estimates that are much closer to the effects implied by the true DGP.
+For dataset **s5**, because of the nonlinear interaction effects, the kernel estimator will produce CME estimates that are much closer to the effects implied by the true DGP.
 ```{r mta3, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 s5.kernel <- interflex(Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), data = s5, 
-                       estimator = "kernel")
+                       estimator = "kernel", vartype = 'bootstrap',
+                       nboots = 1000, parallel = TRUE, cores = 31)
 s5.kernel$figure
 
 plot(s5.kernel, pool = TRUE)
@@ -330,7 +346,9 @@ plot(s5.kernel, pool = TRUE)
 Starting from v.1.1.0, **interflex** allows users to estimate and visualize predicted outcomes given fixed values of the treatment and moderator based on flexible interaction models. All predictions are made by setting covariates equal to their sample means. 
 
 ```{r ip3, fig.height=5, fig.width=8, cache=TRUE, results = "hide", message=FALSE}
-s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),data = s5, estimator = "kernel")
+s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                      data = s5, estimator = "kernel",vartype = 'bootstrap',
+                       nboots = 1000, parallel = TRUE, cores = 31)
 predict(s5.kernel)
 ```
 
@@ -364,7 +382,9 @@ Starting from v.1.1.0, **interflex** allows users to compare treatment effects a
 
 ```{r dbt1, fig.height=5, fig.width=10, message=FALSE,results = "hide", cache = TRUE}
 s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), data = s5, 
-                      estimator = "kernel", diff.values = c(-2,0,2))
+                      estimator = "kernel", diff.values = c(-2,0,2),
+                      vartype = "bootstrap",
+                      nboots = 1000, parallel = TRUE, cores = 31,)
 plot(s5.kernel,diff.values = c(-2,0,2))
 ```
 
@@ -383,7 +403,7 @@ plot(s5.linear,diff.values = c(-2,0,2))
 s5.linear$diff.estimate
 ```
 
-Starting from v.1.1.1, **interflex** allows users to compare treatment effects at two or three specific values of the moderator using marginal effects and vcov matrix derived from linear/kernel estimation. Based on GAM model(relies on **mgcv** package), users can approximate treatment effects and their variance using smooth functions without re-estimating the model, hence saving time. In order to do so, users need to pass the output of **interflex** into **t.test** and then specify the values of interest of the moderator. As it is an approximation, the results here are expected to have a little deviance from the output we got by directly specifying `diff.values` when applying **inter.linear** or **inter.kernel**. We also limit the elements passed in diff.values between the minimum and the maximum of the moderator to avoid potential extrapolation bias.
+Starting from v.1.1.1, **interflex** allows users to compare treatment effects at two or three specific values of the moderator using CME and vcov matrix derived from linear/kernel estimation. Based on GAM model(relies on **mgcv** package), users can approximate treatment effects and their variance using smooth functions without re-estimating the model, hence saving time. In order to do so, users need to pass the output of **interflex** into **t.test** and then specify the values of interest of the moderator. As it is an approximation, the results here are expected to have a little deviance from the output we got by directly specifying `diff.values` when applying **inter.linear** or **inter.kernel**. We also limit the elements passed in diff.values between the minimum and the maximum of the moderator to avoid potential extrapolation bias.
 
 ```{r dbt5, message=FALSE, cache = TRUE}
 inter.test(s5.kernel,diff.values=c(-2,0,2))

@@ -23,6 +23,10 @@ vignettes/*.html
 vignettes/*.pdf
 vignettes/continuous_cache
 vignettes/discrete_cache
+vignettes/dml_cache
+vignettes/dml_files
+vignettes/continuous_files/
+vignettes/discrete_files/
 
 
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
@@ -35,13 +39,10 @@ vignettes/discrete_cache
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+.DS_Store
 
 docs
 .DS_Store
 
-.interflex.Rproj
-.lintr
-.Rproj.user
-.Rhistory
-
-vignettes/*_cache*
+R/DML copy.R
+.DS_Store

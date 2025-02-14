@@ -9,17 +9,20 @@
 experimental](https://img.shields.io/badge/lifecycle-stable-green.svg)](https://www.tidyverse.org/lifecycle/#stablel)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![downloads:
+CRAN](https://cranlogs.r-pkg.org/badges/grand-total/interflex)](https://www.datasciencemeta.com/rpackages)
 <!-- badges: end -->
 
-**interflex** produces flexible marginal effect estimates with
-multiplicative interaction models.
+**interflex** estimates, visualizes, and interprets conditional marginal
+effects and performs diagnostics.
 
-**Authors:** Jens Hainmueller, Jonathan Mummolo, [Yiqing
-Xu](https://yiqingxu.org/), and Ziyi Liu
+**Authors:** Jens Hainmueller, Jiehan Liu, Licheng Liu, Ziyi Liu,
+Jonathan Mummolo, Tianzhu Qin, and [Yiqing Xu](https://yiqingxu.org/)
+(maintainer)
 
-**Date:** April 1, 2021
+**Date:** Feburary 12, 2025
 
-**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.2.6)
+**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.3.2)
 [CRAN](https://cran.r-project.org/web/packages/interflex/index.html)
 (1.2.6)
 
@@ -27,7 +30,9 @@ Xu](https://yiqingxu.org/), and Ziyi Liu
 [continuous](https://yiqingxu.org/packages/interflex/articles/continuous.html)
 and
 [discrete](https://yiqingxu.org/packages/interflex/articles/discrete.html)
-outcomes.
+outcomes, as well as a tutorial for double/debiased machine learning
+([DML](https://yiqingxu.org/packages/interflex/articles/dml.html))
+estimators.
 
 **Examples:** R code used in the tutorials can be downloaded from
 [here](examples.R).
@@ -44,13 +49,16 @@ April 2019, pp. 163–192.
 You can install the **interflex** package from CRAN:
 
 ``` r
-install.packages('interflex', type = "source", repos = 'http://cran.us.r-project.org') 
+install.packages('interflex', type = "source", 
+                 repos = 'http://cran.us.r-project.org') 
 ```
 
 Or you can install the up-to-date development version from Github:
 
 ``` r
-install.packages('devtools', repos = 'http://cran.us.r-project.org') # if not already installed
+# if not already installed
+install.packages('devtools', repos = 'http://cran.us.r-project.org') 
+# install from github
 devtools::install_github('xuyiqing/interflex')
 ```
 
@@ -59,27 +67,25 @@ automatically when **interflex** is being installed; if not, please
 install them manually:
 
 ``` r
-require(Rcpp) # for processing C++ code
-require(mgcv) # for GAM
-require(sandwich) # for calculating standard errors
-require(pcse) # in case panel-corrected standard errors will be used
-require(foreach)  # for parallel computing in kernel estimation
-require(doParallel) # for parallel computing in kernel estimation
-require(lmtest) # for wald test
-require(lfe) # for fixed effects estimations
-require(Lmoments) # for L-kurtosis measure
-require(ggplot2)  # for plotting
-require(plotrix) # for plotting
-require(grid) # for plotting
-require(gridExtra) # for plotting
-require(ggplotify) # for plotting
-require(RColorBrewer) # for plotting
-require(grDevices) # for plotting
-require(gtable) # for plotting
-require(MASS) # for wald test
-require(mvtnorm) # for simulation
-require(pROC) # for auc
-require(ModelMetrics) # for cross entropy
+# Function to install packages
+install_all <- function(packages) {
+  installed_pkgs <- installed.packages()[, "Package"]
+  for (pkg in packages) {
+    if (!pkg %in% installed_pkgs) {
+      install.packages(pkg, repos = 'http://cran.us.r-project.org')
+    }
+  }
+}
+
+# Packages to be installed
+packages <- c("Rcpp", "mgcv", "sandwich", "pcse", "fixest", "foreach", "doParallel", 
+              "lfe", "lmtest", "Lmoments", "ggplot2", "plotrix", "grid", 
+              "gridExtra", "ggplotify", "ggpubr", "RColorBrewer", "grDevices", 
+              "gtable", "MASS", "mvtnorm", "pROC", "ModelMetrics", "foreign",
+              "patchwork", "rmarkdown")
+
+# Install the packages
+install_all(packages)
 ```
 
 Mac users who encounter “-lgfortran” or “-lquadmath” error during

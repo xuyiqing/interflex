@@ -1,3 +1,4 @@
+
 setwd("~/github/interflex")
 
 # initializing
@@ -15,7 +16,9 @@ pkgdown::build_site(install = FALSE)
 library(pkgdown)
 init_site()
 build_home()
-build_reference()
-build_articles()
+# build_reference()
+build_article("continuous")
+build_article("discrete")
+build_article("dml")
 build_tutorials()
 build_news()
