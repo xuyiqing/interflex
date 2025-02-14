@@ -43,8 +43,8 @@ authors:
 
 
 home:
-  title: interflex--flexiblely estimate interactive models
-  description: estimates, interprets, and visualizes marginal effects and performs diagnostics.
+  title: interflex--flexiblely estimate the conditional marginal effects (CME)
+  description: estimates, interprets, and visualizes conditional marginal effects and performs diagnostics.
   links:
   - text: Yiqing's Homepage
     href: https://yiqingxu.org/

@@ -29,129 +29,211 @@ knitr::opts_chunk$set(cache =TRUE)
 knitr::opts_chunk$set(warning=FALSE)
 ```
 
-------------------------------------------------------------------------
 
-## Load Packages
+## Installation
+
+To use double/debiased machine learning (DML) estimators, please can install the **interflex** package from DML branch on Github: 
+```{r eval=FALSE}
+devtools::install_github('xuyiqing/interflex@dml')
+```
+
+### Set up Python environment
+
+To use DML estimators in **interflex**, we rely on several Python packages. The integration between R and Python is facilitated by the **reticulate** package, which allows R to interface with Python seamlessly. The following steps set up a Python environment with all required dependencies.
+
+First, install the **reticulate** package in R. This package enables R to interface with Python.
+
+```{r eval=FALSE, include=TRUE}
+install.packages("reticulate", repos = 'http://cran.us.r-project.org', force = TRUE)
+```
+
+Then, we use [Miniconda](https://docs.anaconda.com/free/miniconda/), a minimal installer for Conda. Miniconda helps manage Python environments and packages. By default, the installation process will create a virtual environment named `r-reticulate`. 
+
+```{r eval=FALSE, include=TRUE}
+reticulate::install_miniconda(update = TRUE)
+```
+
+With Miniconda installed, we point to the platform using `use_condaenv`. This step is incorporated in the **interflex** package.
+
+```{r eval=FALSE, include=TRUE}
+reticulate::use_condaenv(condaenv = "r-reticulate")
+```
+
+Finally, install the necessary Python libraries. These libraries include tools for statistical modeling and machine learning that are essential for using the interflex package.
+
+```{r eval=FALSE, include=TRUE}
+reticulate::py_install(packages = c("patsy", "numpy", "pandas",
+                                    "scikit-learn", "doubleml", "econml"))
+```
+
+Some Mac users may encounter a "*** caught segfault ***" error. In that case, we recommend setting up a virtual environment. In Terminal, type:
+```{sh eval=FALSE}
+python3 -m venv ~/.virtualenvs/myenv
+source ~/.virtualenvs/myenv/bin/activate
+```
+
+Then install all Python packages there:
+```{sh eval=FALSE}
+pip install numpy
+pip install patsy
+pip install pandas
+pip install scikit-learn
+pip install econml
+pip install doubleml
+```
+
+In R, point to the newly set up environment `myenv`:
+```{r eval=FALSE, include=TRUE}
+reticulate::use_virtualenv("myenv")
+```
+
+### Load packages
 
 These are packages are necessary for this tutorial:
-```{r eval=TRUE, include=TRUE, cache = FALSE}
+```{r eval=TRUE, include=TRUE, cache = FALSE, message=FALSE}
 library(interflex)
 library(ggplot2)
 library(ggpubr)
 library(rmarkdown)
+library(patchwork)
 ```
-
-For instruction on installing **interflex** and setting up the Python environment, please click [here](https://yiqingxu.org/packages/interflex/).
-
 
 ------------------------------------------------------------------------
 
-This vignette gives a brief overview of estimating marginal (or partial) effects using the **interflex** pacakge, focusing on the Double/debiased Machine Learning (DML) estimator. This vignette walks through using DML estimators for different empirical setup, using both the simulating data and real-world data, including:
+<br>
+
+This vignette gives a brief overview of estimating conditional marginal effects (CME) using the **interflex** pacakge, focusing on the Double/debiased Machine Learning (DML) estimator. This vignette walks through using DML estimators for different empirical setup, using both the simulating data and real-world data, including:
 
 DML Estimators
 
 -   [Binary treatment with discrete outcomes]
-
--   [Discrete treatment with discrete outcomes]
-
 -   [Continuous treatment with discrete outcome]
+
+<!-- -   [Discrete treatment with discrete outcomes] -->
+
 
 Applications
 
--   [Application 1]
+-   [Application 1: Binary Treatment with Continuous Outcomes]
 
--   [Application 2]
+-   [Application 2: Continuous Treatment with Continuous Outcomes]
 
 ------------------------------------------------------------------------
 
 ## Overview of Methodology
 
-This section explores the ideas behind the Double/Debiased Machine Learning (DML), highlighting its use of modern machine learning to robustly estimate marginal effects.
+This section explores the basic ideas behind the DML framework, which enables the use of modern machine learning techniques to robustly estimate CME. The DML estimators for CME is first developed in @semenova2021debiased, and is expanded by @bonvini2023flexibly. 
 
-### Estimands
+### Estimand
 
-We start with formally defining the marginal effects via the Neyman–Rubin potential outcome framework @rubin1974estimating. For simplicity,we use binary treatment and continuous outcome as example. Let $Y_1$ and $Y_0$ be the potential outcome corresponding to a subject's response with and without binary treatment $D_i \in {0,1}$. $X_i$ are the moderators of interest, along with $Z_i$ be the vector of covariates. We can define the full set of covariates as $V_i = (X_i, Z_i)$. Thus, the estimated effects of treatment $D$ on $Y$ moderated by $X$ is:
-
-$$
-\frac{\partial \mathbb{E}[Y \mid D, X, Z]}{\partial D}
-$$
-
-Assuming unconfoundedness, we have:
+We begin by formally defining CME using the Neyman–Rubin potential outcome framework @rubin1974estimating. Let $Y_i(d)$ be the potential outcomes corresponding to a unit $i$'s response to potential treatment value $D_i = d$. $X_i$ are the moderator of interest, along with $Z_i$ be the vector of covariates. We can define the full set of covariates as $V_i = (X_i, Z_i)$. The CME of treatment $D$ on $Y$ by $X$ is:
 
 $$
-\mathbb{E}[Y \mid D = 1, X, Z] = \mathbb{E}[Y(1) \mid X, Z] \\
-\mathbb{E}[Y \mid D = 0, X, Z] = \mathbb{E}[Y(0) \mid X, Z] 
+\theta(x) = \mathbb{E}\left[\frac{\partial Y_i(d)}{\partial D} \mid X_i = x \right]
 $$
 
-Given that $V_i = (X_i, Z_i)$ is the full set of covariates, thus:
+When $D_{i}$ is binary, it simplifies to $\mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x]$, which is essentially Conditional Average Treatment Effect (CATE) at covariate value $v$, $\tau(v) = \mathbb{E}[Y_i(1) - Y_i(0) \mid V_i = v]$, marginalized over the distribution of additional covariates $Z_{i}$.
 
-```{=tex}
-\begin{align*}
-\frac{\partial \mathbb{E}[Y \mid D, X, Z]}{\partial D} 
-& = \frac{D \cdot \mathbb{E}[Y(1) \mid V] + (1 - D) \cdot \mathbb{E}[Y(0) \mid V]}{\partial D} \\
-& = \mathbb{E}[Y_1 - Y_0 \mid V = v]
-\end{align*}
-```
-which is equivalent to Conditional Average Treatment Effect (CATE).
+Note that the defintion has implied the stable unit treatment value assumption (SUTVA):
 
-Intuitively, the complex relations among the treatment, outcome, and moderators are very difficult to model, especially with parametric approaches. Here, we introduce the DML estimator, which are more flexible, and thus are more adept at capturing complex data generating process (DGP).
+- **SUTVA**: $Y_i(d_{1}, d_{2}, \cdots, d_{n}) = Y_i(d_{i})$. For each unit $i$, there is only one potential outcome $Y_i(d_i)$ for each possible treatment they could receive.
 
-### DML framework
+<br>
 
-Building on the principles of doubly robust estimation, DML was introduced by @chernozhukov2018double to further enhance causal inference techniques. DML extends the doubly robust framework by integrating machine learning algorithms to flexibly model both the outcome and the treatment assignment processes:
+### Idenfitication assumptions
 
-1.  predicting the outcome $Y$ from the controls,
-2.  predicting the treatment $D$ from the controls;
+In the cross-sectional setting, we assume STUVA, unconfoundedness and strict overlap. 
 
-The DML method yields unbiased, $\sqrt{n}$-consistent estimators and confidence intervals for the low-dimensional parameter of interest, $\theta_0$, even in the presence of potentially high-dimensional nuisance parameters. Crucially, it achieves this without imposing stringent assumptions on high-dimensional covariates, instead deriving these forms directly from the data.
+
+- **Unconfoundedness**: $\{ Y_i(d_{i}) \} \perp\!\!\!\perp D_i \mid V_i = v, \text{ for all } v \in \mathscr{V}$. Potential outcome $Y_i(d_{i}$ are independent of the treatment $D_i$, conditioning on covariates $V_i = v$.
+
+- **Strict overlap**:  $f_{D \mid V}(d \mid v) > 0$ for all $d \in \mathscr{D}$ and $v \in \mathscr{V}$, where $\mathscr{D}$ is the support of the treatment $D$, $\mathscr{V}$ is the support of the covariates $V$, and $f_{D \mid V}(d \mid v)$ is the conditional probability density function of $D$ given $V$. 
+
+When $D$ is binary, it simplifies to: For some positive $\eta$, 
+$$\eta \leq \mathbb{P}(W_i = 1 \mid V_i = v) \leq 1-\eta,\quad\text{with probability } 1.$$ This assumption states that every unit $i$ must have a non-zero probability of being assigned to each treatment condition. 
+
+<br>
+
+### The DML framework
+
+When $D$, $X$ and $Z$ are all discrete, we can estimate $\mathbb{E}[Y(1)-Y(0)|X]$ nonparametrically. However, when one of them is continuous or high-dimensional, CME becomes difficult to estimate without imposing functional form assumptions. These assumptions can be too restrictive and easily violated in practice.
+
+Here, we introduce the double/debiased machine learning (DML) estimator, 
+to flexibly estimate CME under mild conditions. The primary advantage of DML lies in its ability to use machine learning method to estimate nuisance parameters $\eta_0$ (parameters that are not of direct interest to researchers), in nonparametric, data-driven way, while providing valid inference for the target quantity, in this case, the CME $\theta_0$. 
+
+Building on the principles of doubly robust estimation, DML is introduced by @chernozhukov2018double to estimate low-dimensional parameter $\theta_0$ in the presence of high-dimensional nuisance parameter $eta_0$. DML extends the doubly robust framework by integrating machine learning algorithms to flexibly model both the outcome and the treatment assignment processes. 
+
+The DML method yields unbiased, $\sqrt{n}$-consistent estimators and confidence intervals for the low-dimensional parameter of interest, $\theta_0$, even in the presence of potentially high-dimensional nuisance parameters $\eta_0$. Crucially, it achieves this without imposing stringent assumptions on high-dimensional covariates, instead deriving these forms directly from the data.
+
+The three key ingredients of the DML framework are:
+
+- Neyman orthogonality, which ensures the bias in estimating $\eta_0$ doesn't spillover to $\theta_0$;
+- High-quality ML method, to ensure the estimated nuisance parameter $\hat{\eta}$ converges to the true parameter at a fast enough rate;
+- Cross-fitting, to help mitigate overfitting biases.   
+
+If these three assumptions are met, i.e., that (1) the Neyman-orthogonal score is constructed for the parameter of interest $\theta_0$, and (2) the nuisance functions are estimated with enough accuracy and are cross fitted, the DML estimator achieves the $\sqrt{n}-$ rate of convergence and is approximately normally distributed. Both the rate of concentration and the distributional approximation holds uniformly over a broad class of probability distributions.
 
 ### Model
 
-The relationship between the variables can be described by the following model:
+In the **interflex** pacakge, for CME with binary treatment, the data-generating process (DGP) is modeled through Interactive Regression Model (IRM); For CME with continuous treatment, the DGP is modeled through Partially Linear Regression Model (PLR). 
+
+In practice with binary treatment, the IMR has the form: 
 
 $$
-Y = \theta(X)D + g(V) + \epsilon, E[\epsilon \mid V, D] = 0\\
-D = m(V) + \eta, E[\eta \mid V] = 0
+Y =g(V, D) + \epsilon,\ E[\epsilon \mid V, D] = 0
+$$
+$$
+D = m(V) + \eta, \ E[\eta \mid V] = 0
+$$
+
+With continuous treatment, the PLR has the form: 
+$$
+Y = \theta(V)D + g(V) + \epsilon,\ E[\epsilon \mid V, D] = 0
+$$
+$$
+D = m(V) + \eta, \ E[\eta \mid V] = 0
 $$
 
 where:
 
--   $\theta(X)$ is the parameter of interest, representing the estimated effects of $D$ on $Y$ moderated by $X$.
--   $g(V)$ is a nonparametric function capturing the relationship between full set of covaraites $V_i = (X_i, Z_i)$ and the outcome $Y$.
--   $m(V)$ is a nonparametric function capturing the relationship between full set of covaraites $V_i = (X_i, Z_i)$ and the treatment $D$ (propensity score).
+<!-- -   $\theta(X)$ is the parameter of interest, representing the CME of $D$ on $Y$ moderated by $X$. -->
+-   $g(\cdot)$ is a nonparametric function capturing the relationship between full set of covaraites $V_i = (X_i, Z_i)$ and the outcome $Y$.
+-   $m(\cdot)$ is a nonparametric function capturing the relationship between full set of covaraites $V_i = (X_i, Z_i)$ and the treatment $D$ (when $D$ is binary, it is also the propensity score function).
 -   $\epsilon,\eta$ are disturbances.
 
-The DML framework helps to estimate the parameter $\theta(X)$ by accounting for the high-dimensional covariates using machine learning methods. The steps involved are:
+Note that when $D$ is binary, $Y =g(V, D) + \epsilon$ can be written as $Y = \theta(V)D + g(V) + \epsilon$ without loss of generality.
 
-**1. First Stage: estimating nuisance functions**
+<br>
 
--   Outcome model: Estimate the nuisance function $g(V)$ using machine learning methods.
--   Treatment model: Estimate the nuisance function (propensity score) $m(V) = \mathbb{P}(D = 1 \mid V)$ using machine learning methods.
+### Procedure
 
-**2. Orthogonalization (Neyman Orthogonalization)**
+The DML framework for CME operates through the following steps:
 
-The key of DML is the construction of orthogonalization to meet the Neyman orthogonality condition, which are designed to ensure the estimation of $\theta$ is robust to small perturbations to the nuisance parameter $\eta = (g(V), m(V))$, thus to ensure robustness against model misspecification. The objective function $\Psi$ for the estimation of $\theta$ typically involves the empirical risk or loss function used in the estimation process. The Neyman orthogonality condition stipulates that the derivative of the objective function $\Psi$ with respect to the nuisance parameters evaluated at the true values of $\theta$ and $\eta$ is zero.
+**1. Estimate nuisance functions**
 
-$$
-\frac{\partial \Psi(\theta, \eta)}{\partial \eta} \Bigg|_{\theta = \theta_0, \eta = \eta_0} = 0
-$$
+-   Outcome model: Estimate the nuisance function $g(\cdot)$ using ML methods.
+-   Treatment model: Estimate the nuisance function $m(\cdot)$ using ML methods.
 
-In the **interflex** pacakge, we construct the orthogonal signal via residualization.
+**2. Apply the Neyman orthogonality condition**
 
-$$
-\tilde{Y} = Y - \hat{g}(V) \\
-\tilde{D} = D - \hat{m}(V) 
-$$
+The key of DML is the construction of orthogonal score to meet the Neyman orthogonality condition.
 
-**2. Second Stage: semi-parametric regression**
+In IRM, the orthogonal signal $\Lambda(\eta)$ is constructed through AIPW correction to meet the form: 
 
--   Regress the orthogonal signal on the basis expansion of $X$ (e.g., B-spline) to estimate $\theta(X)$ via a semi-parametric method:
+$$\Lambda(\eta) = \mu(1, V) - \mu(0, V) + \frac{D(Y - \mu(1, V))}{e(V)} - \frac{(1 - D)(Y - \mu(0, V))}{1 - e(V)}$$
 
-$$
-\tilde{Y} = \theta(X)\tilde{D} + \epsilon
-$$
 
-The adaptation of DML methods in the **interflex** package reflects our commitment to incorporating the latest theoretical advancements in causal inference. The DML estimator is inspired by the work of @semenova2021debiased, which proposed the DML estimation and inference of Conditional Average Treatment Effects (CATE). Building on this foundation, our approach in the package to continuous treatment estimation echos @bonvini2023flexibly, who introduced three methods to estimate and summarize CATEs when the moderators $X$ are continuous. Our package corresponds to two of these methods: the first approach is to employs univariate regression to plot the treatment effect as a function of the moderator; The second approach is to specify a General Additive Model (GAM) to account for multiple continuous moderators simultaneously. By integrating these advanced methodologies, the **interflex** package remains at the forefront of causal inference techniques.
+In PLR, the orthogonal signal is constructed via "partialling out" to meet the form: 
+
+$$\Lambda(\eta) = -\partial_d \log e(d\mid v)\,[Y-\mu(d,v)] +  \partial_d\mu(d,v)$$
+
+**3. Dimension reduction**
+
+The constructed orthogonal signal is projected onto a functional space in \( X \), which, in the **interflex** package, is either a B-spline or kernel regression, to recover CME \( \theta(x) \).
+
+<br>
+
+
 
 ------------------------------------------------------------------------
 
@@ -229,88 +311,91 @@ When setting the option `estimator` to `DML`, the function will conduct the two-
 
 #### Binary treatment with discrete outcomes
 
-```{r simu_s6, message=FALSE, warning=FALSE}
-s6.DML.nn <- interflex(estimator="DML", data = s6, ml_method="nn",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                       treat.type = "discrete", base = 0)
+
+To implement the DML estimator, we need to set the option `estimator='DML'` and specify two machine learning models: one for the outcome model (via the option `model.y`) and one for the treatment model (via the option `model.t`). Here, we use a neural network model (nn) for the outcome model and a random forest model (rf) for the treatment model. The gray area depicts the pointwise interval, while the dashed line marks the uniform/joint confidence interval.         
+
+
+```{r s6_nn_rf_linear, message=FALSE, warning=FALSE, cathe = TRUE,fig.height=5, fig.width=5}
+s6.DML.nn.rf <- interflex(estimator="DML", data = s6,
+                                 Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                                 model.y = "nn",model.t = "rf")
+plot(s6.DML.nn.rf)
 ```
 
-The estimated treatment effects of "D" on "Y" across the support of "X" are saved in:
+
+The estimated treatment effects of $D$ on $Y$ across the support of $X$ are saved in:
 
 ```{r}
 ## printing the first 10 rows
-lapply(s6.DML.nn$est.dml, head, 10)
+lapply(s6.DML.nn.rf$est.dml, head, 10)
 ```
 
-Users can then use the command plot to visualize the treatment effects. For comparison, we can add the "true" treatment effects to the plot.
 
-```{r, fig.width=5,fig.height=5}
+Users can then use the `plot` command to visualize the treatment effects. For comparison, we can add the "true" treatment effects to the plot.
+
+```{r, fig.width=6,fig.height=4.5}
 x <- s6$X
 TE <- exp(-1+1+x+1*x)/(1+exp(-1+1+x+1*x))-exp(-1+0+x+0*x)/(1+exp(-1+0+x+0*x))
-plot.s6 <- plot(s6.DML.nn, show.all = TRUE, Xdistr = 'none')$`1`
+plot.s6 <- plot(s6.DML.nn.rf, show.all = TRUE, Xdistr = 'none')$`1`
 plot.s6 + geom_line(aes(x=x,y=TE),color='red')
 ```
 
-### ML model selections
+### First Stage DML Model Selections
 
-The `DML` estimator supports three different machine learning algorithms for Stage 1: `rf` (Random Forest), `nn` (Neural Network), and `hgb` (Histogram-based Gradient Boosting). Users can change the `ml_method` option to calculate the nuisance parameter using a different ML method. In this example, we use the dataset **s9** to demonstrate the process:
+The `DML` estimator supports three different machine learning algorithms: `rf` (Random Forest), `nn` (Neural Network), and `hgb` (Histogram-based Gradient Boosting). Users can change the `model.y` and `model.t` option to calculate the nuisance parameter using a different ML method. In this example, we use the dataset **s9** to demonstrate the process:
 
-#### Discrete treatment with discrete outcomes
 
-```{r simu_s9, message=FALSE, cache = TRUE}
+```{r compare_s9_firststage, message=FALSE, warning=FALSE, cathe = TRUE}
 ## true treatment effects
+x <- s9$X
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
 TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
 
-## neural network
-s9.DML.nn <- interflex(estimator="DML", data = s9, ml_method="nn",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
-                       treat.type = "discrete")
+## neural network + neural network
+s9.DML.nn.nn <- interflex(estimator="DML", data = s9,
+                          Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                          model.y = "nn",model.t = "nn")
 
-plot.s9.nn.1<-plot(s9.DML.nn, show.all = T)$`1`
-plot.s9.nn.2<-plot(s9.DML.nn, show.all = T)$`2`
-
-## adding true treatment effects to the plots 
-p1.nn<-plot.s9.nn.1 + geom_line(aes(x=x,y=TE1),color='red')
-p2.nn<-plot.s9.nn.2 + geom_line(aes(x=x,y=TE2),color='red')
+plot.s9.nn.nn.1<-plot(s9.DML.nn.nn, show.all = T)[[1]]
+plot.s9.nn.nn.2<-plot(s9.DML.nn.nn, show.all = T)[[2]]
+p1.nn.nn<-plot.s9.nn.nn.1 + geom_line(aes(x=x,y=TE1),color='red')
+p2.nn.nn<-plot.s9.nn.nn.2 + geom_line(aes(x=x,y=TE2),color='red')
 
 
-## random forest
-s9.DML.rf <- interflex(estimator="DML", data = s9, ml_method="rf",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
-                       treat.type = "discrete")
+## random forest + random forest
+s9.DML.rf.rf <- interflex(estimator="DML", data = s9,
+                          Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                          model.y = "rf",model.t = "rf")
 
-plot.s9.rf.1<-plot(s9.DML.rf, show.all = T)$`1`
-plot.s9.rf.2<-plot(s9.DML.rf, show.all = T)$`2`
+plot.s9.rf.rf.1<-plot(s9.DML.rf.rf, show.all = T)[[1]]
+plot.s9.rf.rf.2<-plot(s9.DML.rf.rf, show.all = T)[[2]]
+p1.rf.rf<-plot.s9.rf.rf.1 + geom_line(aes(x=x,y=TE1),color='red')
+p2.rf.rf<-plot.s9.rf.rf.2 + geom_line(aes(x=x,y=TE2),color='red')
 
-p1.rf<-plot.s9.rf.1 + geom_line(aes(x=x,y=TE1),color='red')
-p2.rf<-plot.s9.rf.2 + geom_line(aes(x=x,y=TE2),color='red')
 
+## hist gradient boosting + hist gradient boosting
+s9.DML.hgb.hgb <- interflex(estimator="DML", data = s9,
+                          Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                          model.y = "hgb",model.t = "hgb")
 
-## hist gradient boosting
-s9.DML.hgb <- interflex(estimator="DML", data = s9, ml_method="hgb",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
-                       treat.type = "discrete")
-
-plot.s9.hgb.1<-plot(s9.DML.hgb, show.all = T)$`1`
-plot.s9.hgb.2<-plot(s9.DML.hgb, show.all = T)$`2`
-
-p1.hgb<-plot.s9.hgb.1 + geom_line(aes(x=x,y=TE1),color='red')
-p2.hgb<-plot.s9.hgb.2 + geom_line(aes(x=x,y=TE2),color='red')
+plot.s9.hgb.hgb.1<-plot(s9.DML.hgb.hgb, show.all = T)[[1]]
+plot.s9.hgb.hgb.2<-plot(s9.DML.hgb.hgb, show.all = T)[[2]]
+p1.hgb.hgb<-plot.s9.hgb.hgb.1 + geom_line(aes(x=x,y=TE1),color='red')
+p2.hgb.hgb<-plot.s9.hgb.hgb.2 + geom_line(aes(x=x,y=TE2),color='red')
 ```
 
-```{r, fig.width=11, fig.height=13}
-p1<-ggarrange(p1.nn, p2.nn)
+```{r, fig.width=9, fig.height=13.5}
+p1<-ggarrange(p1.nn.nn, p2.nn.nn)
 p1<-annotate_figure(p1, 
                     top = text_grob("Neural Network",
                     face = "bold", size = 13))
 
-p2<-ggarrange(p1.rf, p2.rf)
+p2<-ggarrange(p1.rf.rf, p2.rf.rf)
 p2<-annotate_figure(p2,
                     top = text_grob("Random Forest",
                     face = "bold", size = 13))
 
-p3<-ggarrange(p1.hgb, p2.hgb)
+p3<-ggarrange(p1.hgb.hgb, p2.hgb.hgb)
 p3<-annotate_figure(p3,
                     top = text_grob("Hist Gradient Boosting",
                     face = "bold", size = 13))
@@ -318,48 +403,37 @@ p3<-annotate_figure(p3,
 ggarrange(p1,p2,p3, ncol = 1)
 ```
 
-### ML model parameters
+We find that different ML models give very similar results, which is expected since there are only two confounders, $Z_{1}$ and $Z_{2}$, in the dataset, and all methods can accurately partial out their impacts on the outcome and the treatment.
 
-Users can customize parameters for the machine learning model in `ml_method`:
 
--   for neural network `nn`, theparameters include: `solver`, `max_iter`, `alpha`, `hidden_layer_sizes`, `random_state`
 
--   for random forest `rf`, the parameters include: `n_estimator`
-
--   for hist gradient boosting `hgb`, the parameters include: ....
-
-```{r, fig.width=10,fig.height=7}
-s9.DML.nn.2 <- interflex(estimator="DML", data = s9, ml_method="nn",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
-                       solver = "lbfgs",
-                       max_iter = 10000,
-                       alpha = 1e-5,
-                       hidden_layer_sizes = c(3, 3, 2),
-                       random_state = 1,
-                       treat.type = "discrete")
-```
-
-```{r}
-plot(s9.DML.nn.2)
-```
-
-### DML model selection
-
-When dealing with continuous treatment, users have the option to adjust the dml_method to utilize different CATE estimators within the [EconML package](https://econml.azurewebsites.net/reference.html#double-machine-learning-dml). The **interflex** package supports the following estimators:\
-
--   `default`: This uses the LinearDML estimator, which employs an unregularized final linear model. It is most effective when the feature vector $V(X_i, Z_i)$ is low dimensional. Users should choose this option if the number of features/covariates $V$ is small relative to the number of samples.
--   `polynomial`: This uses the SparseLinearDML estimator, which incorporates an $\ell1$-regularized final model. This option is suitable when the number of features/covariates $V$ is roughly equal to the number of samples.
--   `regularization`: This method uses a standard DML estimator, assuming a linear effect model for each outcome $i$ and treatment $j$. In the interflex package, we apply `sklearn.linear_model.Lasso` for the final stage estimator to introduce regularization.
--   `non-parametric`: This employs the CausalForestDML estimator, which does not make specific assumptions about the effect model for each outcome and uses a Causal Forest as the final model. This estimator is capable of handling many features, though generally fewer than what the SparseLinearDML can manage.
-
-For practical demonstration, we use dataset **s7** to explore how selecting different DML models affects performance.
+### Specifying Model Parameters
 
 #### Continuous treatment with discrete outcome
 
-```{r simu_s7, message=FALSE, warning=FALSE}
+Users can customize parameters for the machine learning model in both stages by specifying the options `param.y` and `param.t`. For the whole list of parameters that are applicable to the neural network model, users can refer to the [MLPRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPRegressor.html) or the [MLPClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html). For the random forest method, users can refer to the [RandomForestRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html) or the [RandomForestClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html). For the hist gradient boosting method, users can refer to the [HistGradientBoostingRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html) or the [HistGradientBoostingClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html). Here we use dataset **s7** to explore how selecting different DML parameters affects performance. We can directly specify the size of the neural networks, the activation function, learning rate, and solver using the list `param_nn` and feed them to the DML estimator.
+
+```{r model_parameter, message=FALSE, warning=FALSE, cathe = TRUE}
+param_nn <- list(
+  hidden_layer_sizes = list(10L,20L,10L),
+  activation = c("tanh"),
+  solver = c("sgd"),
+  alpha = c(0.05),
+  learning_rate = c("adaptive")
+)
+
+s7.DML.nn.linear.para <- interflex(estimator="DML", data = s7,
+                                       Y = "Y", D = "D", X = "X", 
+                                       Z = c("Z1", "Z2"),
+                                       model.y = "nn", param.y = param_nn,
+                                       model.t = "nn", param.t = param_nn)
+
+```
+
+```{r, fig.width=6, fig.height=6}
 n <- nrow(s7)
 d2 <- s7$D
-x_values <- runif(n, min=-3, max = 3) 
+x_values <- sort(s7$X) 
 d2_value <- median(d2)  # Example value for d2
 
 marginal_effect <- function(D_value, X_value) {
@@ -372,142 +446,105 @@ marginal_effect <- function(D_value, X_value) {
 # Applying the function to the range of x values to calculate true ME
 ME <- sapply(x_values, function(x_val) marginal_effect(d2_value, x_val))
 
-library(interflex)
-s7.DML.nn.1 <- interflex(estimator="DML", data = s7, ml_method="nn",
-                         Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                         dml_method = "default",
-                       treat.type = "continuous")
 
-s7.DML.nn.2 <- interflex(estimator="DML", data = s7, ml_method="nn",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                       dml_method = "regularization", 
-                       lasso_alpha = 1e-10,
-                       treat.type = "continuous")
-
-s7.DML.nn.3 <- interflex(estimator="DML", data = s7, ml_method="nn", 
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                       dml_method = "polynomial",
-                       treat.type = "continuous")
-
-s7.DML.nn.4 <- interflex(estimator="DML", data = s7, ml_method="nn", 
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                      dml_method = "non-parametric", 
-                       treat.type = "continuous")
+p.s7.nn.linear <- plot(s7.DML.nn.linear.para, show.all = TRUE, ylim = c(-0.5,0.5))[[1]]
+p.s7.nn.linear<-p.s7.nn.linear + ylim(-0.5,0.5) + 
+  geom_line(aes(x=x_values,y=ME),color='red')+
+  ggtitle("Neural Network with Specified Parameters")+
+  theme(plot.title = element_text(size=10))
 
 ```
 
-```{r, message = FALSE, fig.width=11,fig.height=9}
-s7.DML.nn.1<-plot(s7.DML.nn.1, show.all = TRUE)$`D=0.53 (50%)`
-s7.DML.nn.2<-plot(s7.DML.nn.2, show.all = TRUE)$`D=0.53 (50%)`
-s7.DML.nn.3<-plot(s7.DML.nn.3, show.all = TRUE)$`D=0.53 (50%)`
-s7.DML.nn.4<-plot(s7.DML.nn.4, show.all = TRUE)$`D=0.53 (50%)`
+### Cross-Validation
+
+Users can also specify the grids of parameters using the options `param.grid.y` and `param.grid.t`. The DML estimator will then search through all sequences of parameter settings and pick the most suitable one using cross-validation. We need to set the options `CV` to `TRUE` to invoke the cross-validation. As an example, we specify the grids used for the neural network, random forest, and hist gradient boosting, then we compare their performances on **s7**.
+ 
+
+```{r model_s7_search,  message=FALSE, warning=FALSE, cathe = TRUE}
+param_grid_nn <- list(
+  hidden_layer_sizes = list(list(10L,20L,10L), list(20L)),
+  activation = c("tanh","relu"),
+  solver = c("sgd","adam"),
+  alpha = c(0.0001,0.05),
+  learning_rate = c("constant","adaptive")
+)
+
+param_grid_rf <- list(
+  max_depth = c(2L,3L,5L,7L),
+  n_estimators = c(10L, 30L, 50L, 100L, 200L, 400L, 600L, 800L, 1000L),
+  max_features = c(1L,2L)
+)
+
+param_grid_hgb <- list(
+  max_leaf_nodes = c(5L,10L,20L,30L),
+  min_samples_leaf = c(5L,10L,20L),
+  l2_regularization = c(0,0.1,0.5),
+  max_features = c(0.5,1)
+)
+
+
+# nn (cv) + rf (cv) + linear
+s7.cvnn.cvrf <- interflex(estimator="DML", data = s7,
+                                     Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),CV = TRUE,
+                                     model.y = "nn",param.grid.y = param_grid_nn,
+                                     model.t = "rf",param.grid.t = param_grid_rf)
+
+# nn (cv) + hgb (cv) + regularization (cv)
+s7.cvnn.cvhgb <- interflex(estimator="DML", data = s7,
+                                     Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),CV = TRUE,
+                                     model.y = "nn",param.grid.y = param_grid_nn,
+                                     model.t = "hgb",param.grid.t = param_grid_hgb)
+
+# rf (cv) + rf (cv) + rf (cv)
+s7.cvrf.cvrf <- interflex(estimator="DML", data = s7,
+                                     Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),CV = TRUE,
+                                     model.y = "rf",param.grid.y = param_grid_rf,
+                                     model.t = "rf",param.grid.t = param_grid_rf)
+
+# hgb (cv) + hgb (cv) + hgb (cv)
+s7.cvhgb.cvhgb <- interflex(estimator="DML", data = s7,
+                                     Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),CV = TRUE,
+                                     model.y = "hgb",param.grid.y = param_grid_hgb,
+                                     model.t = "hgb",param.grid.t = param_grid_hgb)
+```
+
+```{r, message = FALSE, fig.width=9,fig.height=9}
+p.1<-plot(s7.cvnn.cvrf, show.all = TRUE, ylim = c(-0.5,0.9))[[1]]
+p.2<-plot(s7.cvnn.cvhgb, show.all = TRUE, ylim = c(-0.5,0.9))[[1]]
+p.3<-plot(s7.cvrf.cvrf, show.all = TRUE, ylim = c(-0.5,0.9))[[1]]
+p.4<-plot(s7.cvhgb.cvhgb, show.all = TRUE, ylim = c(-1.5,1.5))[[1]]
 
 ## adding true treatment effects when d = 0.53 (50%) to the plots 
-p1.nn<-s7.DML.nn.1 + 
+p.1<-p.1 + ylim(-0.5,0.9) +
   geom_line(aes(x=x_values,y=ME),color='red')+
-  ylim(-0.5, 0.5)+
-  ggtitle("dml method: default")+
+  ggtitle("Neural Network (cv) + Random Forest (cv) + Linear")+
   theme(plot.title = element_text(size=10))
 
-p2.nn<-s7.DML.nn.2 +
+  
+p.2<-p.2 +ylim(-0.5,0.9)+
   geom_line(aes(x=x_values,y=ME),color='red')+
-  ylim(-0.5, 0.5)+
-  ggtitle("dml method: polynomial")+
+  ggtitle("Neural Network (cv) + Random Forest (cv) + Lasso (CV)")+
   theme(plot.title = element_text(size=10))
 
-p3.nn<-s7.DML.nn.3  +
+
+p.3<-p.3  +ylim(-0.5,0.9)+
   geom_line(aes(x=x_values,y=ME),color='red')+
-  ylim(-0.5, 0.5)+
-  ggtitle("dml method: regularization")+
+  ggtitle("Random Forest (cv) + Random Forest (cv) + Random Forest (cv)")+
+  theme(plot.title = element_text(size=8))
+
+p.4<-p.4 + ylim(-1.5,1.5)+
+  geom_line(aes(x=x_values,y=ME),color='red')+
+  ggtitle("HGB (cv) + HGB (cv) + HGB (cv)")+
   theme(plot.title = element_text(size=10))
 
-p4.nn<-s7.DML.nn.4 + 
-  geom_line(aes(x=x_values,y=ME),color='red')+
-  ylim(-0.5, 0.5)+
-  ggtitle("dml method: non-parametric")+
-  theme(plot.title = element_text(size=10))
- 
-ggarrange(p1.nn, p2.nn, p3.nn, p4.nn)
+ggarrange(p.1, p.2, p.3, p.4)
 ```
 
-### DML model parameters
 
-Users can customize parameters for the DML model in `dml_method`:
-
--   for `default` method, the parameters include: `random_state`
-
--   for `polynomial` method, the parameters include: `poly_degree`, `random_state`
-
--   for `regularization` method, parameters include: `lasso_alpha`, `poly_degree`, and `random_state`
-
--   for `non-parametric` method, the modifiable parameters include: `casual_forest_criterion`, `casual_forest_n_estimators`, `casual_forest_in_impurity_decrease`, `random_state`.
-
-In the previous section, we observed that the DML estimator does not perform well with simple DGPs, such as **s7**. To improve the accuracy of the estimations and bring them closer to the "true" treatment effects, we can adjust the parameters of the DML estimator.
-
-```{r message=FALSE, warning=FALSE}
-
-s7.DML.nn.lasso1<- interflex(estimator="DML", data = s7, ml_method="nn",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                       dml_method = "regularization", 
-                       lasso_alpha = 1e-4,
-                       treat.type = "continuous")
-
-s7.DML.nn.lasso2<- interflex(estimator="DML", data = s7, ml_method="nn",
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                       dml_method = "regularization", 
-                       lasso_alpha = 1e-10, 
-                       treat.type = "continuous")
-
-s7.DML.nn.poly1 <- interflex(estimator="DML", data = s7, ml_method="nn", 
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                       dml_method = "polynomial", poly_degree = 3,
-                       treat.type = "continuous")
-
-s7.DML.nn.poly2 <- interflex(estimator="DML", data = s7, ml_method="nn", 
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), 
-                       dml_method = "polynomial", poly_degree = 6,
-                       treat.type = "continuous")
-
-
-```
-
-```{r, fig.width=11,fig.height=9}
-s7.DML.nn.lasso1<-plot(s7.DML.nn.lasso1, show.all = TRUE)$`D=0.53 (50%)`
-s7.DML.nn.lasso2<-plot(s7.DML.nn.lasso2, show.all = TRUE)$`D=0.53 (50%)`
-s7.DML.nn.poly1<-plot(s7.DML.nn.poly1, show.all = TRUE)$`D=0.53 (50%)`
-s7.DML.nn.poly2<-plot(s7.DML.nn.poly2, show.all = TRUE)$`D=0.53 (50%)`
-
-
-## adding true treatment effects when d = 0.53 (50%) to the plots 
-p1.nn<-s7.DML.nn.lasso1 + 
-  geom_line(aes(x=x_values,y=ME),color='red')+
-  ylim(-0.5, 0.5)+
-  ggtitle("regularization, default alpha")+
-  theme(plot.title = element_text(size=10))
-
-p2.nn<-s7.DML.nn.lasso2 + 
-  geom_line(aes(x=x_values,y=ME),color='red')+
-  ylim(-0.5, 0.5)+
-  ggtitle(label = "regularization, alpha = 1e-10")+
-  theme(plot.title = element_text(size=10))
-
-p3.nn<-s7.DML.nn.poly1 + 
-  geom_line(aes(x=x_values,y=ME),color='red')+
-  ylim(-0.5, 0.5)+
-  ggtitle(label = "polynomial, default degree")+
-  theme(plot.title = element_text(size=10))
-
-p4.nn<-s7.DML.nn.poly2 +
-  geom_line(aes(x=x_values,y=ME),color='red')+
-  ggtitle(label = "polynomial, degree = 6")+
-  theme(plot.title = element_text(size=10))
- 
-ggarrange(p1.nn, p2.nn, p3.nn, p4.nn)
-```
 
 ------------------------------------------------------------------------
 
-## Application 1
+## Application 1: Binary Treatment with Continuous Outcomes
 
 In this section, we walk through an example application of DML estimator with binary treatment and continuous outcome. The data we are using is from @huddy2015expressive, which explores the expressive model of partisanship, contrasting it with instrumental perspectives on political behavior. It argues that partisan identity, more than policy stances or ideological alignment, drives campaign involvement and emotional responses to political events. Key findings indicate that strongly identified partisans are more likely to engage in campaign activities and exhibit stronger emotional reactions—such as anger when threatened with electoral loss and positivity when victory seems likely—compared to those with weaker partisan identities.
 
@@ -527,6 +564,7 @@ Y <- "totangry"
 D <- "threat" 
 X <- "pidentity"
 Z <- c("issuestr2", "pidstr2", "pidstr2_threat" ,"issuestr2_threat", "knowledge" , "educ" , "male" , "age10" )
+
 Dlabel <- "Threat"
 Xlabel <- "Partisan Identity"
 Ylabel <- "Anger"
@@ -537,33 +575,36 @@ cl <- cuts <- cuts2 <- time <- NULL
 
 ### Estimating marginal effects
 
-```{r}
-out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn",
+```{r app_nn,message=FALSE, warning=FALSE, cathe = TRUE}
+out.dml.nn<-interflex(estimator='DML', data = d,
                       Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
-                      Xlabel=Xlabel,
-                      Ylabel=Ylabel, Dlabel=Dlabel)
+                      model.y = 'nn', model.t = 'nn', 
+                      Xlabel=Xlabel,Ylabel=Ylabel, Dlabel=Dlabel)
 
 lapply(out.dml.nn$est.dml, head, 20)
 ```
 
 ### Comparison of estimators
 
-```{r application1}
+```{r application1,message=FALSE, warning=FALSE,cache=TRUE}
 
-out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn",
+out.dml.nn<-interflex(estimator='DML', data = d,
+                      model.y = 'nn', model.t = 'nn',
                       Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
                       Xlabel=Xlabel,
-                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.18,0.6))
+                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.4,1))
 
-out.dml.rf<-interflex(estimator='DML', data = d, ml_method="rf",
+out.dml.rf<-interflex(estimator='DML', data = d, 
+                      model.y = 'rf', model.t = 'rf', 
                       Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
                       Xlabel=Xlabel,
-                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.18,0.6))
+                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.4,1))
 
-out.dml.hgb<-interflex(estimator='DML', data = d, ml_method="hgb",
+out.dml.hgb<-interflex(estimator='DML', data = d, 
+                       model.y = 'hgb', model.t = 'hgb', 
                        Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
                        Xlabel=Xlabel,
-                       Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.18,0.6))
+                       Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.4,1))
 
 out.raw <- interflex(estimator = "raw", Y=Y,D=D,X=X,data=d, Xlabel=Xlabel,
                      Ylabel=Ylabel, Dlabel=Dlabel)
@@ -571,12 +612,13 @@ out.raw <- interflex(estimator = "raw", Y=Y,D=D,X=X,data=d, Xlabel=Xlabel,
 out.est1<-interflex(estimator = "binning",Y=Y,D=D,X=X,Z=Z,data=d,
                     Xlabel=Xlabel, Ylabel=Ylabel, Dlabel=Dlabel,
                     nbins=3, cutoffs=cuts,  cl=cl, time=time,
-                    pairwise=TRUE,  Xdistr = "histogram",ylim=c(-0.18,0.6))
+                    pairwise=TRUE,  Xdistr = "histogram",ylim=c(-0.4,1))
 
 out.kernel<-interflex(estimator = "kernel", data=d, Y=Y,D=D,X=X,Z=Z,
-                      cl=NULL,
+                      cl=NULL, vartype = 'bootstrap', nboots = 2000, 
+                      parallel = T, cores = 31,
                       Dlabel=Dlabel, Xlabel=Xlabel, Ylabel=Ylabel,
-                      bw=0.917, Xdistr = "histogram", ylim=c(-0.18,0.6))
+                      bw=0.917, Xdistr = "histogram", ylim=c(-0.4,1))
 ```
 
 ```{r fig.width=10,fig.height=8}
@@ -593,7 +635,7 @@ The three DML estimator plots consistently show that the marginal effect of the 
 
 ------------------------------------------------------------------------
 
-## Application 2
+## Application 2: Continuous Treatment with Continuous Outcomes
 
 In this section, we demonstrate the application of the DML estimator, focusing on scenarios with continuous treatment and outcome variables. We refer to the study by @vernby2013inclusion, which examines the impact of non-citizen suffrage on public policy in Swedish municipalities. Vernby's analysis reveals that municipalities with a higher percentage of school-aged non-citizens would see a more significant increase in education spending following the enfranchisement of non-citizens.
 
@@ -613,6 +655,7 @@ Y <- "school_diff"
 D <- "noncitvotsh" 
 X <- "noncit15" 
 Z <- c("Taxbase2" ,  "Taxbase2_2" , "pop" , "pop_2" ,   "manu" , "manu_2")
+
 Dlabel <- "Share NC"
 Xlabel <- "Prop. School-Aged NC"
 Ylabel <- "Δ Ed. Services"
@@ -624,10 +667,10 @@ time <- cl <- cuts <- cuts2 <- NULL
 
 ### Estimating marginal effects
 
-```{r}
-out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn", 
+```{r app2_nn,message=FALSE, warning=FALSE, cathe = TRUE}
+out.dml.nn<-interflex(estimator='DML', data = d, 
           Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
-          dml_method = "default",
+          model.y = 'nn', model.t = 'nn',
           Xlabel=Xlabel,
           Ylabel=Ylabel, Dlabel=Dlabel)
 
@@ -636,24 +679,24 @@ lapply(out.dml.nn$est.dml, head, 20)
 
 ### Comparison of estimators
 
-```{r applicaton2}
+```{r applicaton2,message=FALSE, warning=FALSE,cache=TRUE}
 
-out.dml.nn<-interflex(estimator='DML', data = d, ml_method="nn", 
+out.dml.nn<-interflex(estimator='DML', data = d, 
           Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
-          dml_method = "non-parametric",
-          Xlabel=Xlabel, 
+          model.y = 'nn', model.t = 'nn', 
+          Xlabel=Xlabel, xlim = c(0.125,0.3),ylim = c(-25,75),
           Ylabel=Ylabel, Dlabel=Dlabel)
 
-out.dml.rf<-interflex(estimator='DML', data = d, ml_method="rf",
+out.dml.rf<-interflex(estimator='DML', data = d, 
                        Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
-                      dml_method = "non-parametric",
-                       Xlabel=Xlabel,
+                       model.y = 'rf', model.t = 'rf', 
+                       Xlabel=Xlabel,xlim = c(0.125,0.3),ylim = c(-25,75),
                        Ylabel=Ylabel, Dlabel=Dlabel)
 
-out.dml.hgb<-interflex(estimator='DML', data = d, ml_method="hgb",
+out.dml.hgb<-interflex(estimator='DML', data = d, 
                        Y=Y,D=D,X=X, Z = Z, treat.type = "continuous",
-                       dml_method = "non-parametric",
-                       Xlabel=Xlabel,
+                       model.y = 'hgb', model.t = 'hgb', 
+                       Xlabel=Xlabel,xlim = c(0.125,0.3),ylim = c(-25,75),
                        Ylabel=Ylabel, Dlabel=Dlabel)
 
 out.raw <- interflex(estimator = "raw", Y=Y,D=D,X=X,data=d,Xlabel=Xlabel,
@@ -662,23 +705,31 @@ out.raw <- interflex(estimator = "raw", Y=Y,D=D,X=X,data=d,Xlabel=Xlabel,
 
 out.est1<-interflex(estimator = "binning",Y=Y,D=D,X=X,Z=Z,data=d,
                     Xlabel=Xlabel, Ylabel=Ylabel, Dlabel=Dlabel,
-                    cutoffs=cuts,  cl=cl, time=time,
+                    cutoffs=cuts,  cl=cl, time=time,xlim = c(0.125,0.3),
                     pairwise=TRUE, Xdistr = "histogram")
 
 
 out.kernel<-interflex(estimator = "kernel", data=d, Y=Y,D=D,X=X,Z=Z,
-                      cl=cl,
+                      cl=cl,vartype = 'bootstrap', nboots = 2000, 
+                      parallel = T, cores = 31,xlim = c(0.125,0.3),
                       Dlabel=Dlabel, Xlabel=Xlabel, Ylabel=Ylabel,
                       Xdistr = "histogram")
 
 ```
 
 ```{r fig.width=11,fig.height=9}
-ggarrange(out.raw, out.est1$figure, out.kernel$figure,
-          out.dml.nn$figure, out.dml.rf$figure, out.dml.hgb$figure, 
+ggarrange(out.raw, 
+          out.est1$figure, 
+          out.kernel$figure,
+          out.dml.nn$figure, 
+          out.dml.rf$figure, out.dml.hgb$figure, 
           common.legend = TRUE, legend = "none",
           labels = c("Raw", "Binning", "Kernel", "DML: nn","DML: rf","DML: hgb"))
 
 ```
 
+<br>
+
 ## References
+
+

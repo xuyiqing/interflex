@@ -1,5 +1,5 @@
 ## Input Check
-interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "DML"
+interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "dml"
                       data,
                       Y, # outcome
                       D, # treatment indicator
@@ -35,21 +35,20 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       kfold = 10,
                       grid = 30,
                       metric = NULL,
-                      ml_method = "rf",
-                      trimming_threshold = 0.01,
-                      n_folds = 5,
-                      n_estimators = 500,
-                      solver = "adam",
-                      max_iter = 10000,
-                      alpha = 1e-5,
-                      hidden_layer_sizes = c(5, 3, 2),
-                      random_state = 1,
-                      dml_method = "default",
-                      poly_degree = 3,
-                      lasso_alpha = 0.1,
-                      casual_forest_criterion = "mse",
-                      casual_forest_n_estimators = 1000,
-                      casual_forest_in_impurity_decrease = 0.001,
+                      model.y = "rf",
+                      param.y = NULL,
+                      param.grid.y = NULL,
+                      scoring.y = "neg_mean_squared_error",
+                      model.t = "rf",
+                      param.t = NULL,
+                      param.grid.t = NULL,
+                      scoring.t = "neg_mean_squared_error",
+                      CV = FALSE,
+                      n.folds = 10,
+                      n.jobs = -1,
+                      cf.n.folds = 5,
+                      gate = FALSE,
+                      grf.num.trees = 4000,
                       figure = TRUE,
                       bin.labs = TRUE,
                       order = NULL,
@@ -93,9 +92,11 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
     n <- dim(data)[1]
 
+    estimator <- tolower(estimator)
+
     ## estimator
-    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "DML")) {
-        stop("estimator must be one of the following: raw, linear, binning, kernel, gam or DML.\n")
+    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml")) {
+        stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf or dml.\n")
     }
 
     ## Y
@@ -713,6 +714,12 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         stop("\"treat.type\" must be one of the following: \"discrete\",\"continuous\".")
     }
 
+    if (treat.type == "continuous") {
+        if (estimator == "grf") {
+            stop("\"treat.type\" must be \"discrete\" when \"estimator\" is \"grf\".")
+        }
+    }
+
     # if treat is discrete
     if (treat.type == "discrete") {
         D.sample <- NULL
@@ -1181,30 +1188,69 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylim = ylim
         )
     }
-
-    if (estimator == "DML") {
-        output <- interflex.DML(
+    if (estimator == "grf") {
+        output <- interflex.grf(
             data = data,
             Y = Y, # outcome
             D = D, # treatment indicator
             X = X, # moderator
             Z = Z, # covariates
             weights = weights, # weighting variable
-            ml_method = ml_method,
-            trimming_threshold = trimming_threshold,
-            n_folds = n_folds,
-            n_estimators = n_estimators,
-            solver = solver,
-            max_iter = max_iter,
-            alpha = alpha,
-            hidden_layer_sizes = hidden_layer_sizes,
-            random_state = random_state,
-            dml_method = dml_method,
-            poly_degree = poly_degree,
-            lasso_alpha = lasso_alpha,
-            casual_forest_criterion = casual_forest_criterion,
-            casual_forest_n_estimators = casual_forest_n_estimators,
-            casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease,
+            num.trees = grf.num.trees,
+            treat.info = treat.info,
+            diff.info = diff.info,
+            figure = figure,
+            CI = CI,
+            subtitles = subtitles,
+            show.subtitles = show.subtitles,
+            Xdistr = Xdistr, # c("density","histogram","none")
+            main = main,
+            Ylabel = Ylabel,
+            Dlabel = Dlabel,
+            Xlabel = Xlabel,
+            xlab = xlab,
+            ylab = ylab,
+            xlim = xlim,
+            ylim = ylim,
+            theme.bw = theme.bw,
+            show.grid = show.grid,
+            cex.main = cex.main,
+            cex.sub = cex.sub,
+            cex.lab = cex.lab,
+            cex.axis = cex.axis,
+            interval = interval,
+            file = file,
+            ncols = ncols,
+            pool = pool,
+            color = color,
+            legend.title = legend.title,
+            show.all = show.all,
+            scale = scale,
+            height = height,
+            width = width
+        )
+    }
+    if (estimator == "dml") {
+        output <- interflex.dml(
+            data = data,
+            Y = Y, # outcome
+            D = D, # treatment indicator
+            X = X, # moderator
+            Z = Z, # covariates
+            weights = weights, # weighting variable
+            model.y = model.y,
+            param.y = param.y,
+            param.grid.y = param.grid.y,
+            scoring.y = scoring.y,
+            model.t = model.t,
+            param.t = param.t,
+            param.grid.t = param.grid.t,
+            scoring.t = scoring.t,
+            CV = CV,
+            n.folds = n.folds,
+            n.jobs = n.jobs,
+            cf.n.folds = cf.n.folds,
+            gate = gate,
             treat.info = treat.info,
             diff.info = diff.info,
             figure = figure,

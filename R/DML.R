@@ -1,4 +1,4 @@
-interflex.DML <- function(data,
+interflex.dml <- function(data,
                           Y, # outcome
                           D, # treatment indicator
                           X, # moderator
@@ -6,27 +6,26 @@ interflex.DML <- function(data,
                           diff.info,
                           Z = NULL, # covariates
                           weights = NULL, # weighting variable
-                          ml_method = "rf",
-                          trimming_threshold = 0.01,
-                          n_folds = 5,
-                          n_estimators = 500,
-                          solver = "adam",
-                          max_iter = 10000,
-                          alpha = 1e-5,
-                          hidden_layer_sizes = c(5, 3, 2),
-                          random_state = 1,
-                          dml_method = "default",
-                          poly_degree = 3,
-                          lasso_alpha = 0.1,
-                          casual_forest_criterion = "mse",
-                          casual_forest_n_estimators = 1000,
-                          casual_forest_in_impurity_decrease = 0.001,
+                          model.y = "rf",
+                          param.y = NULL,
+                          param.grid.y = NULL,
+                          scoring.y = "neg_mean_squared_error",
+                          model.t = "rf",
+                          param.t = NULL,
+                          param.grid.t = NULL,
+                          scoring.t = "neg_mean_squared_error",
+                          CV = FALSE,
+                          n.folds = 10,
+                          n.jobs = -1,
+                          cf.n.folds = 5,
+                          cf.n.rep = 1,
+                          gate = FALSE,
                           figure = TRUE,
                           CI = CI,
                           order = NULL,
                           subtitles = NULL,
                           show.subtitles = NULL,
-                          Xdistr = "histogram", # c("density","histogram","none")
+                          Xdistr = "histogram", # ("density","histogram","none")
                           main = NULL,
                           Ylabel = NULL,
                           Dlabel = NULL,
@@ -66,6 +65,15 @@ interflex.DML <- function(data,
         label.name <- names(D.sample)
         # names(label.name) <- D.sample
     }
+
+    n <- dim(data)[1]
+    if (is.null(weights) == TRUE) {
+        w <- rep(1, n)
+    } else {
+        w <- data[, weights]
+    }
+    data[["WEIGHTS"]] <- w
+
     if (TRUE) {
         if (treat.type == "discrete") {
             if (is.null(weights) == TRUE) {
@@ -127,41 +135,65 @@ interflex.DML <- function(data,
     treat.base <- treat.info[["base"]]
 
     # reticulate::use_virtualenv("r-reticulate", required = TRUE)
-    reticulate::use_condaenv(condaenv = "r-reticulate")
+    # use_condaenv(condaenv = "r-reticulate", required = TRUE)
 
     TE.output.all.list <- list()
+    TE.G.output.all.list <- list()
+    python_script_path <- system.file("python/dml.py", package = "interflex")
+    source_python(python_script_path)
     if (treat.type == "discrete") {
-        python_script_path <- system.file("python/dml_binary_treatment.py", package = "interflex")
-        reticulate::source_python(python_script_path)
         for (char in other.treat) {
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
-            TE.output.all.python <- marginal_effect_for_binary_treatment(data_part,
-                ml_method = ml_method, Y = Y, D = D, X = X, Z = Z,
-                trimming_threshold = trimming_threshold, n_folds = n_folds,
-                n_estimators = n_estimators,
-                solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state
+            data_part[data_part[[D]] == treat.base, D] <- 0L
+            data_part[data_part[[D]] == char, D] <- 1L
+            result <- marginal_effect_for_treatment(data_part,
+                Y = Y, D = D, X = X, Z = Z,
+                model_y = model.y,
+                param_y = dict(param.y),
+                param_grid_y = dict(param.grid.y),
+                scoring_y = scoring.y,
+                model_t = model.t,
+                param_t = dict(param.t),
+                param_grid_t = dict(param.grid.t),
+                scoring_t = scoring.t,
+                CV = CV,
+                n_folds = n.folds,
+                n_jobs = n.jobs,
+                cf_n_folds = cf.n.folds,
+                cf_n_rep = cf.n.rep,
+                gate = gate
             )
-            TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
+            TE.output.all <- data.frame(result[1], check.names = FALSE)
+            TE.G.output.all <- data.frame(result[2], check.names = FALSE)
             TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
+            TE.G.output.all.list[[other.treat.origin[char]]] <- TE.G.output.all
         }
     } else if (treat.type == "continuous") {
-        python_script_path <- system.file("python/dml_continuous_treatment.py", package = "interflex")
-        reticulate::source_python(python_script_path)
+        result <- marginal_effect_for_treatment(data,
+            Y = Y, D = D, X = X, Z = Z,
+            model_y = model.y,
+            param_y = dict(param.y),
+            param_grid_y = dict(param.grid.y),
+            scoring_y = scoring.y,
+            model_t = model.t,
+            param_t = dict(param.t),
+            param_grid_t = dict(param.grid.t),
+            scoring_t = scoring.t,
+            CV = CV,
+            n_folds = n.folds,
+            n_jobs = n.jobs,
+            cf_n_folds = cf.n.folds,
+            cf_n_rep = cf.n.rep,
+            gate = gate
+        )
+        TE.output.all <- data.frame(result[1], check.names = FALSE)
+        TE.G.output.all <- data.frame(result[2], check.names = FALSE)
+
         k <- 1
         for (d_ref in D.sample) {
             label <- label.name[k]
-            TE.output.all.python <- marginal_effect_for_continuous_treatment(data,
-                ml_method = ml_method, Y = Y, D = D, X = X, Z = Z, d_ref = d_ref,
-                n_estimators = n_estimators,
-                solver = solver, max_iter = max_iter, alpha = alpha, hidden_layer_sizes = hidden_layer_sizes, random_state = random_state,
-                dml_method = dml_method,
-                poly_degree = poly_degree, lasso_alpha = lasso_alpha,
-                casual_forest_criterion = casual_forest_criterion,
-                casual_forest_n_estimators = casual_forest_n_estimators,
-                casual_forest_in_impurity_decrease = casual_forest_in_impurity_decrease
-            )
-            TE.output.all <- data.frame(TE.output.all.python, check.names = FALSE)
             TE.output.all.list[[label]] <- TE.output.all
+            TE.G.output.all.list[[label]] <- TE.G.output.all
             k <- k + 1
         }
     }
@@ -170,6 +202,7 @@ interflex.DML <- function(data,
             diff.info = diff.info,
             treat.info = treat.info,
             est.dml = TE.output.all.list,
+            g.est.dml = TE.G.output.all.list,
             Xlabel = Xlabel,
             Dlabel = Dlabel,
             Ylabel = Ylabel,
@@ -177,13 +210,15 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = treat_den,
             count.tr = treat.hist,
-            estimator = "DML"
+            dml.models = result[3][[1]],
+            estimator = "dml"
         )
     } else if (treat.type == "continuous") {
         final.output <- list(
             diff.info = diff.info,
             treat.info = treat.info,
             est.dml = TE.output.all.list,
+            g.est.dml = TE.G.output.all.list,
             Xlabel = Xlabel,
             Dlabel = Dlabel,
             Ylabel = Ylabel,
@@ -191,7 +226,8 @@ interflex.DML <- function(data,
             hist.out = hist.out,
             de.tr = de.tr,
             count.tr = NULL,
-            estimator = "DML"
+            dml.models = result[3][[1]],
+            estimator = "dml"
         )
     }
 

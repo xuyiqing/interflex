@@ -1,3 +1,9 @@
+# interflex 1.3.1-1.3.2
+
+1. Introduce the DML estimators
+
+2. Fix bugs
+
 # interflex 1.3.0
 
 1. Add support for DML estimators.

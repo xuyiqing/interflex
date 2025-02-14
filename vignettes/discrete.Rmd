@@ -83,7 +83,7 @@ s9 <- cbind.data.frame(X=x,D=d3,Z1=Z1,Z2=Z2,Y=y4)
 
 ## Linear linear predictors
 
-When setting the option `estimator` to "linear", the program will conduct the classic glm regression and estimate the marginal effects/treatment effects using the coefficients from the regression. In the following command, the outcome variable is "Y", the moderator is "X", the covariates are "Z1" and "Z2", and here it uses logit link function.
+When setting the option `estimator` to "linear", the program will conduct the classic glm regression and estimate the CME using the coefficients from the regression. In the following command, the outcome variable is "Y", the moderator is "X", the covariates are "Z1" and "Z2", and here it uses logit link function.
 ```{r dlinear1, cache=TRUE, results = "hide", message=FALSE}
 s6.linear <- interflex(estimator='linear', method='logit', data = s6, 
                        Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"))
@@ -91,7 +91,7 @@ s6.linear <- interflex(estimator='linear', method='logit', data = s6,
 
 ### Marginal/treatment effects
 
-The estimated treatment effects of "D" on "Y" across the support of "X" are saved in 
+The estimated CME of `D` on `Y` across the support of `X` are saved in 
 ```{r dlinear2, cache=TRUE}
 s6.linear$est.lin
 ```
@@ -113,7 +113,7 @@ s6.linear.plot + geom_line(aes(x=x,y=TE),color='red')
 
 ### E(Y|X,Z,D)
 
-The estimated E(Y|X,Z,D) are saved in 
+The estimated $E(Y|X,Z,D)$ are saved in 
 ```{r dlinear5, cache=TRUE}
 s6.linear$pred.lin
 ```
@@ -138,9 +138,9 @@ plot.interflex(s6.linear.a,diff.values = c(-2,0,2))
 s6.linear.a$diff.estimate
 ```
 
-### Average treatment/marginal effects
+### Average CME
 
-The estimated average treatment effect/marginal effect is saved in "Avg.estimate". Here the program uses the coefficients from the regression and the input data to calculate the ATE/AME.
+The estimated average treatment effect (ATE) is saved in "Avg.estimate". Here the program uses the coefficients from the regression and the input data to calculate the ATE/AME.
 ```{r dlinear9, cache=TRUE}
 s6.linear$Avg.estimate
 ```
@@ -186,14 +186,14 @@ plot(s6.linear.f)
 
 ### Continuous treatments
 
-When the treatment variable "D" is continuous, the package will choose the mean of "D" as the "reference value" when estimating marginal effects(ME), E(Y|X,D,Z) and difference of ME.
+When the treatment variable `D` is continuous, the package will choose the mean of `D` as the "reference value" when estimating the CME, $E(Y|X,D,Z)$ and difference of CME.
 ```{r dlinear12, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 s7.linear <- interflex(estimator = 'linear', method = 'logit', data = s7,
                        Y = 'Y', D = 'D',X = 'X',Z = c('Z1','Z2'))
 plot(s7.linear)
 ```
 
-As the marginal effects in glm models also depends on the value of D, users can pass their preferred values of D into the option `D.ref`. For example, we can set "D" to three values: 0.25, 0.5 and 0.75.
+As the CME in glm models also depends on the value of D, users can pass their preferred values of D into the option `D.ref`. For example, we can set `D` to three values: 0.25, 0.5 and 0.75.
 ```{r dlinear13, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 s7.linear.a <- interflex(estimator = 'linear', method='logit', data = s7,
                          Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'),
@@ -201,7 +201,7 @@ s7.linear.a <- interflex(estimator = 'linear', method='logit', data = s7,
 plot(s7.linear.a)
 ```
 
-Predicted values and difference of ME are also grouped by D.ref.
+Predicted values and difference of CME are also grouped by D.ref.
 ```{r dlinear14, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 predict(s7.linear.a)
 ```
@@ -210,7 +210,7 @@ predict(s7.linear.a)
 s7.linear.a$diff.estimate
 ```
 
-The average marginal effect(AME) is saved in "Avg.estimate", which doesn't rely on the choice of "D.ref".
+The ATE is saved in "Avg.estimate", which doesn't rely on the choice of "D.ref".
 ```{r dlinear16, cache=TRUE}
 s7.linear.a$Avg.estimate
 ```
@@ -224,7 +224,7 @@ s7.gam <- interflex(estimator='gam', method='logit', data=s7,
 
 ### Limitations of the linear linear-predictor
 
-When the "linear predictor"(the term in the bracket of $logit^{-1}()$) actually doesn't take a linear form, such as in **s8**, the simple linear estimator may suffer from severe bias.
+When the "linear predictor" (the term in the bracket of $logit^{-1}()$) actually doesn't take a linear form, such as in **s8**, the simple linear estimator may suffer from severe bias.
 ```{r dlinear17, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8, warning=FALSE}
 s8.linear <- interflex(estimator='linear',data=s8,Y='Y',D='D', X='X',Z=c('Z1','Z2'),method='logit')
 s8.linear.plot <- plot.interflex(s8.linear,show.all = T,Xdistr = 'none')$`1`
@@ -244,9 +244,9 @@ In such cases, we can use the binning estimator as the diagnostic tools for the 
 
 ## The binning estimator
 
-The binning estimator is a diagnostic tool, it will discretizes the moderator X into several bins and create a dummy variable for each bin and picks an evaluation point within each bin, where users want to estimate the conditional marginal effect of D on Y. The regression terms includes interactions between the bin dummies and the treatment indicator, the bin dummies and the moderator X minus the evaluation points, as well as the triple interactions. 
+The binning estimator is a diagnostic tool, it will discretizes the moderator X into several bins and create a dummy variable for each bin and picks an evaluation point within each bin, where users want to estimate the conditional marginal effect (CME) of $D$ on $Y$. The regression terms includes interactions between the bin dummies and the treatment indicator, the bin dummies and the moderator X minus the evaluation points, as well as the triple interactions. 
 
-If the treatment/marginal effect estimates from the binning estimator sit closely to the estimated treatment/marginal effects from the linear estimator, then the LIE assumption likely holds. For dataset **s6**, it is clear that all three binning estimators sits closely to the results from linear estimator.
+If the CME estimates from the binning estimator sit closely to the estimated CME from the linear estimator, then the LIE assumption likely holds. For dataset **s6**, it is clear that all three binning estimators sits closely to the results from linear estimator.
 ```{r dbinning1, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 s6.binning <- interflex(estimator = 'binning', data = s6, method='logit',
                         Y = 'Y', D = 'D', X = 'X',Z = c('Z1','Z2'))
@@ -337,21 +337,21 @@ s6.kernel$CV.output
 
 ### E(Y|D,X,Z)
 
-Like the linear estimator, the estimated E(Y|D,X,Z) is saved in "pred.kernel". Users can visualize it using the command "predict".
+Like the linear estimator, the estimated conditional effects, $E(Y|D,X,Z)$, is saved in "pred.kernel". Users can visualize it using the command "predict".
 ```{r dkernel4, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 predict(s8.kernel)
 ```
 
-### Differences in effects
+### Differences in CME
 
 Like the linear estimator, the estimated difference of treatment effects are saved in "diff.estimate":
 ```{r dkernel5, cache=TRUE}
 s8.kernel$diff.estimate
 ```
 
-### Average treatment/marginal effects
+### Average treatment effects
 
-The estimated ATE/AME for the kernel model is saved in "Avg.estimate":
+The estimated ATE for the kernel model is saved in "Avg.estimate":
 ```{r dkernel6, cache=TRUE}
 s8.kernel$Avg.estimate
 ```
@@ -361,8 +361,9 @@ s8.kernel$Avg.estimate
 The fully moderated model for the kernel estimator adds the interaction terms between covariates and moderator to the local weighted regression. 
 ```{r dkernel7, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 s8.kernel.full <- interflex(estimator = 'kernel', data = s8, method='logit', 
-                            Y = 'Y',D = 'D', X = 'X', Z = c('Z1','Z2'), full.moderate=TRUE,vartype = "bootstrap",
-                      nboots = 1000, parallel = TRUE, cores = 31)
+                            Y = 'Y',D = 'D', X = 'X', Z = c('Z1','Z2'), 
+                            full.moderate = TRUE,vartype = "bootstrap",
+                            nboots = 1000, parallel = TRUE, cores = 31)
 plot(s8.kernel.full)
 ```
 

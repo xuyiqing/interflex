@@ -403,6 +403,7 @@ interflex.kernel <- function(data,
             names(result) <- c("x0", all.var.name)
             return(result)
         }
+
         if (method == "linear") {
             suppressWarnings( # correct
                 glm.reg <- tryCatch(
@@ -466,6 +467,7 @@ interflex.kernel <- function(data,
             )
             return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
         }
+
         glm.reg.summary <- summary(glm.reg, robust = "HC2")
         glm.reg.vcov <- vcovHC(glm.reg, type = "HC2")
         glm.reg.df <- glm.reg$df.residual
@@ -766,7 +768,7 @@ interflex.kernel <- function(data,
         } else {
             Error <- matrix(NA, length(bw.grid), 6)
             for (i in 1:length(bw.grid)) {
-                suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval),silent = TRUE))
+                suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval), silent = FALSE))
                 if('try-error' %in% class(cv.output.sub)){
                     Error[i, ] <- NA
                 }else{

@@ -25,6 +25,8 @@ vignettes/continuous_cache
 vignettes/discrete_cache
 vignettes/dml_cache
 vignettes/dml_files
+vignettes/continuous_files/
+vignettes/discrete_files/
 
 
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3

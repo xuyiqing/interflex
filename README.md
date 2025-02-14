@@ -13,16 +13,16 @@ MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.or
 CRAN](https://cranlogs.r-pkg.org/badges/grand-total/interflex)](https://www.datasciencemeta.com/rpackages)
 <!-- badges: end -->
 
-**interflex** estimates, interprets, and visualizes marginal effects and
-performs diagnostics.
+**interflex** estimates, visualizes, and interprets conditional marginal
+effects and performs diagnostics.
 
 **Authors:** Jens Hainmueller, Jiehan Liu, Licheng Liu, Ziyi Liu,
 Jonathan Mummolo, Tianzhu Qin, and [Yiqing Xu](https://yiqingxu.org/)
 (maintainer)
 
-**Date:** August 2, 2024
+**Date:** Feburary 12, 2025
 
-**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.3.1)
+**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.3.2)
 [CRAN](https://cran.r-project.org/web/packages/interflex/index.html)
 (1.2.6)
 
@@ -103,46 +103,6 @@ Mac users who encounter **clang: error: unsupported option ‘-fopenmp’**,
 please consider (1) updating your R and/or (2) installing new R macro
 tools from
 [Github](https://github.com/rmacoslib/r-macos-rtools/releases/tag/v3.1.0).
-
-## Python Environment
-
-To use the double/debiased machine learning estimators in **interflex**,
-we rely on packages in Python. The integration between R and Python is
-facilitated by the **reticulate** package, which allows R to interface
-with Python seamlessly. The following steps set up a Python environment
-with all required dependencies.
-
-First, install the **reticulate** package in R. This package enables R
-to interface with Python.
-
-``` r
-install.packages("reticulate", repos = 'http://cran.us.r-project.org')
-```
-
-Then, we use [Miniconda](https://docs.anaconda.com/free/miniconda/), a
-minimal installer for Conda. Miniconda helps manage Python environments
-and packages. By default, the installation process will create a virtual
-environment named `r-reticulate`.
-
-``` r
-reticulate::install_miniconda(update = TRUE)
-```
-
-With Miniconda installed, we point the platform using `use_condaenv`.
-This step is incorporated in the **interflex** package.
-
-``` r
-reticulate::use_condaenv(condaenv = "r-reticulate")
-```
-
-Finally, install the necessary Python libraries. These libraries include
-tools for statistical modeling and machine learning that are essential
-for using the interflex package.
-
-``` r
-reticulate::py_install(packages = c("patsy", "numpy", "pandas", 
-                    "scikit-learn", "doubleml", "econml"))
-```
 
 ## Report bugs
 
