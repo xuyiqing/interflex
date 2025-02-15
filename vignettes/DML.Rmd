@@ -32,9 +32,9 @@ knitr::opts_chunk$set(warning=FALSE)
 
 ## Installation
 
-To use double/debiased machine learning (DML) estimators, please can install the **interflex** package from DML branch on Github: 
+To use double/debiased machine learning (DML) estimators, please install the **interflex** package diretly from Github: 
 ```{r eval=FALSE}
-devtools::install_github('xuyiqing/interflex@dml')
+devtools::install_github('xuyiqing/interflex')
 ```
 
 ### Set up Python environment
@@ -96,6 +96,8 @@ library(ggplot2)
 library(ggpubr)
 library(rmarkdown)
 library(patchwork)
+
+reticulate::use_virtualenv("myenv") ## point to your Python environment
 ```
 
 ------------------------------------------------------------------------
