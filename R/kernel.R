@@ -387,7 +387,7 @@ interflex.kernel <- function(data,
         }
 
         formula <- as.formula(formula)
-        
+
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
         bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
@@ -755,10 +755,10 @@ interflex.kernel <- function(data,
                 .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
                 .inorder = FALSE
             ) %dopar% {
-                cv.output.sub <- try(cv.new(bw, neval = neval),silent = TRUE)
-                if('try-error' %in% class(cv.output.sub)){
+                cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
+                if ("try-error" %in% class(cv.output.sub)) {
                     return(NA)
-                }else{
+                } else {
                     return(cv.output.sub)
                 }
             })
@@ -769,9 +769,9 @@ interflex.kernel <- function(data,
             Error <- matrix(NA, length(bw.grid), 6)
             for (i in 1:length(bw.grid)) {
                 suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval), silent = FALSE))
-                if('try-error' %in% class(cv.output.sub)){
+                if ("try-error" %in% class(cv.output.sub)) {
                     Error[i, ] <- NA
-                }else{
+                } else {
                     Error[i, ] <- cv.output.sub
                 }
                 cat(".")
@@ -839,7 +839,7 @@ interflex.kernel <- function(data,
 
     cat(paste0("Number of evaluation points:", neval, "\n"))
 
-    gen.sd <- function(result, char = NULL, D.ref=NULL, to.diff = FALSE) {
+    gen.sd <- function(result, char = NULL, D.ref = NULL, to.diff = FALSE) {
         coef.grid <- result$result
         x_prev <- coef.grid["x0"]
         model.vcov <- result$model.vcov
@@ -945,7 +945,7 @@ interflex.kernel <- function(data,
     # 2, estimate E.pred given treat/D;
     # 3, input: coef.grid; char(discrete)/D.ref(continuous);
     # 4, output: marginal effects/treatment effects/E.pred/E.base
-    gen.kernel.TE <- function(coef.grid, char = NULL, D.ref = NULL, base.flag=FALSE) {
+    gen.kernel.TE <- function(coef.grid, char = NULL, D.ref = NULL, base.flag = FALSE) {
         if (is.null(char) == TRUE) {
             treat.type <- "continuous"
         }
@@ -1180,7 +1180,7 @@ interflex.kernel <- function(data,
         } else {
             TE.sd <- NULL
         }
-        
+
         if (treat.type == "discrete") {
             if (char == base) {
                 link.sd <- c(sapply(results, function(x) gen.link.sd(x, base = TRUE)))
@@ -1923,11 +1923,10 @@ interflex.kernel <- function(data,
                         .export = c("one.boot"), .packages = c("MASS", "AER"),
                         .inorder = FALSE
                     ) %dopar% {
-                        output.all <- try(one.boot(),silent = TRUE)
-                        if('try-error' %in% class(output.all)){
+                        output.all <- try(one.boot(), silent = TRUE)
+                        if ("try-error" %in% class(output.all)) {
                             return(NA)
-                        }
-                        else{
+                        } else {
                             return(output.all)
                         }
                     }
@@ -1937,16 +1936,15 @@ interflex.kernel <- function(data,
             } else {
                 bootout <- matrix(NA, all.length, 0)
                 for (i in 1:nboots) {
-                    suppressWarnings(tempdata <- try(one.boot(),silent = TRUE))
-                    if('try-error' %in% class(tempdata)){
+                    suppressWarnings(tempdata <- try(one.boot(), silent = TRUE))
+                    if ("try-error" %in% class(tempdata)) {
                         bootout <- cbind(bootout, NA)
-                    }
-                    else{
+                    } else {
                         bootout <- cbind(bootout, tempdata)
-                    }                    
-                    #if (is.null(tempdata) == FALSE) {
+                    }
+                    # if (is.null(tempdata) == FALSE) {
                     #    bootout <- cbind(bootout, tempdata)
-                    #}
+                    # }
                     if (i %% 50 == 0) cat(i) else cat(".")
                 }
                 cat("\r")
@@ -2000,14 +1998,14 @@ interflex.kernel <- function(data,
                     diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
                     ATE.boot.CI <- matrix(t(apply(ATE.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE)), nrow = 1)
 
-                    TE.boot.uniform.CI <- calculate_uniform_quantiles(TE.boot.matrix,0.05)
+                    TE.boot.uniform.CI <- calculate_uniform_quantiles(TE.boot.matrix, 0.05)
                     uniform.coverage <- TE.boot.uniform.CI$coverage
                     TE.boot.uniform.CI <- TE.boot.uniform.CI$Q_j
 
-                    pred.boot.uniform.CI <- calculate_uniform_quantiles(pred.boot.matrix,0.05)
+                    pred.boot.uniform.CI <- calculate_uniform_quantiles(pred.boot.matrix, 0.05)
                     pred.boot.uniform.CI <- pred.boot.uniform.CI$Q_j
 
-                    link.boot.uniform.CI <- calculate_uniform_quantiles(link.boot.matrix,0.05)
+                    link.boot.uniform.CI <- calculate_uniform_quantiles(link.boot.matrix, 0.05)
                     link.boot.uniform.CI <- link.boot.uniform.CI$Q_j
 
                     if (length(diff.values) == 2) {
@@ -2021,18 +2019,18 @@ interflex.kernel <- function(data,
                     rownames(TE.boot.vcov) <- NULL
                     colnames(TE.boot.vcov) <- NULL
 
-                    TE.output.all <- cbind(X.eval, TE.output, TE.boot.sd, TE.boot.CI[, 1], TE.boot.CI[, 2],TE.boot.uniform.CI[,1],TE.boot.uniform.CI[,2])
-                    colnames(TE.output.all) <- c("X", "TE", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                    TE.output.all <- cbind(X.eval, TE.output, TE.boot.sd, TE.boot.CI[, 1], TE.boot.CI[, 2], TE.boot.uniform.CI[, 1], TE.boot.uniform.CI[, 2])
+                    colnames(TE.output.all) <- c("X", "TE", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                     rownames(TE.output.all) <- NULL
                     TE.output.all.list[[other.treat.origin[char]]] <- TE.output.all
 
-                    pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2], pred.boot.uniform.CI[,1], pred.boot.uniform.CI[,2])
-                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                    pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2], pred.boot.uniform.CI[, 1], pred.boot.uniform.CI[, 2])
+                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                     rownames(pred.output.all) <- NULL
                     pred.output.all.list[[other.treat.origin[char]]] <- pred.output.all
 
-                    link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2], link.boot.uniform.CI[,1], link.boot.uniform.CI[,2])
-                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                    link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2], link.boot.uniform.CI[, 1], link.boot.uniform.CI[, 2])
+                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                     rownames(link.output.all) <- NULL
                     link.output.all.list[[other.treat.origin[char]]] <- link.output.all
 
@@ -2056,20 +2054,20 @@ interflex.kernel <- function(data,
                     ATE.output.list[[other.treat.origin[char]]] <- ATE.output
                 }
                 # base
-                base.boot.uniform.CI <- calculate_uniform_quantiles(base.boot.matrix,0.05)
+                base.boot.uniform.CI <- calculate_uniform_quantiles(base.boot.matrix, 0.05)
                 base.boot.uniform.CI <- base.boot.uniform.CI$Q_j
 
-                link0.boot.uniform.CI <- calculate_uniform_quantiles(link0.boot.matrix,0.05)
+                link0.boot.uniform.CI <- calculate_uniform_quantiles(link0.boot.matrix, 0.05)
                 link0.boot.uniform.CI <- link0.boot.uniform.CI$Q_j
 
                 # base
-                base.output.all <- cbind(X.eval, E.base.output, base.boot.sd, base.boot.CI[, 1], base.boot.CI[, 2],base.boot.uniform.CI[,1],base.boot.uniform.CI[,2])
-                colnames(base.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                base.output.all <- cbind(X.eval, E.base.output, base.boot.sd, base.boot.CI[, 1], base.boot.CI[, 2], base.boot.uniform.CI[, 1], base.boot.uniform.CI[, 2])
+                colnames(base.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(base.output.all) <- NULL
                 pred.output.all.list[[all.treat.origin[base]]] <- base.output.all
 
-                link0.output.all <- cbind(X.eval, link0.output, link0.boot.sd, link0.boot.CI[, 1], link0.boot.CI[, 2],link0.boot.uniform.CI[,1], link0.boot.uniform.CI[,2])
-                colnames(link0.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                link0.output.all <- cbind(X.eval, link0.output, link0.boot.sd, link0.boot.CI[, 1], link0.boot.CI[, 2], link0.boot.uniform.CI[, 1], link0.boot.uniform.CI[, 2])
+                colnames(link0.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                 rownames(link0.output.all) <- NULL
                 link.output.all.list[[all.treat.origin[base]]] <- link0.output.all
             }
@@ -2115,30 +2113,30 @@ interflex.kernel <- function(data,
                     link.boot.CI <- t(apply(link.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
                     diff.boot.CI <- t(apply(diff.boot.matrix, 1, quantile, c(0.025, 0.975), na.rm = TRUE))
 
-                    ME.boot.uniform.CI <- calculate_uniform_quantiles(ME.boot.matrix,0.05)
+                    ME.boot.uniform.CI <- calculate_uniform_quantiles(ME.boot.matrix, 0.05)
                     uniform.coverage <- ME.boot.uniform.CI$coverage
                     ME.boot.uniform.CI <- ME.boot.uniform.CI$Q_j
 
-                    pred.boot.uniform.CI <- calculate_uniform_quantiles(pred.boot.matrix,0.05)
+                    pred.boot.uniform.CI <- calculate_uniform_quantiles(pred.boot.matrix, 0.05)
                     pred.boot.uniform.CI <- pred.boot.uniform.CI$Q_j
 
-                    link.boot.uniform.CI <- calculate_uniform_quantiles(link.boot.matrix,0.05)
+                    link.boot.uniform.CI <- calculate_uniform_quantiles(link.boot.matrix, 0.05)
                     link.boot.uniform.CI <- link.boot.uniform.CI$Q_j
 
 
 
-                    ME.output.all <- cbind(X.eval, ME.output, ME.boot.sd, ME.boot.CI[, 1], ME.boot.CI[, 2], ME.boot.uniform.CI[,1], ME.boot.uniform.CI[,2])
-                    colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                    ME.output.all <- cbind(X.eval, ME.output, ME.boot.sd, ME.boot.CI[, 1], ME.boot.CI[, 2], ME.boot.uniform.CI[, 1], ME.boot.uniform.CI[, 2])
+                    colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                     rownames(ME.output.all) <- NULL
                     ME.output.all.list[[label]] <- ME.output.all
 
                     pred.output.all <- cbind(X.eval, E.pred.output, pred.boot.sd, pred.boot.CI[, 1], pred.boot.CI[, 2], pred.boot.uniform.CI[, 1], pred.boot.uniform.CI[, 2])
-                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                    colnames(pred.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                     rownames(pred.output.all) <- NULL
                     pred.output.all.list[[label]] <- pred.output.all
 
-                    link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2],link.boot.uniform.CI[,1],link.boot.uniform.CI[,2])
-                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)","lower uniform CI(95%)", "upper uniform CI(95%)")
+                    link.output.all <- cbind(X.eval, link.output, link.boot.sd, link.boot.CI[, 1], link.boot.CI[, 2], link.boot.uniform.CI[, 1], link.boot.uniform.CI[, 2])
+                    colnames(link.output.all) <- c("X", "E(Y)", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
                     rownames(link.output.all) <- NULL
                     link.output.all.list[[label]] <- link.output.all
 
