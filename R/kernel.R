@@ -482,7 +482,6 @@ interflex.kernel <- function(data,
             return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
         }
         
-        glm.reg.summary <- summary(glm.reg, robust = "HC2")
         glm.reg.df <- glm.reg$df.residual
 
         if (vcov == TRUE) {
@@ -501,7 +500,7 @@ interflex.kernel <- function(data,
         } else {
             result <- c(
                 x,
-                glm.reg.summary$coef[, 1]
+                glm.reg$coef
             )
             names(result) <- c(
                 "x0",
