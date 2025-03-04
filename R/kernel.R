@@ -250,7 +250,7 @@ interflex.kernel <- function(data,
         names(result) <- c("x0", "(Intercept)", use.variable[2:length(use.variable)])
 
         if (vcov == TRUE) {
-            mmodel.vcov.original <- vcov(fe_res, vcov = "hetero")
+            model.vcov.original <- vcov(fe_res, vcov = "hetero")
             model.vcov <- cbind(0, rbind(0, model.vcov.original))
             rownames(model.vcov) <- c("(Intercept)", rownames(model.vcov.original))
             colnames(model.vcov) <- c("(Intercept)", colnames(model.vcov.original))
