@@ -126,7 +126,7 @@ interflex.kernel <- function(data,
     # input:x, data, bw, weights, Xdensity
     # weights: vector
 
-    wls.iv.fe <- function(x, data, bw, weights, Xdensity) {
+    wls.iv.fe <- function(x, data, bw, weights, Xdensity, vcov = TRUE) {
         data.touse <- data
         xx <- data.touse[, "delta.x"] <- data.touse[, X] - x
         use.variable <- c(Y)
@@ -179,18 +179,22 @@ interflex.kernel <- function(data,
         result <- c(x, mean(fe_res$sumFE), coef(fe_res))
         result[which(is.nan(result))] <- 0
 
-        model.vcov.original <- vcov(fe_res, vcov = "hetero")
-        model.vcov <- cbind(0, rbind(0, model.vcov.original))
-        rownames(model.vcov) <- c("(Intercept)", rownames(model.vcov.original))
-        colnames(model.vcov) <- c("(Intercept)", colnames(model.vcov.original))
-
+        if (vcov == TRUE) {
+            model.vcov.original <- vcov(fe_res, vcov = "hetero")
+            model.vcov <- cbind(0, rbind(0, model.vcov.original))
+            rownames(model.vcov) <- c("(Intercept)", rownames(model.vcov.original))
+            colnames(model.vcov) <- c("(Intercept)", colnames(model.vcov.original))
+        } else {
+            model.vcov <- NULL
+        }
+        
         return(list(
             result = result, model.vcov = model.vcov,
             model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse
         ))
     }
 
-    wls.fe <- function(x, data, bw, weights, Xdensity) {
+    wls.fe <- function(x, data, bw, weights, Xdensity, vcov = TRUE) {
         data.touse <- data
         data.touse[, "delta.x"] <- data.touse[, X] - x
         use.variable <- c(Y, "delta.x")
@@ -245,10 +249,14 @@ interflex.kernel <- function(data,
         result[which(is.nan(result))] <- 0
         names(result) <- c("x0", "(Intercept)", use.variable[2:length(use.variable)])
 
-        model.vcov.original <- vcov(fe_res, vcov = "hetero")
-        model.vcov <- cbind(0, rbind(0, model.vcov.original))
-        rownames(model.vcov) <- c("(Intercept)", rownames(model.vcov.original))
-        colnames(model.vcov) <- c("(Intercept)", colnames(model.vcov.original))
+        if (vcov == TRUE) {
+            mmodel.vcov.original <- vcov(fe_res, vcov = "hetero")
+            model.vcov <- cbind(0, rbind(0, model.vcov.original))
+            rownames(model.vcov) <- c("(Intercept)", rownames(model.vcov.original))
+            colnames(model.vcov) <- c("(Intercept)", colnames(model.vcov.original))
+        } else {
+            model.vcov <- NULL
+        }
 
         return(list(
             result = result, model.vcov = model.vcov,
@@ -256,7 +264,7 @@ interflex.kernel <- function(data,
         ))
     }
 
-    wls.iv <- function(x, data, bw, weights, Xdensity) {
+    wls.iv <- function(x, data, bw, weights, Xdensity, vcov = TRUE) {
         data.touse <- data
         data.touse[, "delta.x"] <- data.touse[, X] - x
         formula <- paste0(Y, "~delta.x")
@@ -345,14 +353,20 @@ interflex.kernel <- function(data,
         result <- c(x, iv.reg$coef)
         names(result) <- c("x0", names(iv.reg$coef))
         result[which(is.na(result))] <- 0
-        return(result)
+
+        if (vcov == TRUE) {
+            model.vcov <- vcov(iv.reg, type = "H2")
+        } else {
+            model.vcov <- NULL
+        }
+
         return(list(
-            result = result, model.vcov = vcov(iv.reg, type = "H2"),
+            result = result, model.vcov = model.vcov,
             model.df = iv.reg$df.residual, data.touse = data.touse
         ))
     }
 
-    wls.nofe <- function(x, data, bw, weights, Xdensity) {
+    wls.nofe <- function(x, data, bw, weights, Xdensity, vcov = TRUE) {
         data.touse <- data
         data.touse[, "delta.x"] <- data.touse[, X] - x
         formula <- paste0(Y, "~delta.x")
@@ -467,10 +481,16 @@ interflex.kernel <- function(data,
             )
             return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
         }
-
+        
         glm.reg.summary <- summary(glm.reg, robust = "HC2")
-        glm.reg.vcov <- vcovHC(glm.reg, type = "HC2")
         glm.reg.df <- glm.reg$df.residual
+
+        if (vcov == TRUE) {
+            glm.reg.vcov <- vcovHC(glm.reg, type = "HC2")
+        } else {
+            glm.reg.vcov <- NULL
+        }
+
         if (glm.reg$converged == FALSE) {
             result <- rep(NA, 1 + length(glm.reg$coef))
             names(result) <- c(
@@ -478,9 +498,7 @@ interflex.kernel <- function(data,
                 names(glm.reg$coef)
             )
             return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
-        }
-
-        if (glm.reg$converged == TRUE) {
+        } else {
             result <- c(
                 x,
                 glm.reg.summary$coef[, 1]
@@ -494,18 +512,18 @@ interflex.kernel <- function(data,
         }
     }
 
-    wls <- function(x, data, bw, weights, Xdensity) {
+    wls <- function(x, data, bw, weights, Xdensity, vcov = TRUE) {
         if (use_fe == TRUE & is.null(IV)) {
-            return(wls.fe(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity))
+            return(wls.fe(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity, vcov=vcov))
         }
         if (use_fe == FALSE & is.null(IV)) {
-            return(wls.nofe(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity))
+            return(wls.nofe(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity, vcov=vcov))
         }
         if (use_fe == FALSE & !is.null(IV)) {
-            return(wls.iv(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity))
+            return(wls.iv(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity, vcov=vcov))
         }
         if (use_fe == TRUE & !is.null(IV)) {
-            return(wls.iv.fe(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity))
+            return(wls.iv.fe(x = x, data = data, bw = bw, weights = weights, Xdensity = Xdensity, vcov=vcov))
         }
     }
 
@@ -1750,6 +1768,196 @@ interflex.kernel <- function(data,
         }
     }
 
+    gen.ATE.boots <- function(data, coef.grid, char = NULL) {
+        if (is.null(char) == TRUE) {
+            treat.type <- "continuous"
+            weights <- data[, "WEIGHTS"]
+        } else {
+            treat.type <- "discrete"
+            which.index <- which(data[, D] == char)
+            sub.data <- data[which.index, ]
+            weights <- data[which.index, "WEIGHTS"]
+        }
+
+        gen.ATE.sub <- function(index) {
+            if (treat.type == "discrete") {
+                x <- sub.data[index, X]
+                Xnew <- abs(X.eval - x)
+                d1 <- min(Xnew)
+                label1 <- which.min(Xnew)
+                Xnew[label1] <- Inf
+                d2 <- min(Xnew)
+                label2 <- which.min(Xnew)
+                if (d1 == 0) {
+                    link.1 <- coef.grid[label1, "(Intercept)"] + coef.grid[label1, paste0("D.", char)]
+                    link.0 <- coef.grid[label1, "(Intercept)"] + 0
+                    if (is.null(Z) == FALSE) {
+                        for (a in Z) {
+                            target.Z <- sub.data[index, a]
+                            link.1 <- link.1 + target.Z * coef.grid[label1, a]
+                            link.0 <- link.0 + target.Z * coef.grid[label1, a]
+                            # if(full.moderate==TRUE){
+                            # 	link.1 <- link.1 + target.Z*coef.grid[label1,paste0(a,".X")]*x
+                            # 	link.0 <- link.0 + target.Z*coef.grid[label1,paste0(a,".X")]*x
+                            # }
+                        }
+                    }
+                } else if (d2 == 0) {
+                    link.1 <- coef.grid[label2, "(Intercept)"] + coef.grid[label2, paste0("D.", char)]
+                    link.0 <- coef.grid[label2, "(Intercept)"] + 0
+                    if (is.null(Z) == FALSE) {
+                        for (a in Z) {
+                            target.Z <- sub.data[index, a]
+                            link.1 <- link.1 + target.Z * coef.grid[label2, a]
+                            link.0 <- link.0 + target.Z * coef.grid[label2, a]
+                            # if(full.moderate==TRUE){
+                            # 	link.1 <- link.1 + target.Z*coef.grid[label2,paste0(a,".X")]*x
+                            # 	link.0 <- link.0 + target.Z*coef.grid[label2,paste0(a,".X")]*x
+                            # }
+                        }
+                    }
+                } else { ## weighted average
+                    link.1.1 <- coef.grid[label1, "(Intercept)"] + coef.grid[label1, paste0("D.", char)] +
+                        (coef.grid[label1, paste0("D.delta.x.", char)] + coef.grid[label1, "delta.x"]) * (x - X.eval[label1])
+                    link.1.2 <- coef.grid[label2, "(Intercept)"] + coef.grid[label2, paste0("D.", char)] +
+                        (coef.grid[label2, paste0("D.delta.x.", char)] + coef.grid[label2, "delta.x"]) * (x - X.eval[label2])
+                    link.0.1 <- coef.grid[label1, "(Intercept)"] + coef.grid[label1, "delta.x"] * (x - X.eval[label1])
+                    link.0.2 <- coef.grid[label2, "(Intercept)"] + coef.grid[label2, "delta.x"] * (x - X.eval[label2])
+                    if (is.null(Z) == FALSE) {
+                        for (a in Z) {
+                            target.Z <- sub.data[index, a]
+                            link.1.1 <- link.1.1 + target.Z * coef.grid[label1, a]
+                            link.1.2 <- link.1.2 + target.Z * coef.grid[label2, a]
+                            link.0.1 <- link.0.1 + target.Z * coef.grid[label1, a]
+                            link.0.2 <- link.0.2 + target.Z * coef.grid[label2, a]
+                            if (full.moderate == TRUE) {
+                                link.1.1 <- link.1.1 + coef.grid[label1, paste0(a, ".delta.x")] * (x - X.eval[label1])
+                                link.1.2 <- link.1.2 + coef.grid[label2, paste0(a, ".delta.x")] * (x - X.eval[label2])
+                                link.0.1 <- link.0.1 + coef.grid[label1, paste0(a, ".delta.x")] * (x - X.eval[label1])
+                                link.0.2 <- link.0.2 + coef.grid[label2, paste0(a, ".delta.x")] * (x - X.eval[label2])
+                            }
+                        }
+                    }
+                    link.1 <- c((link.1.1 * d2 + link.1.2 * d1) / (d1 + d2))
+                    link.0 <- c((link.0.1 * d2 + link.0.2 * d1) / (d1 + d2))
+                }
+
+                if (method == "linear") {
+                    TE <- link.1 - link.0
+                }
+                if (method == "logit") {
+                    E.prob.1 <- exp(link.1) / (1 + exp(link.1))
+                    E.prob.0 <- exp(link.0) / (1 + exp(link.0))
+                    TE <- E.prob.1 - E.prob.0
+                }
+                if (method == "probit") {
+                    E.prob.1 <- pnorm(link.1, 0, 1)
+                    E.prob.0 <- pnorm(link.0, 0, 1)
+                    TE <- E.prob.1 - E.prob.0
+                }
+                if (method == "poisson" | method == "nbinom") {
+                    E.y.1 <- exp(link.1)
+                    E.y.0 <- exp(link.0)
+                    TE <- E.y.1 - E.y.0
+                }
+
+                return(TE)
+            }
+
+            if (treat.type == "continuous") {
+                x <- data[index, X]
+                Xnew <- abs(X.eval - x)
+                d1 <- min(Xnew)
+                label1 <- which.min(Xnew)
+                Xnew[label1] <- Inf
+                d2 <- min(Xnew)
+                label2 <- which.min(Xnew)
+
+                if (d1 == 0) {
+                    link <- coef.grid[label1, "(Intercept)"] + coef.grid[label1, D] * data[index, D]
+                    if (is.null(Z) == FALSE) {
+                        for (a in Z) {
+                            target.Z <- data[index, a]
+                            link <- link + target.Z * coef.grid[label1, a]
+                            # if(full.moderate==TRUE){
+                            # 	link <- link + target.Z*coef.grid[label1,paste0(a,".X")]*x
+                            # }
+                        }
+                    }
+                    coef.grid.D <- coef.grid[label1, D]
+                } else if (d2 == 0) {
+                    link <- coef.grid[label2, "(Intercept)"] + coef.grid[label2, D] * data[index, D]
+                    if (is.null(Z) == FALSE) {
+                        for (a in Z) {
+                            target.Z <- data[index, a]
+                            link <- link + target.Z * coef.grid[label2, a]
+                            # if(full.moderate==TRUE){
+                            # 	link <- link + target.Z*coef.grid[label2,paste0(a,".X")]*x
+                            # }
+                        }
+                    }
+                    coef.grid.D <- coef.grid[label2, D]
+                } else { ## weighted average
+                    link.1 <- coef.grid[label1, "(Intercept)"] + coef.grid[label1, D] * data[index, D] +
+                        coef.grid[label1, "D.delta.x"] * data[index, D] * (x - X.eval[label1]) +
+                        coef.grid[label1, "delta.x"] * (x - X.eval[label1])
+
+                    link.2 <- coef.grid[label2, "(Intercept)"] + coef.grid[label2, D] * data[index, D] +
+                        coef.grid[label2, "D.delta.x"] * data[index, D] * (x - X.eval[label2]) +
+                        coef.grid[label2, "delta.x"] * (x - X.eval[label2])
+
+                    if (is.null(Z) == FALSE) {
+                        for (a in Z) {
+                            target.Z <- data[index, a]
+                            link.1 <- link.1 + target.Z * coef.grid[label1, a]
+                            link.2 <- link.2 + target.Z * coef.grid[label2, a]
+                            if (full.moderate == TRUE) {
+                                link.1 <- link.1 + coef.grid[label1, paste0(a, ".delta.x")] * (x - X.eval[label1])
+                                link.2 <- link.2 + coef.grid[label2, paste0(a, ".delta.x")] * (x - X.eval[label2])
+                            }
+                        }
+                    }
+
+                    coef.grid.D.1 <- coef.grid[label1, D] + coef.grid[label1, "D.delta.x"] * (x - X.eval[label1])
+                    coef.grid.D.2 <- coef.grid[label2, D] + coef.grid[label2, "D.delta.x"] * (x - X.eval[label2])
+
+                    link <- (link.1 * d2 + link.2 * d1) / (d1 + d2)
+                    coef.grid.D <- (coef.grid.D.1 * d2 + coef.grid.D.2 * d1) / (d1 + d2)
+                }
+                if (method == "logit") {
+                    ME <- exp(link) / (1 + exp(link))^2 * coef.grid.D
+                }
+                if (method == "probit") {
+                    ME <- coef.grid.D * dnorm(link)
+                }
+                if (method == "linear") {
+                    ME <- coef.grid.D
+                }
+                if (method == "poisson" | method == "nbinom") {
+                    ME <- exp(link) * coef.grid.D
+                }
+                names(ME) <- NULL
+                return(ME)
+            }
+        }
+
+        if (treat.type == "discrete") {
+            index.all <- c(1:dim(sub.data)[1])
+            TE.all.real <- sapply(index.all, function(x) gen.ATE.sub(x))
+            ATE <- weighted.mean(TE.all.real, weights, na.rm = TRUE)
+            return(list(ATE = ATE))
+        }
+
+        if (treat.type == "continuous") {
+            index.all <- c(1:dim(data)[1])
+            ME.all.real <- sapply(index.all, function(x) gen.ATE.sub(x))
+            names(ME.all.real) <- NULL
+            AME <- weighted.mean(ME.all.real, weights, na.rm = TRUE)
+            return(list(AME = AME))
+        }
+    }
+
+
     all.output.noCI <- list()
     if (treat.type == "discrete") {
         for (char in other.treat) {
@@ -1834,7 +2042,7 @@ interflex.kernel <- function(data,
                 suppressWarnings(Xdensity.boot <- density(data.boot[, X], weights = w.touse))
                 coef.grid.boot <- c()
                 for (x in X.eval) {
-                    coef.grid.boot <- rbind(coef.grid.boot, wls(x = x, data = data.boot, bw = bw, weights = w.touse, Xdensity = Xdensity.boot)$result)
+                    coef.grid.boot <- rbind(coef.grid.boot, wls(x = x, data = data.boot, bw = bw, weights = w.touse, Xdensity = Xdensity.boot, vcov=FALSE)$result)
                 }
 
                 boot.one.round <- c()
@@ -1847,7 +2055,7 @@ interflex.kernel <- function(data,
                             char = char
                         )
 
-                        gen.ATE.output <- gen.ATE(coef.grid = coef.grid.boot, data = data.boot, model.vcovs = model.vcovs, char = char)
+                        gen.ATE.output <- gen.ATE.boots(coef.grid = coef.grid.boot, data = data.boot, char = char)
 
                         TE.output <- gen.TE.output$TE
                         names(TE.output) <- rep(paste0("TE.", char), neval)
@@ -1897,7 +2105,7 @@ interflex.kernel <- function(data,
                         boot.one.round <- c(boot.one.round, ME.output, E.pred.output, link.output, diff.estimate.output)
                         k <- k + 1
                     }
-                    AME.estimate <- c(gen.ATE(coef.grid = coef.grid.boot, model.vcovs = model.vcovs, data = data.boot)$AME)
+                    AME.estimate <- c(gen.ATE.boots(coef.grid = coef.grid.boot, data = data.boot)$AME)
                     names(AME.estimate) <- c("AME")
                     boot.one.round <- c(boot.one.round, AME.estimate)
                 }
@@ -2122,8 +2330,6 @@ interflex.kernel <- function(data,
 
                     link.boot.uniform.CI <- calculate_uniform_quantiles(link.boot.matrix, 0.05)
                     link.boot.uniform.CI <- link.boot.uniform.CI$Q_j
-
-
 
                     ME.output.all <- cbind(X.eval, ME.output, ME.boot.sd, ME.boot.CI[, 1], ME.boot.CI[, 2], ME.boot.uniform.CI[, 1], ME.boot.uniform.CI[, 2])
                     colnames(ME.output.all) <- c("X", "ME", "sd", "lower CI(95%)", "upper CI(95%)", "lower uniform CI(95%)", "upper uniform CI(95%)")
