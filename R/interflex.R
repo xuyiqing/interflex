@@ -1,5 +1,5 @@
 ## Input Check
-interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "dml"
+interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "dml", "aipw"
                       data,
                       Y, # outcome
                       D, # treatment indicator
@@ -1251,6 +1251,68 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             n.jobs = n.jobs,
             cf.n.folds = cf.n.folds,
             gate = gate,
+            treat.info = treat.info,
+            diff.info = diff.info,
+            figure = figure,
+            CI = CI,
+            subtitles = subtitles,
+            show.subtitles = show.subtitles,
+            Xdistr = Xdistr, # c("density","histogram","none")
+            main = main,
+            Ylabel = Ylabel,
+            Dlabel = Dlabel,
+            Xlabel = Xlabel,
+            xlab = xlab,
+            ylab = ylab,
+            xlim = xlim,
+            ylim = ylim,
+            theme.bw = theme.bw,
+            show.grid = show.grid,
+            cex.main = cex.main,
+            cex.sub = cex.sub,
+            cex.lab = cex.lab,
+            cex.axis = cex.axis,
+            interval = interval,
+            file = file,
+            ncols = ncols,
+            pool = pool,
+            color = color,
+            legend.title = legend.title,
+            show.all = show.all,
+            scale = scale,
+            height = height,
+            width = width
+        )
+    }
+
+    if (estimator == "aipw") {
+        output <- interflex.aipw(
+            data = data,
+            Y = Y, # outcome
+            D = D, # treatment indicator
+            X = X, # moderator
+            Z = Z, # covariates
+            weights = weights, # weighting variable
+            B = 200,
+            alpha = 0.05,
+            
+            outcome_model_type = "lasso", # can be "linear", or "lasso"
+            treatment_model_type = "lasso", # can be "linear", or "lasso"
+            
+            # polynomial or B-spline expansion in the design matrix
+            basis_type         = c("polynomial", "bspline", "none"),
+            include_interactions = TRUE,
+            poly_degree        = 2,    # only used if basis_type="polynomial"
+            
+            # B-spline parameters (used if basis_type="bspline", or for final CME fit)
+            spline_df          = 4,
+            spline_degree      = 2,
+            
+            lambda_seq         = NULL, # optional custom lambda sequence for glmnet
+            reduce.dimension   = c("bspline","kernel"), 
+            bw                 = NULL,
+            x.eval             = NULL, # grid of X values for final CME curve
+            verbose            = TRUE
             treat.info = treat.info,
             diff.info = diff.info,
             figure = figure,
