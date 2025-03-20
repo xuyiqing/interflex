@@ -36,6 +36,8 @@ importFrom("AER","ivreg")
 importFrom("fixest","feols", "fixef", "degrees_freedom")
 importFrom("reticulate","use_condaenv", "source_python", "dict")
 importFrom("grf","causal_forest")
+importFrom("glmnet","cv.glmnet")
+importFrom("splines","bs")
 
 export(interflex)
 S3method("plot", "interflex")

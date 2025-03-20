@@ -151,7 +151,7 @@ plot.interflex <- function(x,
         }
     }
 
-    if (estimator == "binning" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
+    if (estimator == "binning" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "aipw") {
         if (is.null(CI) == TRUE) {
             CI <- TRUE
         }
@@ -407,6 +407,9 @@ plot.interflex <- function(x,
     if (treat.type == "discrete" & estimator == "grf") {
         tempxx <- out$est.grf[[other.treat[1]]][, "X"]
     }
+    if (treat.type == "discrete" & estimator == "aipw") {
+        tempxx <- out$est.aipw[[other.treat[1]]][, "X"]
+    }
     if (treat.type == "discrete" & estimator == "kernel") {
         tempxx <- out$est.kernel[[other.treat[1]]][, "X"]
     }
@@ -415,6 +418,9 @@ plot.interflex <- function(x,
     }
     if (treat.type == "continuous" & estimator == "dml") {
         tempxx <- out$est.dml[[label.name[1]]][, "X"]
+    }
+    if (treat.type == "continuous" & estimator == "aipw") {
+        tempxx <- out$est.aipw[[label.name[1]]][, "X"]
     }
     if (treat.type == "continuous" & estimator == "kernel") {
         tempxx <- out$est.kernel[[label.name[1]]][, "X"]
@@ -442,6 +448,9 @@ plot.interflex <- function(x,
         if (treat.type == "discrete" & (estimator == "grf")) {
             tempxx <- out$est.grf[[other.treat[1]]][, "X"]
         }
+        if (treat.type == "discrete" & (estimator == "aipw")) {
+            tempxx <- out$est.aipw[[other.treat[1]]][, "X"]
+        }
         if (treat.type == "discrete" & estimator == "kernel") {
             tempxx <- out$est.kernel[[other.treat[1]]][, "X"]
         }
@@ -449,7 +458,10 @@ plot.interflex <- function(x,
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "dml") {
-            tempxx <- out$est.lin[[label.name[1]]][, "X"]
+            tempxx <- out$est.dml[[label.name[1]]][, "X"]
+        }
+        if (treat.type == "continuous" & estimator == "aipw") {
+            tempxx <- out$aipw.aipw[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "kernel") {
             tempxx <- out$est.kernel[[label.name[1]]][, "X"]
@@ -701,6 +713,49 @@ plot.interflex <- function(x,
         pos <- max(yrange) - maxdiff / 20
     }
 
+    if (estimator == "aipw") {
+        if (treat.type == "discrete") {
+            est.aipw <- out$est.aipw
+
+            yrange <- c(0)
+            for (char in other.treat) {
+                if (CI == TRUE) {
+                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[char]][, c(4, 5)]))))
+                    if (ncol(est.aipw[[char]]) > 5) {
+                        yrange <- c(yrange, na.omit(unlist(c(est.aipw[[char]][, c(6, 7)]))))
+                    }
+                } else {
+                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[char]][, 2]))))
+                }
+            }
+            X.lvls <- est.aipw[[other.treat[1]]][, 1]
+        }
+        if (treat.type == "continuous") {
+            est.aipw <- out$est.aipw
+            if (by.group == TRUE) {
+                est.aipw <- out$est.aipw
+            }
+            yrange <- c(0)
+            for (label in label.name) {
+                if (CI == TRUE) {
+                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[label]][, c(4, 5)]))))
+                    if (ncol(est.aipw[[label]]) > 5) {
+                        yrange <- c(yrange, na.omit(unlist(c(est.aipw[[label]][, c(6, 7)]))))
+                    }
+                } else {
+                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[label]][, 2]))))
+                }
+            }
+            X.lvls <- est.aipw[[label.name[1]]][, 1]
+        }
+        errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
+        if (is.null(ylim) == FALSE) {
+            yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
+        }
+        maxdiff <- (max(yrange) - min(yrange))
+        pos <- max(yrange) - maxdiff / 20
+    }
+
     # plot initialization
     p.group <- list()
     if (treat.type == "discrete") {
@@ -850,13 +905,15 @@ plot.interflex <- function(x,
     }
 
     # ME/TE in kernel/linear
-    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
+    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "aipw") {
         if (estimator == "kernel") {
             est <- est.kernel
         } else if (estimator == "dml") {
             est <- est.dml
         } else if (estimator == "grf") {
             est <- est.grf
+        } else if (estimator == "aipw") {
+            est <- est.aipw
         } else {
             est <- est.lin
         }
@@ -887,7 +944,7 @@ plot.interflex <- function(x,
                 }
 
                 if (CI == TRUE) {
-                    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
+                    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "aipw") {
                         if (by.group == FALSE) {
                             p1 <- p1 + geom_ribbon(
                                 data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
@@ -987,7 +1044,7 @@ plot.interflex <- function(x,
                 }
 
                 if (CI == TRUE) {
-                    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
+                    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "aipw") {
                         if (by.group == FALSE) {
                             p1 <- p1 + geom_ribbon(
                                 data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),

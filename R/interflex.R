@@ -95,8 +95,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     estimator <- tolower(estimator)
 
     ## estimator
-    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml")) {
-        stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf or dml.\n")
+    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml", "aipw")) {
+        stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf, dml or aipw.\n")
     }
 
     ## Y
@@ -1191,11 +1191,11 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     if (estimator == "grf") {
         output <- interflex.grf(
             data = data,
-            Y = Y, # outcome
-            D = D, # treatment indicator
-            X = X, # moderator
-            Z = Z, # covariates
-            weights = weights, # weighting variable
+            Y = Y,
+            D = D,
+            X = X,
+            Z = Z,
+            weights = weights,
             num.trees = grf.num.trees,
             treat.info = treat.info,
             diff.info = diff.info,
@@ -1203,7 +1203,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             CI = CI,
             subtitles = subtitles,
             show.subtitles = show.subtitles,
-            Xdistr = Xdistr, # c("density","histogram","none")
+            Xdistr = Xdistr,
             main = main,
             Ylabel = Ylabel,
             Dlabel = Dlabel,
@@ -1233,11 +1233,11 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     if (estimator == "dml") {
         output <- interflex.dml(
             data = data,
-            Y = Y, # outcome
-            D = D, # treatment indicator
-            X = X, # moderator
-            Z = Z, # covariates
-            weights = weights, # weighting variable
+            Y = Y,
+            D = D,
+            X = X,
+            Z = Z,
+            weights = weights,
             model.y = model.y,
             param.y = param.y,
             param.grid.y = param.grid.y,
@@ -1257,7 +1257,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             CI = CI,
             subtitles = subtitles,
             show.subtitles = show.subtitles,
-            Xdistr = Xdistr, # c("density","histogram","none")
+            Xdistr = Xdistr,
             main = main,
             Ylabel = Ylabel,
             Dlabel = Dlabel,
@@ -1288,38 +1288,36 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     if (estimator == "aipw") {
         output <- interflex.aipw(
             data = data,
-            Y = Y, # outcome
-            D = D, # treatment indicator
-            X = X, # moderator
-            Z = Z, # covariates
-            weights = weights, # weighting variable
+            Y = Y,
+            D = D,
+            X = X,
+            Z = NULL,
+            FE = NULL,
+            signal = c("outcome", "ipw", "aipw"),
+            weights = NULL,
             B = 200,
             alpha = 0.05,
-            
-            outcome_model_type = "lasso", # can be "linear", or "lasso"
-            treatment_model_type = "lasso", # can be "linear", or "lasso"
-            
-            # polynomial or B-spline expansion in the design matrix
-            basis_type         = c("polynomial", "bspline", "none"),
-            include_interactions = TRUE,
-            poly_degree        = 2,    # only used if basis_type="polynomial"
-            
-            # B-spline parameters (used if basis_type="bspline", or for final CME fit)
-            spline_df          = 4,
-            spline_degree      = 2,
-            
-            lambda_seq         = NULL, # optional custom lambda sequence for glmnet
-            reduce.dimension   = c("bspline","kernel"), 
-            bw                 = NULL,
-            x.eval             = NULL, # grid of X values for final CME curve
-            verbose            = TRUE
+            model.y = "lasso",
+            model.t = "lasso",
+            model.ps = "lasso",
+            basis.type = c("polynomial", "bspline", "none"),
+            include.interactions = TRUE,
+            poly.degree = 2,
+            spline.df = 4,
+            spline.degree = 2,
+            lambda.seq = NULL,
+            reduce.dimension = c("bspline", "kernel"),
+            bw = NULL,
+            best.span = NULL,
+            x.eval = NULL,
+            verbose = TRUE,
             treat.info = treat.info,
             diff.info = diff.info,
             figure = figure,
             CI = CI,
             subtitles = subtitles,
             show.subtitles = show.subtitles,
-            Xdistr = Xdistr, # c("density","histogram","none")
+            Xdistr = Xdistr,
             main = main,
             Ylabel = Ylabel,
             Dlabel = Dlabel,
