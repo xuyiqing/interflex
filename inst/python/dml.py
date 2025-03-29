@@ -149,6 +149,8 @@ def marginal_effect_for_treatment(
         x_cols=covariates,
     )
 
+    params = {"model.y": None, "model.t": None}
+
     if discrete_treatment:
         dml_model = dml.DoubleMLIRM(
             data_dml_base,
@@ -157,7 +159,26 @@ def marginal_effect_for_treatment(
             n_folds=cf_n_folds,
             n_rep=cf_n_rep,
         )
-        model_y_key = "ml_g"
+        if CV:
+            dml_model.tune(
+                param_grids={
+                    "ml_g": param_grid_y,
+                    "ml_m": param_grid_t,
+                },
+                n_folds_tune=n_folds,
+                n_jobs_cv=n_jobs,
+                scoring_methods={
+                    "ml_g": scoring_y,
+                    "ml_m": scoring_t,
+                },
+                search_mode="grid_search",
+                return_tune_res=True,
+            )
+            params["model.y"] = [
+                dml_model.params["ml_g0"][D],
+                dml_model.params["ml_g1"][D],
+            ]
+            params["model.t"] = dml_model.params["ml_m"][D]
 
     else:
         dml_model = dml.DoubleMLPLR(
@@ -167,20 +188,23 @@ def marginal_effect_for_treatment(
             n_folds=cf_n_folds,
             n_rep=cf_n_rep,
         )
-        model_y_key = "ml_l"
-
-    params = {"model.y": None, "model.t": None}
-    if CV:
-        dml_model.tune(
-            param_grids={model_y_key: param_grid_y, "ml_m": param_grid_t},
-            n_folds_tune=n_folds,
-            n_jobs_cv=n_jobs,
-            scoring_methods={model_y_key: scoring_y, "ml_m": scoring_t},
-            search_mode="grid_search",
-            return_tune_res=True,
-        )
-        params["model.y"] = dml_model.params[model_y_key][D]
-        params["model.t"] = dml_model.params["ml_m"][D]
+        if CV:
+            dml_model.tune(
+                param_grids={
+                    "ml_l": param_grid_y,
+                    "ml_m": param_grid_t,
+                },
+                n_folds_tune=n_folds,
+                n_jobs_cv=n_jobs,
+                scoring_methods={
+                    "ml_l": scoring_y,
+                    "ml_m": scoring_t,
+                },
+                search_mode="grid_search",
+                return_tune_res=True,
+            )
+            params["model.y"] = dml_model.params["ml_l"][D]
+            params["model.t"] = dml_model.params["ml_m"][D]
 
     dml_model.fit()
 
