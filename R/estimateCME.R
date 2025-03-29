@@ -47,9 +47,9 @@ estimateCME <- function(
     if (!(D %in% names(data))) stop("Variable name for D not found in data.")
     if (!(X %in% names(data))) stop("Variable name for X not found in data.")
 
-    Yvec <- data[[Y]]
-    Dvec <- data[[D]]
-    Xvec <- data[[X]]
+    Yvec <- as.numeric(data[[Y]])
+    Dvec <- as.numeric(data[[D]])
+    Xvec <- as.numeric(data[[X]])
 
     # Separate Z into non-fixed-effect covariates.
     if (!is.null(Z)) {
@@ -266,7 +266,6 @@ estimateCME <- function(
         } else {
             XZ_design_ps <- XZ_design[, selected_covars[["ps"]], drop = FALSE]
         }
-
         ps_fit <- do_ps_fit(Dvec, XZ_design_ps, ps_model_type)
     }
 
@@ -306,6 +305,7 @@ estimateCME <- function(
             dfp_sub <- data.frame(d = Dvec, XZ_sub)
             final_logit <- glm(d ~ ., data = dfp_sub, family = binomial("logit"))
             ps_fit <- list(fit = final_logit, type = "glm")
+           
         }
     } else if (signal == "aipw" && outcome_lasso && ps_lasso) {
         idx1 <- active_vars(list(fit = out_fit1$fit), XZ_design)
