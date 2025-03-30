@@ -95,10 +95,17 @@ interflex.linear <- function(data,
     }
 
     # evaluation points
-    X.eval0 <- X.eval
-    X.eval <- seq(min(data[, X]), max(data[, X]), length.out = neval)
-    X.eval <- sort(c(X.eval, X.eval0))
-    neval <- length(X.eval)
+    #X.eval0 <- X.eval
+    #X.eval <- seq(min(data[, X]), max(data[, X]), length.out = neval)
+    #X.eval <- sort(c(X.eval, X.eval0))
+    #neval <- length(X.eval)
+    if(is.null(X.eval)){
+       X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval) 
+    }
+    else{
+        neval <- length(X.eval)
+    }
+
 
     # construct the formula
     formula <- paste0(Y, "~", X)
