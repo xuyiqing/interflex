@@ -1,3 +1,4 @@
+
 estimateCME <- function(
     data,
     Y,          # name of outcome variable in 'data'
@@ -7,6 +8,7 @@ estimateCME <- function(
     FE = NULL,  # character vector of fixed effect variable names (if any)
     
     # Which estimator(s) to compute?
+    estimand = c('ATE','ATT'),
     signal = c("outcome","ipw","aipw"),
     
     neval = 100,
@@ -43,22 +45,22 @@ estimateCME <- function(
   mu0_hat <- NULL
   p_hat <- NULL
   
-  if (verbose) message("Step 1: Matching arguments and setting defaults...")
+  if (verbose) cat("Step 1: Matching arguments and setting defaults...\n")
   # 1. Match arguments:
   signal           <- match.arg(signal)
   basis_type       <- match.arg(basis_type)
   reduce.dimension <- match.arg(reduce.dimension)
   
-  if (verbose) message("Step 2: Performing basic checks on input data...")
+  if (verbose) cat("Step 2: Performing basic checks on input data...\n")
   # 2. Basic checks
   stopifnot(is.data.frame(data))
   if (!(Y %in% names(data))) stop("Variable name for Y not found in data.")
   if (!(D %in% names(data))) stop("Variable name for D not found in data.")
   if (!(X %in% names(data))) stop("Variable name for X not found in data.")
   
-  Yvec <- as.numeric(data[[Y]])
-  Dvec <- as.numeric(data[[D]])
-  Xvec <- as.numeric(data[[X]])
+  Yvec <- data[[Y]]
+  Dvec <- data[[D]]
+  Xvec <- data[[X]]
   
   # Separate Z into non-fixed-effect covariates.
   if (!is.null(Z)) {
@@ -68,7 +70,7 @@ estimateCME <- function(
     Z_nonFE <- NULL
   }
   
-  if (verbose) message("Step 3: Processing fixed effects (if provided)...")
+  if (verbose) cat("Step 3: Processing fixed effects (if provided)...\n")
   # Process fixed effects if provided: convert each FE variable to factor dummies,
   # dropping the first level to avoid collinearity.
   if (!is.null(FE)) {
@@ -81,6 +83,7 @@ estimateCME <- function(
       mm
     })
     FE_dummies <- do.call(cbind, FE_dummies)
+    if (verbose) cat("Fixed effects are included as dummies with no basis expansion.\n")
   } else {
     FE_dummies <- NULL
   }
@@ -88,13 +91,13 @@ estimateCME <- function(
   n <- nrow(data)
   if (!all(Dvec %in% c(0,1))) stop("Treatment variable D must be binary 0/1.")
   
-  if (verbose) message("Step 4: Setting up evaluation grid for X (if not provided)...")
+  if (verbose) cat("Step 4: Setting up evaluation grid for X (if not provided)...\n")
   # If x.eval is not provided, build a default grid
   if (is.null(x.eval)) {
     x.eval <- seq(min(Xvec), max(Xvec), length.out = neval)
   }
   
-  if (verbose) message("Step 5: Building design matrix...")
+  if (verbose) cat("Step 5: Building design matrix...\n")
   # 3. Optionally build XZ_design if not supplied
   if (is.null(XZ_design)) {
     build_design_matrix <- function(X_vec, Z_nonFE, FE_dummies) {
@@ -189,10 +192,22 @@ estimateCME <- function(
       cbind(X_mat, Z_final, int_XZ, int_ZZ)
     }
     XZ_design <- build_design_matrix(Xvec, Z_nonFE, FE_dummies)
-    if (verbose) message("Design matrix successfully built.")
+    if (verbose) cat("Design matrix successfully built.\n")
   }
   
-  if (verbose) message("Step 6: Setting up model types based on signal argument...")
+  # Identify FE columns in XZ_design (if any)
+  if (!is.null(FE)) {
+    fe_pattern <- paste0("^(", paste0(FE, collapse="|"), ")_")
+    fe_cols <- grep(fe_pattern, colnames(XZ_design))
+    # Create penalty factor for outcome: 0 for FE columns, 1 for all others
+    pf_outcome <- rep(1, ncol(XZ_design))
+    pf_outcome[fe_cols] <- 0
+  } else {
+    fe_cols <- integer(0)
+    pf_outcome <- NULL
+  }
+  
+  if (verbose) cat("Step 6: Setting up model types based on signal argument...\n")
   # 4. If signal="aipw", we do need both outcome and PS models. 
   do_outcome <- (signal %in% c("outcome","aipw"))
   do_ps      <- (signal %in% c("ipw","aipw"))
@@ -200,13 +215,7 @@ estimateCME <- function(
   outcome_lasso <- (outcome_model_type!="linear")
   ps_lasso      <- (ps_model_type!="linear")
   
-  #if (signal=="aipw") {
-  #  if (outcome_lasso != ps_lasso) {
-  #    stop("For signal='aipw', if one model is 'lasso', the other must also be 'lasso'.")
-  #  }
-  #}
-  
-  if (verbose) message("Step 7: Fitting outcome and propensity score models...")
+  if (verbose) cat("Step 7: Fitting outcome and propensity score models...\n")
   # 5. Fit the relevant models:
   
   # a) outcome models
@@ -214,43 +223,56 @@ estimateCME <- function(
   mu1_hat  <- mu0_hat  <- rep(NA_real_, n)
   
   if (do_outcome) {
-    if (verbose) message("   Fitting outcome model for treated (D=1) units...")
+    if (verbose) cat("   Fitting outcome model for treated (D=1) units...\n")
     idx1 <- which(Dvec==1)
     idx0 <- which(Dvec==0)
     Y1   <- Yvec[idx1]
     Y0   <- Yvec[idx0]
-    #if(is.null(selected_covars)){
-    X1   <- XZ_design[idx1,,drop=FALSE]
-    X0   <- XZ_design[idx0,,drop=FALSE]      
-    #}else{
-    #  X1   <- XZ_design[idx1,selected_covars[['outcome1']],drop=FALSE]
-    #  X0   <- XZ_design[idx0,selected_covars[['outcome0']],drop=FALSE] 
-    #}
-
     
-    do_single_fit <- function(y_sub, x_sub, model_type, lambda_use) {
+    X1   <- XZ_design[idx1,,drop=FALSE]
+    X0   <- XZ_design[idx0,,drop=FALSE]
+    
+    do_single_fit <- function(y_sub, x_sub, model_type, lambda_use, pf = NULL) {
       if (model_type=="linear") {
         df_temp <- data.frame(y=y_sub, x_sub)
         fit_lm  <- lm(y ~ ., data=df_temp)
         list(fit=fit_lm, type="lm", lambda = NULL)
       } 
       else if (model_type=="ridge") {
-        if(is.null(lambda_use)){
-          fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_seq)
+        if (is.null(lambda_use)) {
+          if (is.null(pf)) {
+            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_seq)
+          } else {
+            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_seq,
+                                penalty.factor = pf)
+          }
           list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
-        }
-        else{
-          fit <- glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_use)
+        } else {
+          if (is.null(pf)) {
+            fit <- glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_use)
+          } else {
+            fit <- glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_use,
+                          penalty.factor = pf)
+          }
           list(fit=fit, type="glmnet", lambda = lambda_use)  
         }
       } 
       else if (model_type=="lasso") {
-        if(is.null(lambda_use)){
-          fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_seq)
+        if (is.null(lambda_use)) {
+          if (is.null(pf)) {
+            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_seq)
+          } else {
+            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_seq,
+                                penalty.factor = pf)
+          }
           list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
-        }
-        else{
-          fit <- glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_use)
+        } else {
+          if (is.null(pf)) {
+            fit <- glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_use)
+          } else {
+            fit <- glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_use,
+                          penalty.factor = pf)
+          }
           list(fit=fit, type="glmnet", lambda = lambda_use)  
         }
       } 
@@ -259,27 +281,34 @@ estimateCME <- function(
       }
     }
     
-    if(outcome_model_type=='linear'){
-      out_fit1 <- do_single_fit(Y1, X1, outcome_model_type, NULL)
-      out_fit0 <- do_single_fit(Y0, X0, outcome_model_type, NULL)
-    }
-    else{
-      if(is.null(lambda_cv)){ #cross-validation
-        out_fit1 <- do_single_fit(Y1, X1, outcome_model_type, NULL)
-        out_fit0 <- do_single_fit(Y0, X0, outcome_model_type, NULL)   
-      }
-      else{
+    if (outcome_model_type=='linear') {
+      out_fit1 <- do_single_fit(Y1, X1, outcome_model_type, NULL, NULL)
+      out_fit0 <- do_single_fit(Y0, X0, outcome_model_type, NULL, NULL)
+    } else {
+      if (is.null(lambda_cv)) { # cross-validation
+        out_fit1 <- do_single_fit(Y1, X1, outcome_model_type, NULL, pf_outcome)
+        out_fit0 <- do_single_fit(Y0, X0, outcome_model_type, NULL, pf_outcome)
+      } else {
         lambda_outcome1 <- lambda_cv[['outcome1']]
         lambda_outcome0 <- lambda_cv[['outcome0']]
-        out_fit1 <- do_single_fit(Y1, X1, outcome_model_type, lambda_outcome1)
-        out_fit0 <- do_single_fit(Y0, X0, outcome_model_type, lambda_outcome0)
+        out_fit1 <- do_single_fit(Y1, X1, outcome_model_type, lambda_outcome1, pf_outcome)
+        out_fit0 <- do_single_fit(Y0, X0, outcome_model_type, lambda_outcome0, pf_outcome)
       }
     }
   }
   
   # b) propensity score model
   if (do_ps) {
-    if (verbose) message("   Fitting propensity score model...")
+    if (verbose) cat("   Fitting propensity score model (no FE)...\n")
+    
+    # Exclude FE columns from PS design
+    if (!is.null(FE)) {
+      ps_cols <- setdiff(seq_len(ncol(XZ_design)), fe_cols)
+      XZ_design_ps <- XZ_design[, ps_cols, drop=FALSE]
+    } else {
+      XZ_design_ps <- XZ_design
+    }
+    
     do_ps_fit <- function(D, Xmat, model_type, lambda_use) {
       if (model_type=="linear") {
         df_temp <- data.frame(d=D, Xmat)
@@ -287,21 +316,19 @@ estimateCME <- function(
         list(fit=fit_glm, type="glm", lambda = NULL)
       } 
       else if (model_type=="ridge") {
-        if(is.null(lambda_use)){
+        if (is.null(lambda_use)) {
           fit_cv <- cv.glmnet(x=Xmat, y=D, alpha=0, family="binomial", lambda=lambda_seq)
           list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
-        }
-        else{
+        } else {
           fit <- glmnet(x=Xmat, y=D, alpha=0, family="binomial", lambda=lambda_use)
           list(fit=fit, type="glmnet", lambda = lambda_use)             
         }
       } 
       else if (model_type=="lasso") {
-        if(is.null(lambda_use)){
+        if (is.null(lambda_use)) {
           fit_cv <- cv.glmnet(x=Xmat, y=D, alpha=1, family="binomial", lambda=lambda_seq)
           list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
-        }
-        else{
+        } else {
           fit <- glmnet(x=Xmat, y=D, alpha=1, family="binomial", lambda=lambda_use)
           list(fit=fit, type="glmnet", lambda = lambda_use)             
         }
@@ -311,26 +338,19 @@ estimateCME <- function(
       }
     }
     
-    #if(is.null(selected_covars)){
-    XZ_design_ps <- XZ_design    
-    #}else{
-    #  XZ_design_ps <- XZ_design[,selected_covars[['ps']],drop=FALSE]
-    #}
-    if(outcome_model_type=='linear'){
+    if (ps_model_type=='linear') {
       ps_fit <- do_ps_fit(Dvec, XZ_design_ps, ps_model_type, NULL)      
-    }
-    else{
-      if(is.null(lambda_cv)){ #cross-validation
+    } else {
+      if (is.null(lambda_cv)) { # cross-validation
         ps_fit <- do_ps_fit(Dvec, XZ_design_ps, ps_model_type, NULL)
-      }
-      else{
+      } else {
         lambda_treatment <- lambda_cv[['treatment']]
         ps_fit <- do_ps_fit(Dvec, XZ_design_ps, ps_model_type, lambda_treatment)
       }
     }
   }
   
-  if (verbose) message("Step 8: Performing post-lasso variable selection (if applicable)...")
+  if (verbose) cat("Step 8: Performing post-lasso variable selection (if applicable)...\n")
   # 6. Post-lasso selection if needed:
   selected_covars <- NULL
   lambda_cv_save <- NULL
@@ -347,7 +367,7 @@ estimateCME <- function(
     union_active <- unique(c(idx1, idx0))
     selected_covars <- list(outcome1 = idx1, outcome0 = idx0)
     if (length(union_active) > 0) {
-      if (verbose) message("   Post-lasso: refitting outcome models on selected variables...")
+      if (verbose) cat("   Post-lasso: refitting outcome models on selected variables...\n")
       idx1_full <- which(Dvec==1)
       idx0_full <- which(Dvec==0)
       X1_sub <- XZ_design[idx1_full, idx1, drop=FALSE]
@@ -361,11 +381,11 @@ estimateCME <- function(
     }
   } else if (signal=="ipw" && ps_lasso) {
     lambda_cv_save <- list(treatment = ps_fit$lambda)
-    idxp <- active_vars(list(fit=ps_fit$fit), XZ_design)
+    idxp <- active_vars(list(fit=ps_fit$fit), XZ_design_ps)
     selected_covars <- list(ps = idxp)
     if (length(idxp) > 0) {
-      if (verbose) message("   Post-lasso: refitting propensity score model on selected variables...")
-      XZ_sub <- XZ_design[, idxp, drop=FALSE]
+      if (verbose) cat("   Post-lasso: refitting propensity score model on selected variables...\n")
+      XZ_sub <- XZ_design_ps[, idxp, drop=FALSE]
       dfp_sub <- data.frame(d=Dvec, XZ_sub)
       final_logit <- glm(d ~ ., data=dfp_sub, family=binomial("logit"))
       ps_fit <- list(fit=final_logit, type="glm")
@@ -375,11 +395,11 @@ estimateCME <- function(
     lambda_cv_save <- list(outcome1 = out_fit1$lambda, outcome0 = out_fit0$lambda, treatment = ps_fit$lambda)
     idx1 <- active_vars(list(fit=out_fit1$fit), XZ_design)
     idx0 <- active_vars(list(fit=out_fit0$fit), XZ_design)
-    idxp <- active_vars(list(fit=ps_fit$fit),  XZ_design)
+    idxp <- active_vars(list(fit=ps_fit$fit),  XZ_design_ps)
     union_active <- unique(c(idx1, idx0, idxp))
     selected_covars <- list(outcome1 = idx1, outcome0 = idx0, ps = idxp)
     if (length(union_active) > 0) {
-      if (verbose) message("   Post-lasso: refitting outcome and propensity score models on selected variables...")
+      if (verbose) cat("   Post-lasso: refitting outcome and propensity score models on selected variables...\n")
       idx1_full <- which(Dvec==1)
       idx0_full <- which(Dvec==0)
       X1_sub <- XZ_design[idx1_full, idx1, drop=FALSE]
@@ -391,14 +411,14 @@ estimateCME <- function(
       out_fit1 <- list(fit=lm1, type="lm")
       out_fit0 <- list(fit=lm0, type="lm")
       
-      XZ_sub <- XZ_design[, idxp, drop=FALSE]
+      XZ_sub <- XZ_design_ps[, idxp, drop=FALSE]
       dfp_sub <- data.frame(d=Dvec, XZ_sub)
       final_logit <- glm(d ~ ., data=dfp_sub, family=binomial("logit"))
       ps_fit <- list(fit=final_logit, type="glm")
     }
   }
   
-  if (verbose) message("Step 9: Generating predictions from fitted models...")
+  if (verbose) cat("Step 9: Generating predictions from fitted models...\n")
   # 7. Predictions
   predict_outcome <- function(subfit, newX) {
     if (subfit$type=="lm") {
@@ -430,11 +450,11 @@ estimateCME <- function(
     mu0_hat <- predict_outcome(out_fit0, XZ_design)
   }
   if (do_ps) {
-    p_hat <- predict_ps(ps_fit, XZ_design)
+    p_hat <- predict_ps(ps_fit, XZ_design_ps)
     p_hat <- pmin(pmax(p_hat, 1e-2), 1-1e-2)
   }
   
-  if (verbose) message("Step 10: Computing signals and performing dimension reduction...")
+  if (verbose) cat("Step 10: Computing signals and performing dimension reduction...\n")
   # 8. Compute signals & do dimension reduction 
   cme_out_eval <- rep(NA_real_, length(x.eval))
   cme_ipw_eval <- rep(NA_real_, length(x.eval))
@@ -449,62 +469,99 @@ estimateCME <- function(
     } else {
       if (is.null(best_span)) {
         cand_spans <- seq(0.1, 1, by=0.05)
-        cv_loess_fold <- function(span, x, y, K=5, degree=2) {
+        cv_loess_fold <- function(span, x, y, K=10, degree=1) {
           n <- length(y)
           folds <- sample(rep(1:K, length.out=n))
           mse_vec <- numeric(K)
           for (k in seq_len(K)) {
             tr <- which(folds != k)
             te <- which(folds == k)
+            #cat("  Fold", k, ": length(tr) =", length(tr), " unique(x[tr]) =", length(unique(x[tr])), "\n")
             model_k <- loess(y[tr] ~ x[tr], span=span, degree=degree)
             pred_k  <- predict(model_k, newdata=x[te])
             mse_vec[k] <- mean((y[te]-pred_k)^2, na.rm=TRUE)
           }
           mean(mse_vec, na.rm=TRUE)
         }
+
         cv_errs <- sapply(cand_spans, cv_loess_fold, x=x_vec, y=y_signal)
         best_span <- cand_spans[which.min(cv_errs)]
       }
-      fit_loess <- loess(y_signal ~ x_vec, span=best_span, degree=2)
+      fit_loess <- loess(y_signal ~ x_vec, span=best_span, degree=1)
       preds     <- predict(fit_loess, newdata=data.frame(x_vec=x_eval))
       return(list(preds=preds, best_span = best_span))
     }
   }
-  if (signal == "outcome") {
-    est.signal <- out_signal <- mu1_hat - mu0_hat
-    cme_out_eval <- do_reduce_dim(out_signal, Xvec, x.eval, reduce.dimension,
-                                  spline_df, spline_degree, best_span)
-    cme_df <- data.frame(X.eval = x.eval, CME = cme_out_eval$preds)
-    best_span <- cme_out_eval$best_span
+  if(estimand == 'ATE'){
+    p_hat_gam <- NULL
+    if (signal == "outcome") {
+      est.signal <- out_signal <- mu1_hat - mu0_hat
+      cme_out_eval <- do_reduce_dim(out_signal, Xvec, x.eval, reduce.dimension,
+                                    spline_df, spline_degree, best_span)
+      cme_df <- data.frame(X.eval = x.eval, CME = cme_out_eval$preds)
+      best_span <- cme_out_eval$best_span
+    }
+    if (signal == "ipw") {
+      est.signal <- ipw_signal <- Dvec * Yvec / p_hat - (1 - Dvec) * Yvec / (1 - p_hat)
+      cme_ipw_eval <- do_reduce_dim(ipw_signal, Xvec, x.eval, reduce.dimension,
+                                    spline_df, spline_degree, best_span)
+      cme_df <- data.frame(X.eval = x.eval, CME = cme_ipw_eval$preds)
+      best_span <- cme_ipw_eval$best_span
+    }
+    if (signal=="aipw") {
+      est.signal <- dr_signal <- (mu1_hat - mu0_hat) +
+        Dvec * (Yvec - mu1_hat) / p_hat - (1 - Dvec) * (Yvec - mu0_hat) / (1 - p_hat)
+
+      cme_dr_eval <- do_reduce_dim(dr_signal, Xvec, x.eval, reduce.dimension,
+                                   spline_df, spline_degree, best_span)
+      cme_df <- data.frame(X.eval = x.eval, CME = cme_dr_eval$preds)
+      best_span <- cme_dr_eval$best_span
+    }    
   }
-  if (signal == "ipw") {
-    est.signal <- ipw_signal <- Dvec * Yvec / p_hat - (1 - Dvec) * Yvec / (1 - p_hat)
-    cme_ipw_eval <- do_reduce_dim(ipw_signal, Xvec, x.eval, reduce.dimension,
-                                  spline_df, spline_degree, best_span)
-    cme_df <- data.frame(X.eval = x.eval, CME = cme_ipw_eval$preds)
-    best_span <- cme_ipw_eval$best_span
+  else if(estimand == 'ATT'){
+    
+    fit_gam <- gam(Dvec ~ s(Xvec), family = binomial)
+    p_hat_gam <- predict(fit_gam, type = "response")
+    
+    if (signal == "outcome") {
+      est.signal <- out_signal <- (Yvec - mu0_hat)*Dvec/p_hat_gam
+      cme_out_eval <- do_reduce_dim(out_signal, Xvec, x.eval, reduce.dimension,
+                                    spline_df, spline_degree, best_span)
+      cme_df <- data.frame(X.eval = x.eval, CME = cme_out_eval$preds)
+      best_span <- cme_out_eval$best_span
+    }
+    if (signal == "ipw") {
+      est.signal <- ipw_signal <- Yvec*(Dvec - p_hat)/((1 - p_hat)*p_hat_gam)
+      cme_ipw_eval <- do_reduce_dim(ipw_signal, Xvec, x.eval, reduce.dimension,
+                                    spline_df, spline_degree, best_span)
+      cme_df <- data.frame(X.eval = x.eval, CME = cme_ipw_eval$preds)
+      best_span <- cme_ipw_eval$best_span
+    }
+    if (signal=="aipw") {
+      est.signal <- dr_signal <- ((Yvec - mu0_hat)*(Dvec - (1-Dvec)*p_hat/(1-p_hat)))/p_hat_gam
+        
+      cme_dr_eval <- do_reduce_dim(dr_signal, Xvec, x.eval, reduce.dimension,
+                                   spline_df, spline_degree, best_span)
+      cme_df <- data.frame(X.eval = x.eval, CME = cme_dr_eval$preds)
+      best_span <- cme_dr_eval$best_span
+    }       
   }
-  if (signal=="aipw") {
-    est.signal <- dr_signal <- (mu1_hat - mu0_hat) +
-      Dvec * (Yvec - mu1_hat) / p_hat - (1 - Dvec) * (Yvec - mu0_hat) / (1 - p_hat)
-    cme_dr_eval <- do_reduce_dim(dr_signal, Xvec, x.eval, reduce.dimension,
-                                 spline_df, spline_degree, best_span)
-    cme_df <- data.frame(X.eval = x.eval, CME = cme_dr_eval$preds)
-    best_span <- cme_dr_eval$best_span
-  }
+
   
-  if (verbose) message("Step 11: Estimation complete. Returning results.")
+  if (verbose) cat("Step 11: Estimation complete. Returning results.\n")
   out <- list(
     XZ_design   = XZ_design,
     mu1_fit     = out_fit1,
     mu0_fit     = out_fit0,
     ps_fit      = ps_fit,
+    p_hat_gam   = p_hat_gam,
     mu1_hat     = mu1_hat,
     mu0_hat     = mu0_hat,
     p_hat       = p_hat,
     est.signal  = est.signal,
     cme_df      = cme_df,
     signal      = signal,
+    estimand    = estimand,
     reduce.dimension = reduce.dimension,
     best_span   = best_span,
     lambda_cv = lambda_cv_save,
@@ -514,11 +571,48 @@ estimateCME <- function(
 }
 
 
+# Helper function (unchanged)
+calculate_uniform_quantiles <- function(theta_matrix, alpha) {
+  cols_with_na <- apply(theta_matrix, 2, function(col) any(is.na(col)))
+  theta_matrix <- theta_matrix[, !cols_with_na, drop=FALSE]
+  
+  k <- nrow(theta_matrix)
+  N <- ncol(theta_matrix)
+  
+  check_condition <- function(zeta) {
+    Q_j <- t(apply(theta_matrix, 1, quantile, probs=c(zeta, 1-zeta)))
+    condition_mat <- theta_matrix >= Q_j[,1] & theta_matrix <= Q_j[,2]
+    coverage_draw <- apply(condition_mat, 2, all)
+    mean(coverage_draw)
+  }
+  
+  zeta_lower <- alpha/(2*k)
+  zeta_upper <- alpha/2
+  while (zeta_upper - zeta_lower > 1e-6) {
+    zeta_mid <- (zeta_lower + zeta_upper)/2
+    if (check_condition(zeta_mid) < 1 - alpha) {
+      zeta_upper <- zeta_mid
+    } else {
+      zeta_lower <- zeta_mid
+    }
+  }
+  
+  zeta_hat <- zeta_lower
+  coverage <- check_condition(zeta_hat)
+  if (zeta_hat == alpha/(2*k)) {
+    warning("Insufficient bootstrap samples for Bootstrapped Uniform CI. Using Bonferroni CI by default.\n")
+  }
+  
+  Q_j <- t(apply(theta_matrix, 1, quantile, probs=c(zeta_hat, 1 - zeta_hat)))
+  list(Q_j = Q_j, zeta_hat = zeta_hat, coverage = coverage)
+}
+
 bootstrapCME <- function(
     data,
     Y, D, X, Z = NULL, FE = NULL,
     
     # Which single estimator to use?
+    estimand = 'ATE',
     signal = c("outcome","ipw","aipw"),
     
     # Number of bootstrap draws and alpha
@@ -561,6 +655,7 @@ bootstrapCME <- function(
     X                   = X,
     Z                   = Z,
     FE                  = FE,
+    estimand            = estimand,
     signal              = signal,
     outcome_model_type  = outcome_model_type,
     ps_model_type       = ps_model_type,
@@ -604,7 +699,7 @@ bootstrapCME <- function(
     b = 1:B,
     .combine = "rbind",
     .export  = "estimateCME",
-    .packages = c("splines","glmnet")
+    .packages = c("splines","glmnet","mgcv")
   ) %dopar% {
     set.seed(1000 + b)
     idx_b <- sample(idx_seq, size = n, replace = TRUE)
@@ -625,8 +720,9 @@ bootstrapCME <- function(
       Y                   = Y,
       D                   = D,
       X                   = X,
-      Z                   = NULL,
-      FE                  = NULL,  # design matrix already provided
+      Z                   = NULL, # design matrix already provided
+      FE                  = FE,  
+      estimand            = estimand,
       signal              = signal,
       XZ_design           = XZ_b,
       outcome_model_type  = use_out_model,
@@ -685,3 +781,4 @@ bootstrapCME <- function(
   
   return(out_list)
 }
+

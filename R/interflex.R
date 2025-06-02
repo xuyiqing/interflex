@@ -1,5 +1,5 @@
 ## Input Check
-interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "dml", "aipw"
+interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw", "dml", "lasso"
                       data,
                       Y, # outcome
                       D, # treatment indicator
@@ -49,8 +49,15 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       cf.n.folds = 5,
                       gate = FALSE,
                       grf.num.trees = 4000,
-                      signal = c("aipw"),               
-                      reduce.dimension = c("bspline", "kernel"),
+                      signal    = c("aipw"),
+                      estimand  = c("ATE"),
+                      basis.type          = c("bspline"),
+                      include.interactions = TRUE,
+                      poly.degree         = 2,
+                      spline.df           = 4,
+                      spline.degree       = 2,  
+                      lambda.seq         = NULL,
+                      reduce.dimension   = c("kernel"),
                       figure = TRUE,
                       bin.labs = TRUE,
                       order = NULL,
@@ -97,8 +104,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     estimator <- tolower(estimator)
 
     ## estimator
-    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml", "aipw")) {
-        stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf, dml or aipw.\n")
+    if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml", "lasso")) {
+        stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf, dml or lasso.\n")
     }
 
     ## Y
@@ -1287,30 +1294,29 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         )
     }
 
-    if (estimator == "aipw") {
-        output <- interflex.aipw(
+    if (estimator == "lasso") {
+        output <- interflex.lasso(
             data = data,
             Y = Y,
             D = D,
             X = X,
             Z = Z,
-            FE = NULL,
-            signal = signal,
+            FE = FE,
             weights = NULL,
             B = nboots,
             alpha = 0.05,
             model.y = 'lasso',
             model.t = 'lasso',
-            model.ps = 'lasso',
-            basis.type = 'bspline',
-            include.interactions = TRUE,
-            poly.degree = 2,
-            spline.df = 4,
-            spline.degree = 2,
-            lambda.seq = NULL,
+            signal = signal,
+            estimand = estimand,
+
+            basis.type = basis.type,
+            include.interactions = include.interactions,
+            poly.degree = poly.degree,
+            spline.df = spline.df,
+            spline.degree = spline.degree,
+            lambda.seq = lambda.seq,
             reduce.dimension = reduce.dimension,
-            bw = NULL,
-            best.span = NULL,
             verbose = TRUE,
             treat.info = treat.info,
             diff.info = diff.info,
