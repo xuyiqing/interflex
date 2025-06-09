@@ -519,7 +519,6 @@ estimateCME <- function(
     }    
   }
   else if(estimand == 'ATT'){
-    
     fit_gam <- gam(Dvec ~ s(Xvec), family = binomial)
     p_hat_gam <- predict(fit_gam, type = "response")
     
