@@ -22,7 +22,7 @@ estimateCME <- function(
     
     # polynomial or B-spline expansion in the design matrix
     basis_type         = c("polynomial", "bspline", "none"),
-    include_interactions = TRUE,
+    include_interactions = FALSE,
     poly_degree        = 2,    # only used if basis_type="polynomial"
     
     # B-spline parameters (used if basis_type="bspline", or for final CME fit)
@@ -570,41 +570,6 @@ estimateCME <- function(
 }
 
 
-# Helper function (unchanged)
-calculate_uniform_quantiles <- function(theta_matrix, alpha) {
-  cols_with_na <- apply(theta_matrix, 2, function(col) any(is.na(col)))
-  theta_matrix <- theta_matrix[, !cols_with_na, drop=FALSE]
-  
-  k <- nrow(theta_matrix)
-  N <- ncol(theta_matrix)
-  
-  check_condition <- function(zeta) {
-    Q_j <- t(apply(theta_matrix, 1, quantile, probs=c(zeta, 1-zeta)))
-    condition_mat <- theta_matrix >= Q_j[,1] & theta_matrix <= Q_j[,2]
-    coverage_draw <- apply(condition_mat, 2, all)
-    mean(coverage_draw)
-  }
-  
-  zeta_lower <- alpha/(2*k)
-  zeta_upper <- alpha/2
-  while (zeta_upper - zeta_lower > 1e-6) {
-    zeta_mid <- (zeta_lower + zeta_upper)/2
-    if (check_condition(zeta_mid) < 1 - alpha) {
-      zeta_upper <- zeta_mid
-    } else {
-      zeta_lower <- zeta_mid
-    }
-  }
-  
-  zeta_hat <- zeta_lower
-  coverage <- check_condition(zeta_hat)
-  if (zeta_hat == alpha/(2*k)) {
-    warning("Insufficient bootstrap samples for Bootstrapped Uniform CI. Using Bonferroni CI by default.\n")
-  }
-  
-  Q_j <- t(apply(theta_matrix, 1, quantile, probs=c(zeta_hat, 1 - zeta_hat)))
-  list(Q_j = Q_j, zeta_hat = zeta_hat, coverage = coverage)
-}
 
 bootstrapCME <- function(
     data,

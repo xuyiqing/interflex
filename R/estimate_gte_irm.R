@@ -1,294 +1,444 @@
-# Revised functions for discrete moderator X
-# Requires packages: splines, glmnet
-
-# Function to estimate group treatment effect (GTE) when X is discrete
 estimateGTE <- function(
   data,
-  Y,           # outcome variable name
-  D,           # binary treatment variable name (0/1)
-  X,           # discrete moderator variable name
-  Z = NULL,    # vector of additional covariate names
-  FE = NULL,   # vector of fixed-effect variable names
-  estimand = c("ATE", "ATT"),
-  signal = c("outcome", "ipw", "aipw"),
-  basis_type = c("polynomial", "bspline", "none"),
-  include_interactions = TRUE,
-  poly_degree = 2,
-  spline_df = 4,
+  Y,                # outcome name
+  D,                # binary treatment name
+  X,                # discrete moderator name
+  Z = NULL,         # extra covariates
+  FE = NULL,        # fixed‐effect vars
+  estimand   = c("ATE","ATT"),
+  signal     = c("outcome","ipw","aipw"),
+  basis_type = c("polynomial","bspline","none"),
+  include_interactions = FALSE,
+  poly_degree   = 2,
+  spline_df     = 4,
   spline_degree = 2,
-  XZ_design = NULL,    # optional prebuilt design matrix
-  outcome_model_type = "lasso",  # "linear", "ridge", or "lasso"
-  ps_model_type      = "lasso",  # "linear", "ridge", or "lasso"
-  lambda_cv = NULL,
-  lambda_seq = NULL,
-  verbose = TRUE
+  XZ_design     = NULL,    # optional prebuilt matrix
+  outcome_model_type = "lasso",  # "linear","ridge","lasso"
+  ps_model_type      = "lasso",  # "linear","ridge","lasso"
+  lambda_cv    = NULL,     # list(outcome1, outcome0, treatment)
+  lambda_seq   = NULL,     # glmnet λ grid
+  verbose      = TRUE
 ) {
-  # 1. Argument matching and input checks
+  if (!requireNamespace("glmnet", quietly = TRUE)) {
+    stop("Package 'glmnet' is required for penalized fits. Please install it.")
+  }
+  #— 1) args & basic checks —————————————————————————————————————————————
   estimand   <- match.arg(estimand)
   signal     <- match.arg(signal)
   basis_type <- match.arg(basis_type)
-  stopifnot(is.data.frame(data))
-  if (!(Y %in% names(data))) stop("Y not found in data.")
-  if (!(D %in% names(data))) stop("D not found in data.")
-  if (!(X %in% names(data))) stop("X not found in data.")
-  Yvec <- data[[Y]]; Dvec <- data[[D]]; Xvec <- data[[X]]
-  if (!all(Dvec %in% c(0,1))) stop("D must be binary 0/1.")
-
-  # 2. Prepare Z (non-fixed effects) and FE dummies
+  stopifnot(is.data.frame(data),
+            Y %in% names(data),
+            D %in% names(data),
+            X %in% names(data))
+  if (!is.null(lambda_cv)) {
+    allowed <- c("outcome1","outcome0","treatment")
+    extra   <- setdiff(names(lambda_cv), allowed)
+    if (length(extra) > 0) {
+      stop("lambda_cv contains invalid entry(ies): ", paste(extra, collapse = ", "))
+    }
+  }
+  Yvec <- data[[Y]]
+  Dvec <- data[[D]]
+  Xvec <- data[[X]]
+  if (!all(Dvec %in% c(0,1))) stop("D must be 0/1.")
+  
+  #— 2) prepare Z_nonFE & FE_dummies ——————————————————————————————————
   Z_nonFE <- if (!is.null(Z)) {
-    if (!all(Z %in% names(data))) stop("Some Z not in data.")
+    stopifnot(all(Z %in% names(data)))
     data[, Z, drop=FALSE]
   } else NULL
+  
   FE_dummies <- NULL
   if (!is.null(FE)) {
-    if (!all(FE %in% names(data))) stop("Some FE not in data.")
+    stopifnot(all(FE %in% names(data)))
     FE_mat <- data[, FE, drop=FALSE]
-    FE_dummies <- do.call(cbind, lapply(names(FE_mat), function(var) {
-      fac <- factor(FE_mat[[var]])
-      mm <- model.matrix(~ fac)[, -1, drop=FALSE]
-      colnames(mm) <- paste0(var, "_", levels(fac)[-1])
+    FE_dummies <- do.call(cbind, lapply(names(FE_mat), function(v) {
+      fac <- factor(FE_mat[[v]])
+      mm  <- model.matrix(~ fac)[,-1,drop=FALSE]
+      colnames(mm) <- paste0(v, "_", levels(fac)[-1])
       mm
     }))
-    if (verbose) cat("Fixed effects converted to dummies.\n")
+    if(verbose) cat("Fixed effects → dummies\n")
   }
-
-  # 3. Build design matrix if not supplied
+  
+  #— 3) build design matrix if NULL ——————————————————————————————————
   if (is.null(XZ_design)) {
     build_design_matrix <- function(X_vec, Z_nonFE, FE_dummies) {
-      # Encode discrete X as factor dummies
-      fac <- factor(X_vec)
-      X_mat <- model.matrix(~ fac)[, -1, drop=FALSE]
-      colnames(X_mat) <- paste0(deparse(substitute(X)), "_", levels(fac)[-1])
-
-      # Expand Z if needed
+      # 3A) discrete X → k–1 dummies
+      fX    <- factor(X_vec)
+      X_mat <- model.matrix(~ fX)[,-1,drop=FALSE]
+      colnames(X_mat) <- paste0(deparse(substitute(X)), "_", levels(fX)[-1])
+      
+      # 3B) expand Z_nonFE
       Z_expanded <- NULL
       if (!is.null(Z_nonFE) && ncol(Z_nonFE)>0) {
         Z_expanded <- do.call(cbind, lapply(seq_len(ncol(Z_nonFE)), function(j) {
-          vec <- Z_nonFE[[j]]; name <- colnames(Z_nonFE)[j]
+          vec   <- Z_nonFE[[j]]
+          name  <- colnames(Z_nonFE)[j]
           if (basis_type=="none") {
-            mat <- matrix(vec, ncol=1)
-            colnames(mat) <- name; mat
+            m <- matrix(vec,ncol=1); colnames(m)<-name; m
           } else if (basis_type=="polynomial") {
-            pm <- poly(vec, degree=poly_degree, raw=TRUE)
-            colnames(pm) <- paste0(name, "_poly", seq_len(ncol(pm))); pm
+            p <- poly(vec,degree=poly_degree,raw=TRUE)
+            colnames(p) <- paste0(name,"_poly",seq_len(ncol(p))); p
           } else {
-            bspl <- splines::bs(vec, df=spline_df, degree=spline_degree)
-            colnames(bspl) <- paste0(name, "_bs", seq_len(ncol(bspl))); bspl
+            b <- splines::bs(vec,df=spline_df,degree=spline_degree)
+            colnames(b) <- paste0(name,"_bs",seq_len(ncol(b))); b
           }
         }))
       }
-      # Combine Z_expanded and FE
+      
+      # 3C) stack Z_expanded + FE_dummies
       Z_block <- if (!is.null(FE_dummies)) {
         if (is.null(Z_expanded)) FE_dummies else cbind(Z_expanded, FE_dummies)
       } else Z_expanded
-
-      # Interaction terms between X and Z_expanded
+      
+      # 3D) X:Z interactions
       int_XZ <- NULL
       if (include_interactions && !is.null(Z_expanded)) {
         int_XZ <- do.call(cbind, lapply(colnames(X_mat), function(xn) {
-          X_mat[, xn] * Z_expanded
+          sweep(Z_expanded,1,X_mat[,xn],"*")
         }))
-        colnames(int_XZ) <- as.vector(outer(colnames(X_mat), colnames(Z_expanded), paste, sep="."))
+        colnames(int_XZ) <- as.vector(outer(colnames(X_mat),
+                                            colnames(Z_expanded),
+                                            paste,sep="."))
       }
 
-      cbind(X_mat, Z_block, int_XZ)
+      int_ZZ <- NULL
+      if (include_interactions && !is.null(Z_expanded) && ncol(Z_expanded) > 1) {
+        combs <- combn(colnames(Z_expanded), 2, simplify = FALSE)
+        zz_list <- lapply(combs, function(p) Z_expanded[,p[1]] * Z_expanded[,p[2]])
+        int_ZZ <- do.call(cbind, zz_list)
+        colnames(int_ZZ) <- vapply(combs, paste, collapse = ".", FUN.VALUE = "")
+      }
+      
+      cbind(X_mat, Z_block, int_XZ, int_ZZ)
     }
     XZ_design <- build_design_matrix(Xvec, Z_nonFE, FE_dummies)
-    if (verbose) cat("Design matrix built.\n")
+    if(verbose) cat("Design matrix built\n")
+  }
+  
+  n      <- nrow(data)
+  p      <- ncol(XZ_design)
+  fe_cols <- if(!is.null(FE_dummies)) {
+    grep(paste0("^(", paste(FE, collapse="|"), ")_"), colnames(XZ_design))
+  } else integer(0)
+  
+  #— 4) fit outcome & ps w/ post‐selection ——————————————————————————————
+  requireNamespace("glmnet")
+  selected <- list(outcome1=NULL, outcome0=NULL, ps=NULL)
+  lambda_used <- list(outcome1=NULL, outcome0=NULL, treatment=NULL)
+  
+  # helper for outcome fits
+  fit_outcome <- function(y, Xm, type, lam, pf) {
+    # If linear, build a data.frame with one column per predictor so
+    # predict(..., newdata=...) always returns length n = nrow(XZ_design).
+    if (type == "linear") {
+      df_lin <- data.frame(y = y, Xm)
+      colnames(df_lin)[-1] <- colnames(Xm)
+      lm0 <- lm(y ~ ., data = df_lin)
+      return(list(
+        refit  = lm0,
+        active = seq_len(ncol(Xm)),
+        lambda = NULL
+      ))
+    }
+
+    # Otherwise, do lasso/ridge + post-selection OLS
+    alpha <- ifelse(type == "lasso", 1, 0)
+    if (!is.null(lam)) {
+      fit0 <- glmnet::glmnet(Xm, y, alpha = alpha,
+                            lambda = lam, penalty.factor = pf)
+      lam0 <- lam
+    } else {
+      cv0  <- glmnet::cv.glmnet(Xm, y, alpha = alpha,
+                                lambda = lambda_seq,
+                                penalty.factor = pf)
+      fit0 <- cv0
+      lam0 <- cv0$lambda.min
+    }
+    co  <- as.numeric(coef(fit0, s = lam0))[-1]
+    act <- which(co != 0)
+
+    # Post-selection OLS on the active set
+    if (length(act) > 0) {
+      df_sel <- data.frame(y = y, Xm[, act, drop = FALSE])
+      lm1    <- lm(y ~ ., data = df_sel)
+    } else {
+      lm1    <- lm(y ~ 1, data = data.frame(y = y))
+    }
+
+    list(
+      refit  = lm1,
+      active = act,
+      lambda = lam0
+    )
   }
 
-  # 4. Fit outcome and propensity score models
-  do_outcome <- signal %in% c("outcome","aipw")
-  do_ps      <- signal %in% c("ipw","aipw")
-  out_fit1 <- out_fit0 <- ps_fit <- NULL
-  mu1_hat <- mu0_hat <- p_hat <- NULL
+  
+  # helper for PS fits
+  fit_ps <- function(d, Xm, type, lam) {
+    # 1) Linear logistic refit with df having one column per predictor
+    if (type == "linear") {
+      df_lin <- data.frame(d = d, Xm)
+      colnames(df_lin)[-1] <- colnames(Xm)
+      gl0 <- glm(d ~ ., data = df_lin, family = binomial)
+      return(list(
+        refit  = gl0,
+        active = seq_len(ncol(Xm)),
+        lambda = NULL
+      ))
+    }
 
-  # Outcome
-  if (do_outcome) {
+    # 2) Lasso/Ridge + post‐selection logistic
+    alpha <- ifelse(type == "lasso", 1, 0)
+    if (!is.null(lam)) {
+      fit0 <- glmnet::glmnet(Xm, d, alpha = alpha,
+                            lambda = lam, family = "binomial")
+      lam0 <- lam
+    } else {
+      cv0  <- glmnet::cv.glmnet(Xm, d, alpha = alpha,
+                                lambda = lambda_seq,
+                                family = "binomial")
+      fit0 <- cv0
+      lam0 <- cv0$lambda.min
+    }
+
+    co  <- as.numeric(coef(fit0, s = lam0))[-1]
+    act <- which(co != 0)
+
+    # Post-selection refit
+    if (length(act) > 0) {
+      df_sel <- data.frame(d = d, Xm[, act, drop = FALSE])
+      gl1    <- glm(d ~ ., data = df_sel, family = binomial)
+    } else {
+      gl1    <- glm(d ~ 1, data = data.frame(d = d), family = binomial)
+    }
+
+    list(
+      refit  = gl1,
+      active = act,
+      lambda = lam0
+    )
+  }
+
+  
+  # 4A) outcome
+  mu1_hat <- mu0_hat <- NULL
+  if (signal %in% c("outcome","aipw")) {
+    if(verbose) cat("Fitting outcome models...\n")
     idx1 <- which(Dvec==1); idx0 <- which(Dvec==0)
-    fit_model <- function(y, Xmat, type, lambda, pf) {
-      if (type=="linear") {
-        df <- data.frame(y=y, Xmat); lm(y~., data=df)
-      } else {
-        alpha <- ifelse(type=="lasso",1,0)
-        cv <- glmnet::cv.glmnet(Xmat, y, alpha=alpha, lambda=lambda_seq, penalty.factor=pf)
-        cv
-      }
-    }
-    pf_out <- rep(1, ncol(XZ_design))
-    if (!is.null(FE_dummies)) {
-      fe_idx <- grep(paste0("^(", paste(FE, collapse="|"), ")_"), colnames(XZ_design))
-      pf_out[fe_idx] <- 0
-    }
-    X1 <- XZ_design[idx1,,drop=FALSE]; X0 <- XZ_design[idx0,,drop=FALSE]
-    fit1 <- fit_model(Yvec[idx1], X1, outcome_model_type, lambda_cv$outcome1, pf_out)
-    fit0 <- fit_model(Yvec[idx0], X0, outcome_model_type, lambda_cv$outcome0, pf_out)
-    pred_out <- function(fit, Xmat) {
-      if (inherits(fit, "cv.glmnet")) as.numeric(predict(fit, newx=Xmat, s="lambda.min")) else as.numeric(predict(fit, newdata=as.data.frame(Xmat)))
-    }
-    mu1_hat <- pred_out(fit1, XZ_design)
-    mu0_hat <- pred_out(fit0, XZ_design)
-    out_fit1 <- fit1; out_fit0 <- fit0
-  }
+    X1   <- XZ_design[idx1,,drop=FALSE]; y1 <- Yvec[idx1]
+    X0   <- XZ_design[idx0,,drop=FALSE]; y0 <- Yvec[idx0]
+    # penalty.factor: zero on FE cols
+    pf <- rep(1, p); pf[fe_cols] <- 0
+    
+    o1 <- fit_outcome(y1, X1, outcome_model_type,
+                      if(!is.null(lambda_cv)) lambda_cv$outcome1 else NULL, pf)
+    o0 <- fit_outcome(y0, X0, outcome_model_type,
+                      if(!is.null(lambda_cv)) lambda_cv$outcome0 else NULL, pf)
+    
+    mu1_hat <- predict(o1$refit, newdata=as.data.frame(XZ_design))
+    mu0_hat <- predict(o0$refit, newdata=as.data.frame(XZ_design))
 
-  # Propensity score
-  if (do_ps) {
-    X_ps <- XZ_design
-    if (!is.null(FE_dummies)) X_ps <- X_ps[, -grep(paste0("^", paste(FE,collapse="|"),"_"), colnames(XZ_design)), drop=FALSE]
-    fit_ps <- function(d, Xmat, type) {
-      if (type=="linear") glm(d~., data=data.frame(d=d,Xmat), family=binomial())
-      else glmnet::cv.glmnet(Xmat, d, alpha=ifelse(type=="lasso",1,0), family="binomial", lambda=lambda_seq)
-    }
-    fitp <- fit_ps(Dvec, X_ps, ps_model_type)
-    pred_ps <- function(fit, Xmat) {
-      if (inherits(fit, "cv.glmnet")) as.numeric(predict(fit, newx=Xmat, s="lambda.min", type="response"))
-      else as.numeric(predict(fit, newdata=as.data.frame(Xmat), type="response"))
-    }
-    p_hat <- pred_ps(fitp, X_ps)
-    p_hat <- pmin(pmax(p_hat, 1e-2), 1-1e-2)
-    ps_fit <- fitp
+    selected$outcome1 <- o1$active
+    selected$outcome0 <- o0$active
+    lambda_used$outcome1 <- o1$lambda
+    lambda_used$outcome0 <- o0$lambda
   }
-
-  # 5. Compute group-level p_hat_gam for ATT
+  
+  # 4B) propensity
+  p_hat <- NULL; ps_fit <- NULL
+  if (signal %in% c("ipw","aipw")) {
+    if(verbose) cat("Fitting propensity model...\n")
+    # drop FE cols from PS design
+    Xps <- if(length(fe_cols)>0) XZ_design[,-fe_cols,drop=FALSE] else XZ_design
+    p1 <- fit_ps(Dvec, Xps, ps_model_type,
+                 if(!is.null(lambda_cv)) lambda_cv$treatment else NULL)
+    p_hat <- predict(p1$refit, newdata=as.data.frame(Xps), type="response")
+    p_hat <- pmin(pmax(p_hat,1e-6),1-1e-6)
+    
+    selected$ps <- p1$active
+    lambda_used$treatment <- p1$lambda
+    ps_fit <- p1$refit
+  }
+  
+  #— 5) for ATT, group‐mean p(D=1|X) ————————————————————————————————
+  p_hat_X <- NULL
   if (estimand=="ATT") {
-    fac <- factor(Xvec)
-    p_hat_gam_group <- tapply(Dvec, fac, mean)
-    p_hat_gam <- as.numeric(p_hat_gam_group[as.character(fac)])
+    grp <- tapply(Dvec, Xvec, mean)
+    p_hat_X <- grp[as.character(Xvec)]
   }
-
-  # 6. Compute individual signals based on estimand
+  
+  #— 6) build individual signal —————————————————————————————————————
   if (estimand=="ATE") {
     est_signal <- switch(signal,
       outcome = mu1_hat - mu0_hat,
       ipw     = Dvec*Yvec/p_hat - (1-Dvec)*Yvec/(1-p_hat),
-      aipw    = (mu1_hat - mu0_hat) + Dvec*(Yvec-mu1_hat)/p_hat - (1-Dvec)*(Yvec-mu0_hat)/(1-p_hat)
+      aipw    = (mu1_hat - mu0_hat) + 
+                 Dvec*(Yvec-mu1_hat)/p_hat - (1-Dvec)*(Yvec-mu0_hat)/(1-p_hat)
     )
-  } else { # ATT
+  } else {
     est_signal <- switch(signal,
-      outcome = (Yvec - mu0_hat) * Dvec / p_hat_gam,
-      ipw     = Yvec * (Dvec - p_hat) / ((1 - p_hat) * p_hat_gam),
-      aipw    = ((Yvec - mu0_hat) * (Dvec - (1-Dvec)*p_hat/(1-p_hat))) / p_hat_gam
+      outcome = (Yvec - mu0_hat)*Dvec/p_hat_X,
+      ipw     = Yvec*(Dvec - p_hat)/((1-p_hat)*p_hat_X),
+      aipw    = ((Yvec - mu0_hat)*(Dvec - (1-Dvec)*p_hat/(1-p_hat))) / p_hat_X
+    )
+  }
+  
+  #— 7) collapse by X ————————————————————————————————————————————————
+  gte_vals <- tapply(est_signal, Xvec, mean)
+  gte_df   <- data.frame(
+    X   = names(gte_vals),
+    GTE = as.numeric(gte_vals),
+    row.names = NULL,
+    stringsAsFactors = FALSE
+  )
+  
+  #— 8) return everything ———————————————————————————————————————————
+  ret <- list(
+    XZ_design   = XZ_design,
+    mu1_hat     = mu1_hat,
+    mu0_hat     = mu0_hat,
+    p_hat       = p_hat,
+    p_hat_X   = p_hat_X,
+    est_signal  = est_signal,
+    gte_df      = gte_df,
+    selected    = selected,
+    lambda_used = lambda_used,
+    signal      = signal,
+    estimand    = estimand
+  )
+
+  # only include outcome_fit when we actually fit an outcome model
+  if (signal %in% c("outcome","aipw")) {
+    ret$outcome_fit <- list(
+      fit1 = o1$refit,
+      fit0 = o0$refit
     )
   }
 
-  # 7. Group average by X
-  fac <- factor(Xvec)
-  levels_X <- levels(fac)
-  gte_vals <- tapply(est_signal, fac, mean)
-  gte_df <- data.frame(X = levels_X, GTE = as.numeric(gte_vals), row.names = NULL)
+  # only include ps_fit when we actually fit a PS model
+  if (signal %in% c("ipw","aipw")) {
+    ret$ps_fit <- ps_fit
+  }
 
-  # 8. Return
-  list(
-    XZ_design = XZ_design,
-    mu1_hat   = mu1_hat,
-    mu0_hat   = mu0_hat,
-    p_hat     = p_hat,
-    est_signal= est_signal,
-    gte_df    = gte_df,
-    signal    = signal,
-    estimand  = estimand
-  )
+  return(ret)
 }
 
-# Bootstrap function for GTE (works for both ATE and ATT)
+
 bootstrapGTE <- function(
-  data, Y, D, X,
-  Z = NULL, FE = NULL,
-  estimand = c("ATE","ATT"),
-  signal   = c("outcome","ipw","aipw"),
-  B        = 200, alpha = 0.05,
-  basis_type = c("polynomial","bspline","none"),
-  include_interactions = TRUE,
+  data, Y, D, X, Z=NULL, FE=NULL,
+  estimand   = c("ATE","ATT"),
+  signal     = c("outcome","ipw","aipw"),
+  B          = 200, alpha = 0.05,
+  outcome_model_type   = "lasso",
+  ps_model_type        = "lasso",
+  basis_type           = c("polynomial","bspline","none"),
+  include_interactions = FALSE,
   poly_degree          = 2,
   spline_df            = 4,
   spline_degree        = 2,
-  outcome_model_type   = "lasso",
-  ps_model_type        = "lasso",
   lambda_seq           = NULL,
   verbose              = TRUE
 ) {
-  estimand   <- match.arg(estimand)
   signal     <- match.arg(signal)
+  estimand   <- match.arg(estimand)
   basis_type <- match.arg(basis_type)
 
-  if(verbose) message("BootstrapGTE Step 1: Fitting full-sample GTE...")
-  full <- estimateGTE(
-    data, Y, D, X, Z, FE,
-    estimand, signal,
-    basis_type, include_interactions,
-    poly_degree, spline_df, spline_degree,
-    NULL, outcome_model_type, ps_model_type,
-    NULL, lambda_seq, verbose
+  if(verbose) message("1) Fit full-sample GTE…")
+  fit_full <- estimateGTE(
+    data                  = data,
+    Y                     = Y,
+    D                     = D,
+    X                     = X,
+    Z                     = Z,
+    FE                    = FE,
+    estimand              = estimand,
+    signal                = signal,
+    basis_type            = basis_type,
+    include_interactions  = include_interactions,
+    poly_degree           = poly_degree,
+    spline_df             = spline_df,
+    spline_degree         = spline_degree,
+    # no lambda_cv here so CV is used if needed
+    lambda_seq            = lambda_seq,
+    verbose               = verbose
   )
-  if(verbose) message("  → Done.")
 
-  Xlev    <- full$gte_df$X
-  gte_full<- full$gte_df$GTE
-  n       <- nrow(data)
-  K       <- length(Xlev)
-  XZ_full <- full$XZ_design
+  # —— key renames —— 
+  gte_full    <- fit_full$gte_df$GTE         # was cme_df$CME
+  X_group     <- fit_full$gte_df$X           # was cme_df$X
+  lambda_used <- fit_full$lambda_used        # was fit_full$lambda_cv
+  # (we drop selected_covars entirely)
 
-  if(verbose) message("BootstrapGTE Step 2: Initializing cluster and storage...")
-  gte_mat <- matrix(NA_real_, nrow=B, ncol=K)
-  idx_seq <- seq_len(n)
-  if(!requireNamespace("doParallel",quietly=TRUE)) stop("doParallel needed")
+  n    <- nrow(data)
+  K    <- length(X_group)
+  XZ0  <- fit_full$XZ_design
+
+  if(verbose) message("2) Bootstrapping…")
   cl <- parallel::makeCluster(parallel::detectCores())
   doParallel::registerDoParallel(cl)
   `%dopar%` <- foreach::`%dopar%`
+  idx <- seq_len(n)
 
-  if(verbose) message("BootstrapGTE Step 3: Starting bootstraps...")
   res_mat <- foreach::foreach(
     b = seq_len(B),
     .combine  = "rbind",
-    .export   = "estimateGTE",
-    .packages = c("splines","glmnet")
+    .export = c("estimateGTE"),
+    .packages = c("glmnet","splines")
   ) %dopar% {
     set.seed(1000 + b)
-    idx_b <- sample(idx_seq, size=n, replace=TRUE)
-    db    <- data[idx_b, , drop=FALSE]
-    XZb   <- XZ_full[idx_b, , drop=FALSE]
-    fb    <- estimateGTE(
-      db, Y, D, X, NULL, FE,
-      estimand, signal,
-      basis_type, FALSE,
-      poly_degree, spline_df, spline_degree,
-      XZb, outcome_model_type, ps_model_type,
-      NULL, lambda_seq, FALSE
+    ids    <- sample(idx, n, replace=TRUE)
+    dat_b  <- data[ids,    , drop=FALSE]
+    XZ_b   <- XZ0[ ids,    , drop=FALSE]
+
+    fit_b <- estimateGTE(
+      data                  = dat_b,
+      Y                     = Y,
+      D                     = D,
+      X                     = X,
+      Z                     = NULL,          # design matrix already built
+      FE                    = FE,
+      estimand              = estimand,
+      signal                = signal,
+      basis_type            = "none",        # design fixed
+      include_interactions  = FALSE,
+      poly_degree           = poly_degree,
+      spline_df             = spline_df,
+      spline_degree         = spline_degree,
+      XZ_design             = XZ_b,          # pass in bootstrap design
+      outcome_model_type    = outcome_model_type,
+      ps_model_type         = ps_model_type,
+      lambda_cv             = lambda_used,   # reuse full-sample λ's
+      lambda_seq            = lambda_seq,
+      verbose               = FALSE
     )
-    fb$gte_df$GTE
+    fit_b$gte_df$GTE
   }
   parallel::stopCluster(cl)
-  if(verbose) message("  → Bootstraps complete.")
 
-  gte_mat[,] <- res_mat
-  if(verbose) message("BootstrapGTE Step 4: Computing SE and CIs...")
-  se   <- apply(gte_mat, 2, sd, na.rm=TRUE)
-  ci_l <- apply(gte_mat, 2, quantile, probs=alpha/2, na.rm=TRUE)
-  ci_u <- apply(gte_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)
-
-  # Uniform confidence bands
-  theta_mat    <- t(gte_mat)
-  uni_res      <- calculate_uniform_quantiles(theta_mat, alpha)
-  ci_l_uni     <- uni_res$Q_j[,1]
-  ci_u_uni     <- uni_res$Q_j[,2]
-  coverage_uni <- uni_res$coverage
+  if(verbose) message("3) Computing SE & CIs…")
+  se   <- apply(res_mat, 2, sd, na.rm=TRUE)
+  ci_l <- apply(res_mat, 2, quantile, probs=alpha/2, na.rm=TRUE)
+  ci_u <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)
+  uni  <- calculate_uniform_quantiles(t(res_mat), alpha)
 
   results <- data.frame(
-    X                = Xlev,
-    GTE              = gte_full,
-    SE               = se,
-    CI.lower         = ci_l,
-    CI.upper         = ci_u,
-    CI.lower.uniform = ci_l_uni,
-    CI.upper.uniform = ci_u_uni,
-    stringsAsFactors = FALSE
+    X                 = X_group,
+    GTE               = gte_full,
+    SE                = se,
+    CI.lower          = ci_l,
+    CI.upper          = ci_u,
+    CI.lower.uniform  = uni$Q_j[,1],
+    CI.upper.uniform  = uni$Q_j[,2],
+    stringsAsFactors  = FALSE
   )
 
-  if(verbose) message("BootstrapGTE Step 5: Returning results.")
+  if(verbose) message("Done.")
   list(
     results      = results,
-    boot_results = gte_mat,
-    coverage     = coverage_uni,
-    fit_full     = full
+    boot_results = res_mat,
+    coverage     = uni$coverage,
+    fit_full     = fit_full
   )
 }
