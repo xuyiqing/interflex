@@ -424,7 +424,7 @@ bootstrapGTE <- function(
   uni  <- calculate_uniform_quantiles(t(res_mat), alpha)
 
   results <- data.frame(
-    X                 = X_group,
+    X                 = as.numeric(X_group),
     GTE               = gte_full,
     SE                = se,
     CI.lower          = ci_l,

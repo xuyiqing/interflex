@@ -330,7 +330,7 @@ bootstrapGATE_PLR <- function(
   uni   <- calculate_uniform_quantiles(t(res_mat), alpha)
 
   results <- data.frame(
-    X                 = lvls,
+    X                 = as.numeric(lvls),
     GATE              = g_full,
     SE                = se,
     CI.lower          = cil,
