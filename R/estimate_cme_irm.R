@@ -1,4 +1,33 @@
 
+#' @title Estimate Conditional Marginal Effects (CME) using AIPW-Lasso
+#' @description This function estimates the CME using outcome, IPW, or AIPW signals.
+#' It supports basis expansion, fixed effects, and post-Lasso model refitting.
+#'
+#' @param data A data.frame containing the variables.
+#' @param Y Character string, the name of the outcome variable.
+#' @param D Character string, the name of the binary treatment variable.
+#' @param X Character string, the name of the moderator variable.
+#' @param Z Character vector, names of additional covariates.
+#' @param FE Character vector, names of fixed effect variables.
+#' @param estimand Character, either 'ATE' or 'ATT'.
+#' @param signal Character, one of "outcome", "ipw", or "aipw".
+#' @param neval Integer, number of points for the evaluation grid of X.
+#' @param XZ_design A pre-built design matrix for covariates. If NULL, it's created internally.
+#' @param outcome_model_type Character, one of "linear", "ridge", or "lasso".
+#' @param ps_model_type Character, one of "linear", "ridge", or "lasso".
+#' @param basis_type Character, one of "polynomial", "bspline", or "none".
+#' @param include_interactions Logical, whether to include interactions in the design matrix.
+#' @param poly_degree Integer, degree for polynomial basis expansion.
+#' @param spline_df Integer, degrees of freedom for B-spline basis.
+#' @param spline_degree Integer, degree for B-spline basis.
+#' @param lambda_cv A list of pre-specified lambda values for glmnet, used during bootstrapping.
+#' @param lambda_seq A custom sequence of lambda values for glmnet cross-validation.
+#' @param reduce.dimension Character, method for smoothing the final signal: "bspline" or "kernel".
+#' @param best_span A pre-specified span for LOESS smoothing, used during bootstrapping.
+#' @param x.eval A numeric vector for the evaluation grid of X.
+#' @param verbose Logical, whether to print progress messages.
+#' @return A list containing the estimation results.
+#'
 estimateCME <- function(
     data,
     Y,          # name of outcome variable in 'data'
@@ -23,19 +52,22 @@ estimateCME <- function(
     # polynomial or B-spline expansion in the design matrix
     basis_type         = c("polynomial", "bspline", "none"),
     include_interactions = FALSE,
-    poly_degree        = 2,    # only used if basis_type="polynomial"
+    poly_degree        = 2,      # only used if basis_type="polynomial"
     
     # B-spline parameters (used if basis_type="bspline", or for final CME fit)
     spline_df          = 4,
     spline_degree      = 2,
     
     lambda_cv = NULL, # stored penalty parameters
-    lambda_seq         = NULL, # optional custom lambda sequence for glmnet
-    reduce.dimension   = c("bspline","kernel"), 
+    lambda_seq        = NULL, # optional custom lambda sequence for glmnet
+    reduce.dimension  = c("bspline","kernel"), 
     best_span         = NULL,
-    x.eval             = NULL, # grid of X values for final CME curve
-    selected_covars = NULL,
-    verbose            = TRUE
+    x.eval            = NULL, # grid of X values for final CME curve
+    # --- CHANGE MADE HERE ---
+    # The `selected_covars` argument has been removed from this function signature.
+    # It was not being used as an input, so removing it improves clarity.
+    # The function still calculates and returns the selected covariates as an output.
+    verbose           = TRUE
 ) {
   
   out_fit1 <- NULL
@@ -103,7 +135,7 @@ estimateCME <- function(
     build_design_matrix <- function(X_vec, Z_nonFE, FE_dummies) {
       # helper for B-spline expansion
       build_bspline_cols <- function(vec, varname, df, degree) {
-        m <- bs(vec, df=df, degree=degree)
+        m <- splines::bs(vec, df=df, degree=degree)
         colnames(m) <- paste0(varname,"_bs", seq_len(ncol(m)))
         m
       }
@@ -171,7 +203,7 @@ estimateCME <- function(
         }
         if (!is.null(int_XZ)) {
           colnames(int_XZ) <- apply(expand.grid(colnames(X_mat), colnames(Z_expanded)), 1,
-                                    paste, collapse=".")
+                                      paste, collapse=".")
         }
       }
       
@@ -241,18 +273,18 @@ estimateCME <- function(
       else if (model_type=="ridge") {
         if (is.null(lambda_use)) {
           if (is.null(pf)) {
-            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_seq)
+            fit_cv <- glmnet::cv.glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_seq)
           } else {
-            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_seq,
-                                penalty.factor = pf)
+            fit_cv <- glmnet::cv.glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_seq,
+                                      penalty.factor = pf)
           }
-          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
+          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)        
         } else {
           if (is.null(pf)) {
-            fit <- glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_use)
+            fit <- glmnet::glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_use)
           } else {
-            fit <- glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_use,
-                          penalty.factor = pf)
+            fit <- glmnet::glmnet(x=x_sub, y=y_sub, alpha=0, lambda=lambda_use,
+                                penalty.factor = pf)
           }
           list(fit=fit, type="glmnet", lambda = lambda_use)  
         }
@@ -260,18 +292,18 @@ estimateCME <- function(
       else if (model_type=="lasso") {
         if (is.null(lambda_use)) {
           if (is.null(pf)) {
-            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_seq)
+            fit_cv <- glmnet::cv.glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_seq)
           } else {
-            fit_cv <- cv.glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_seq,
-                                penalty.factor = pf)
+            fit_cv <- glmnet::cv.glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_seq,
+                                      penalty.factor = pf)
           }
-          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
+          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)        
         } else {
           if (is.null(pf)) {
-            fit <- glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_use)
+            fit <- glmnet::glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_use)
           } else {
-            fit <- glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_use,
-                          penalty.factor = pf)
+            fit <- glmnet::glmnet(x=x_sub, y=y_sub, alpha=1, lambda=lambda_use,
+                                penalty.factor = pf)
           }
           list(fit=fit, type="glmnet", lambda = lambda_use)  
         }
@@ -317,20 +349,20 @@ estimateCME <- function(
       } 
       else if (model_type=="ridge") {
         if (is.null(lambda_use)) {
-          fit_cv <- cv.glmnet(x=Xmat, y=D, alpha=0, family="binomial", lambda=lambda_seq)
-          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
+          fit_cv <- glmnet::cv.glmnet(x=Xmat, y=D, alpha=0, family="binomial", lambda=lambda_seq)
+          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)        
         } else {
-          fit <- glmnet(x=Xmat, y=D, alpha=0, family="binomial", lambda=lambda_use)
-          list(fit=fit, type="glmnet", lambda = lambda_use)             
+          fit <- glmnet::glmnet(x=Xmat, y=D, alpha=0, family="binomial", lambda=lambda_use)
+          list(fit=fit, type="glmnet", lambda = lambda_use)          
         }
       } 
       else if (model_type=="lasso") {
         if (is.null(lambda_use)) {
-          fit_cv <- cv.glmnet(x=Xmat, y=D, alpha=1, family="binomial", lambda=lambda_seq)
-          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)          
+          fit_cv <- glmnet::cv.glmnet(x=Xmat, y=D, alpha=1, family="binomial", lambda=lambda_seq)
+          list(fit=fit_cv, type="glmnet", lambda = fit_cv$lambda.min)        
         } else {
-          fit <- glmnet(x=Xmat, y=D, alpha=1, family="binomial", lambda=lambda_use)
-          list(fit=fit, type="glmnet", lambda = lambda_use)             
+          fit <- glmnet::glmnet(x=Xmat, y=D, alpha=1, family="binomial", lambda=lambda_use)
+          list(fit=fit, type="glmnet", lambda = lambda_use)          
         }
       } 
       else {
@@ -463,7 +495,7 @@ estimateCME <- function(
                             spline_df, spline_degree,
                             best_span) {
     if (method=="bspline") {
-      fit_lm <- lm(y_signal ~ bs(x_vec, df=spline_df, degree=spline_degree))
+      fit_lm <- lm(y_signal ~ splines::bs(x_vec, df=spline_df, degree=spline_degree))
       preds  <- predict(fit_lm, newdata=data.frame(x_vec=x_eval))
       return(list(preds=preds, best_span = NULL))
     } else {
@@ -476,7 +508,6 @@ estimateCME <- function(
           for (k in seq_len(K)) {
             tr <- which(folds != k)
             te <- which(folds == k)
-            #cat("  Fold", k, ": length(tr) =", length(tr), " unique(x[tr]) =", length(unique(x[tr])), "\n")
             model_k <- loess(y[tr] ~ x[tr], span=span, degree=degree)
             pred_k  <- predict(model_k, newdata=x[te])
             mse_vec[k] <- mean((y[te]-pred_k)^2, na.rm=TRUE)
@@ -513,13 +544,13 @@ estimateCME <- function(
         Dvec * (Yvec - mu1_hat) / p_hat - (1 - Dvec) * (Yvec - mu0_hat) / (1 - p_hat)
 
       cme_dr_eval <- do_reduce_dim(dr_signal, Xvec, x.eval, reduce.dimension,
-                                   spline_df, spline_degree, best_span)
+                                     spline_df, spline_degree, best_span)
       cme_df <- data.frame(X.eval = x.eval, CME = cme_dr_eval$preds)
       best_span <- cme_dr_eval$best_span
     }    
   }
   else if(estimand == 'ATT'){
-    fit_gam <- gam(Dvec ~ s(Xvec), family = binomial)
+    fit_gam <- mgcv::gam(Dvec ~ s(Xvec), family = binomial)
     p_hat_gam <- predict(fit_gam, type = "response")
     
     if (signal == "outcome") {
@@ -540,10 +571,10 @@ estimateCME <- function(
       est.signal <- dr_signal <- ((Yvec - mu0_hat)*(Dvec - (1-Dvec)*p_hat/(1-p_hat)))/p_hat_gam
         
       cme_dr_eval <- do_reduce_dim(dr_signal, Xvec, x.eval, reduce.dimension,
-                                   spline_df, spline_degree, best_span)
+                                     spline_df, spline_degree, best_span)
       cme_df <- data.frame(X.eval = x.eval, CME = cme_dr_eval$preds)
       best_span <- cme_dr_eval$best_span
-    }       
+    }     
   }
 
   
@@ -571,6 +602,23 @@ estimateCME <- function(
 
 
 
+#' @title Bootstrap Confidence Intervals for Conditional Marginal Effects (CME)
+#' @description This function performs a nonparametric bootstrap to compute pointwise and
+#' uniform confidence intervals for the CME curve.
+#'
+#' @param data A data.frame containing the variables.
+#' @param Y Character string, the name of the outcome variable.
+#' @param D Character string, the name of the binary treatment variable.
+#' @param X Character string, the name of the moderator variable.
+#' @param Z Character vector, names of additional covariates.
+#' @param FE Character vector, names of fixed effect variables.
+#' @param estimand Character, either 'ATE' or 'ATT'.
+#' @param signal Character, one of "outcome", "ipw", or "aipw".
+#' @param B Integer, number of bootstrap replications.
+#' @param alpha Numeric, significance level for confidence intervals.
+#' @param ... Additional arguments passed to `estimateCME`.
+#' @return A list with bootstrap results, including a data.frame with the final CME estimates and CIs.
+#'
 bootstrapCME <- function(
     data,
     Y, D, X, Z = NULL, FE = NULL,
@@ -601,7 +649,7 @@ bootstrapCME <- function(
     
     # Dimension-reduction method for final CME curve
     reduce.dimension   = c("bspline","kernel"),
-    best_span         = NULL,
+    best_span          = NULL,
     x.eval             = NULL,
     
     verbose = TRUE
@@ -613,26 +661,26 @@ bootstrapCME <- function(
   
   # 1. Fit once on the full dataset
   fit_full <- estimateCME(
-    data                = data,
-    Y                   = Y,
-    D                   = D,
-    X                   = X,
-    Z                   = Z,
-    FE                  = FE,
-    estimand            = estimand,
-    signal              = signal,
-    outcome_model_type  = outcome_model_type,
-    ps_model_type       = ps_model_type,
-    basis_type          = basis_type,
+    data               = data,
+    Y                  = Y,
+    D                  = D,
+    X                  = X,
+    Z                  = Z,
+    FE                 = FE,
+    estimand           = estimand,
+    signal             = signal,
+    outcome_model_type = outcome_model_type,
+    ps_model_type      = ps_model_type,
+    basis_type         = basis_type,
     include_interactions= include_interactions,
-    poly_degree         = poly_degree,
-    spline_df           = spline_df,
-    spline_degree       = spline_degree,
-    lambda_seq          = lambda_seq,
-    reduce.dimension    = reduce.dimension,
-    best_span           = best_span,
-    x.eval              = x.eval,
-    verbose             = verbose
+    poly_degree        = poly_degree,
+    spline_df          = spline_df,
+    spline_degree      = spline_degree,
+    lambda_seq         = lambda_seq,
+    reduce.dimension   = reduce.dimension,
+    best_span          = best_span,
+    x.eval             = x.eval,
+    verbose            = verbose
   )
   if (verbose) message("Baseline CME estimation complete.")
   
@@ -641,10 +689,9 @@ bootstrapCME <- function(
   nEval    <- length(x.eval)
   n        <- nrow(data)
   
-  XZ_full         <- fit_full$XZ_design
-  selected_covars <- fit_full$selected_covars
-  lambda_cv <- fit_full$lambda_cv
-  best_span_full  <- fit_full$best_span
+  XZ_full        <- fit_full$XZ_design
+  lambda_cv      <- fit_full$lambda_cv
+  best_span_full <- fit_full$best_span
   
   if (verbose) message("BootstrapCME Step 2: Setting up bootstrap storage and parallel cluster...")
   cme_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
@@ -672,36 +719,32 @@ bootstrapCME <- function(
     use_out_model <- outcome_model_type
     use_ps_model  <- ps_model_type
     
-    #if (!is.null(selected_covars) && length(selected_covars) > 0) {
-      #keep_idx <- match(selected_covars, colnames(XZ_full))
-      #XZ_b     <- XZ_b[, keep_idx, drop = FALSE]
-    #  use_out_model <- "linear"
-    #  use_ps_model  <- "linear"
-    #}
-    
     fit_b <- estimateCME(
-      data                = data_b,
-      Y                   = Y,
-      D                   = D,
-      X                   = X,
-      Z                   = NULL, # design matrix already provided
-      FE                  = FE,  
-      estimand            = estimand,
-      signal              = signal,
-      XZ_design           = XZ_b,
-      outcome_model_type  = use_out_model,
-      ps_model_type       = use_ps_model,
-      basis_type          = "none",  # not needed if XZ_design is given
+      data               = data_b,
+      Y                  = Y,
+      D                  = D,
+      X                  = X,
+      Z                  = NULL, # design matrix already provided
+      FE                 = FE,   
+      estimand           = estimand,
+      signal             = signal,
+      XZ_design          = XZ_b,
+      outcome_model_type = use_out_model,
+      ps_model_type      = use_ps_model,
+      basis_type         = "none",  # not needed if XZ_design is given
       include_interactions= FALSE,
-      spline_df           = spline_df,
-      spline_degree       = spline_degree,
-      lambda_seq          = lambda_seq,
-      reduce.dimension    = reduce.dimension,
-      best_span           = best_span_full,
-      x.eval              = x.eval,
-      selected_covars     = selected_covars,
+      spline_df          = spline_df,
+      spline_degree      = spline_degree,
+      lambda_seq         = lambda_seq,
+      reduce.dimension   = reduce.dimension,
+      best_span          = best_span_full,
+      x.eval             = x.eval,
+      # --- CHANGE MADE HERE ---
+      # The `selected_covars` argument has been removed from this function call.
+      # The logic remains correct, as each bootstrap run now correctly performs its own
+      # variable selection internally.
       lambda_cv = lambda_cv,
-      verbose             = FALSE
+      verbose            = FALSE
     )
     fit_b$cme_df$CME
   }
@@ -720,13 +763,14 @@ bootstrapCME <- function(
   
   theta_mat <- t(cme_mat_bs)
   uni_res   <- calculate_uniform_quantiles(theta_mat, alpha)
+
   
   cme_ci_l_uni <- uni_res$Q_j[,1]
   cme_ci_u_uni <- uni_res$Q_j[,2]
   coverage_uni <- uni_res$coverage
   
   final_df <- data.frame(
-    X           = x.eval,
+    X                = x.eval,
     CME              = cme_full,
     SE               = cme_se,
     CI.lower         = cme_ci_l,
@@ -737,7 +781,7 @@ bootstrapCME <- function(
   
   if (verbose) message("BootstrapCME Step 6: Finalizing and returning bootstrap results.")
   out_list <- list(
-    results  = final_df,
+    results    = final_df,
     boot_results = cme_mat_bs,
     coverage = coverage_uni,
     fit_full = fit_full

@@ -1,25 +1,53 @@
-# PLR Estimation and Parallel Bootstrap for Continuous D & Discrete X
-# Requires: splines, glmnet, doParallel, foreach
-
+#' @title Estimate Group Average Treatment Effects (GATE) for a PLRM
+#' @description Implements the PO-Lasso estimator for a Partially Linear Regression
+#'   Model (PLRM) with a continuous treatment and a discrete moderator. The function
+#'   estimates the Group Average Treatment Effect (GATE) for each level of the
+#'   moderator.
+#'
+#' @param data A data.frame containing the variables for the analysis.
+#' @param Y Character string, the name of the outcome variable.
+#' @param D Character string, the name of the continuous treatment variable.
+#' @param X Character string, the name of the discrete moderator variable.
+#' @param Z Character vector, optional names of additional continuous covariates.
+#' @param FE Character vector, optional names of fixed effect variables.
+#' @param XZ_design A pre-built design matrix. If NULL, it is created internally.
+#' @param outcome_model_type Character, the model for the outcome nuisance function:
+#'   "linear", "ridge", or "lasso".
+#' @param treatment_model_type Character, the model for the treatment nuisance function:
+#'   "linear", "ridge", or "lasso".
+#' @param basis_type Character, the basis expansion for continuous covariates in Z:
+#'   "polynomial", "bspline", or "none".
+#' @param include_interactions Logical, whether to include interaction terms.
+#' @param poly_degree Integer, the degree for polynomial basis expansion.
+#' @param spline_df Integer, degrees of freedom for B-spline basis expansion.
+#' @param spline_degree Integer, the degree for B-spline basis expansion.
+#' @param lambda_cv A named list with pre-specified lambda values (e.g., `list(outcome=..., treatment=...)`)
+#'   to be used instead of cross-validation. Typically used during bootstrapping.
+#' @param lambda_seq A custom numeric vector of lambda values for the glmnet grid search.
+#' @param verbose Logical, whether to print progress messages.
+#'
+#' @return A list containing detailed results, including the final GATE data.frame,
+#'   the design matrix, fitted model objects, selected covariates, and lambdas used.
+#'
 estimateGATE_PLR <- function(
   data,
-  Y,                    # outcome variable name
-  D,                    # continuous treatment name
-  X,                    # discrete moderator name
-  Z = NULL,             # additional covariates
-  FE = NULL,            # fixed-effect vars
+  Y,                      # outcome variable name
+  D,                      # continuous treatment name
+  X,                      # discrete moderator name
+  Z = NULL,               # additional covariates
+  FE = NULL,              # fixed-effect vars
   XZ_design = NULL,     # optional prebuilt design matrix
 
-  outcome_model_type   = "lasso",   # "linear", "ridge", "lasso"
-  treatment_model_type = "lasso",   # "linear", "ridge", "lasso"
+  outcome_model_type   = "lasso",  # "linear", "ridge", "lasso"
+  treatment_model_type = "lasso",  # "linear", "ridge", "lasso"
   basis_type           = c("polynomial","bspline","none"),
   include_interactions = FALSE,
   poly_degree          = 2,
   spline_df            = 4,
   spline_degree        = 2,
 
-  lambda_cv  = NULL,   # list(outcome=…, treatment=…)
-  lambda_seq = NULL,   # λ grid for glmnet
+  lambda_cv  = NULL,  # list(outcome=…, treatment=…)
+  lambda_seq = NULL,  # λ grid for glmnet
 
   verbose    = TRUE
 ) {
@@ -56,7 +84,7 @@ estimateGATE_PLR <- function(
       stopifnot(all(Z %in% names(data)))
       data[, Z, drop=FALSE]
     } else NULL
-    # 1B) factor‐dummy for X
+    # 1B) factor-dummy for X
     fac  <- factor(Xv)
     Xd   <- model.matrix(~ fac)[,-1,drop=FALSE]
     colnames(Xd) <- paste0(X, "_", levels(fac)[-1])
@@ -173,7 +201,7 @@ estimateGATE_PLR <- function(
   lambda_used <- list(outcome=out0$lambda, treatment=tr0$lambda)
   selected    <- list(outcome=out0$active, treatment=tr0$active)
 
-  #— 6) post‐selection refits if any penalized ————————————————————————
+  #— 6) post-selection refits if any penalized ————————————————————————
   if (outcome_model_type != "linear") {
     ao <- out0$active
     if (length(ao) > 0) {
@@ -189,7 +217,7 @@ estimateGATE_PLR <- function(
     if (length(at) > 0) {
       sub_tr <- XZ_design[, at, drop = FALSE]
       df_tr  <- data.frame(d = Dv, sub_tr)
-      tr0$fit   <- lm(d ~ ., data = df_tr)
+      tr0$fit  <- lm(d ~ ., data = df_tr)
       tr0$type  <- "lm"
     }
   }
@@ -207,7 +235,7 @@ estimateGATE_PLR <- function(
   ytilde <- Yv - yhat
   dtilde <- Dv - dhat
 
-  #— 8) group‐by‐X regression for GATE ————————————————————————————
+  #— 8) group-by-X regression for GATE ————————————————————————————
   if (verbose) cat("Computing GATE by group…\n")
   fac   <- factor(Xv)
   lvls  <- levels(fac)
@@ -219,18 +247,35 @@ estimateGATE_PLR <- function(
 
   #— 9) return everything —————————————————————————————————————————
   ret <- list(
-    XZ_design      = XZ_design,
-    gate_df        = gate_df,
-    selected       = selected,       # active sets before refit
-    lambda_used    = lambda_used,    # penalty params
-    outcome_fit    = out0$fit,       # final refit
-    treatment_fit  = tr0$fit         # final refit
+    XZ_design     = XZ_design,
+    gate_df       = gate_df,
+    selected      = selected,      # active sets before refit
+    lambda_used   = lambda_used,   # penalty params
+    outcome_fit   = out0$fit,      # final refit
+    treatment_fit = tr0$fit        # final refit
   )
   return(ret)
 }
 
-
-
+#' @title Bootstrap Confidence Intervals for GATE from a PLRM
+#' @description Performs a nonparametric bootstrap to compute pointwise and uniform
+#'   confidence intervals for the Group Average Treatment Effect (GATE) across
+#'   levels of a discrete moderator in a PLRM.
+#'
+#' @param data A data.frame containing the variables for the analysis.
+#' @param Y Character string, the name of the outcome variable.
+#' @param D Character string, the name of the continuous treatment variable.
+#' @param X Character string, the name of the discrete moderator variable.
+#' @param Z Character vector, optional names of additional continuous covariates.
+#' @param FE Character vector, optional names of fixed effect variables.
+#' @param B Integer, the number of bootstrap replications.
+#' @param alpha Numeric, the significance level for confidence intervals (e.g., 0.05 for 95% CIs).
+#' @param ... Additional arguments passed down to `estimateGATE_PLR`.
+#'
+#' @return A list containing the final results data.frame with point estimates and CIs,
+#'   the matrix of bootstrap replications, uniform coverage level, and the full-sample
+#'   estimation object.
+#'
 bootstrapGATE_PLR <- function(
   data, Y, D, X,
   Z = NULL, FE = NULL,
@@ -245,34 +290,34 @@ bootstrapGATE_PLR <- function(
   lambda_seq           = NULL,
   verbose              = TRUE
 ) {
-  # 1) Prep & full‐sample fit ------------------------------------------------
+  # 1) Prep & full-sample fit ------------------------------------------------
   basis_type <- match.arg(basis_type)
-  if (verbose) message("BootstrapGATE_PLR: fitting full‐sample PLR…")
+  if (verbose) message("BootstrapGATE_PLR: fitting full-sample PLR…")
   full <- estimateGATE_PLR(
-    data                  = data,
-    Y                     = Y,
-    D                     = D,
-    X                     = X,
-    Z                     = Z,
-    FE                    = FE,
-    XZ_design             = NULL,
-    outcome_model_type    = outcome_model_type,
-    treatment_model_type  = treatment_model_type,
-    basis_type            = basis_type,
-    include_interactions  = include_interactions,
-    poly_degree           = poly_degree,
-    spline_df             = spline_df,
-    spline_degree         = spline_degree,
-    lambda_cv             = NULL,       # let full‐sample CV select λ’s
-    lambda_seq            = lambda_seq,
-    verbose               = verbose
+    data                 = data,
+    Y                    = Y,
+    D                    = D,
+    X                    = X,
+    Z                    = Z,
+    FE                   = FE,
+    XZ_design            = NULL,
+    outcome_model_type   = outcome_model_type,
+    treatment_model_type = treatment_model_type,
+    basis_type           = basis_type,
+    include_interactions = include_interactions,
+    poly_degree          = poly_degree,
+    spline_df            = spline_df,
+    spline_degree        = spline_degree,
+    lambda_cv            = NULL,      # let full-sample CV select λ’s
+    lambda_seq           = lambda_seq,
+    verbose              = verbose
   )
 
   lvls        <- full$gate_df$X
   g_full      <- full$gate_df$GATE
   n           <- nrow(data)
   XZ0         <- full$XZ_design
-  lambda_used <- full$lambda_used     # list(outcome=…, treatment=…)
+  lambda_used <- full$lambda_used    # list(outcome=…, treatment=…)
 
   # 2) Parallel bootstrap ----------------------------------------------------
   if (verbose) message("BootstrapGATE_PLR: launching cluster…")
@@ -295,26 +340,26 @@ bootstrapGATE_PLR <- function(
     XZb <- XZ0[idx, , drop = FALSE]
 
     fb <- estimateGATE_PLR(
-      data                  = db,
-      Y                     = Y,
-      D                     = D,
-      X                     = X,
-      Z                     = NULL,          # design already in XZb
-      FE                    = FE,
-      XZ_design             = XZb,
-      outcome_model_type    = outcome_model_type,
-      treatment_model_type  = treatment_model_type,
-      basis_type            = basis_type,
-      include_interactions  = include_interactions,
-      poly_degree           = poly_degree,
-      spline_df             = spline_df,
-      spline_degree         = spline_degree,
-      lambda_cv             = lambda_used,   # reuse full‐sample λ’s
-      lambda_seq            = lambda_seq,
-      verbose               = FALSE
+      data                 = db,
+      Y                    = Y,
+      D                    = D,
+      X                    = X,
+      Z                    = NULL,        # design already in XZb
+      FE                   = FE,
+      XZ_design            = XZb,
+      outcome_model_type   = outcome_model_type,
+      treatment_model_type = treatment_model_type,
+      basis_type           = basis_type,
+      include_interactions = include_interactions,
+      poly_degree          = poly_degree,
+      spline_df            = spline_df,
+      spline_degree        = spline_degree,
+      lambda_cv            = lambda_used,  # reuse full-sample λ’s
+      lambda_seq           = lambda_seq,
+      verbose              = FALSE
     )
 
-    # extract GATEs in same X‐order
+    # extract GATEs in same X-order
     sapply(lvls, function(lv) {
       pos <- which(fb$gate_df$X == lv)
       if (length(pos)==1) fb$gate_df$GATE[pos] else NA_real_
@@ -327,17 +372,19 @@ bootstrapGATE_PLR <- function(
   se    <- apply(res_mat, 2, sd, na.rm=TRUE)
   cil   <- apply(res_mat, 2, quantile, probs=alpha/2,   na.rm=TRUE)
   cih   <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)
+  
   uni   <- calculate_uniform_quantiles(t(res_mat), alpha)
 
+
   results <- data.frame(
-    X                 = as.numeric(lvls),
-    GATE              = g_full,
-    SE                = se,
-    CI.lower          = cil,
-    CI.upper          = cih,
-    CI.lower.uniform  = uni$Q_j[,1],
-    CI.upper.uniform  = uni$Q_j[,2],
-    stringsAsFactors  = FALSE
+    X                = as.numeric(lvls),
+    GATE             = g_full,
+    SE               = se,
+    CI.lower         = cil,
+    CI.upper         = cih,
+    CI.lower.uniform = uni$Q_j[,1],
+    CI.upper.uniform = uni$Q_j[,2],
+    stringsAsFactors = FALSE
   )
 
   if (verbose) message("BootstrapGATE_PLR: done.")
@@ -348,4 +395,5 @@ bootstrapGATE_PLR <- function(
     fit_full     = full
   )
 }
+
 
