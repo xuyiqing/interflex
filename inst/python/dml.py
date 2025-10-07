@@ -150,7 +150,6 @@ def marginal_effect_for_treatment(
     )
 
     params = {"model.y": None, "model.t": None}
-
     if discrete_treatment:
         dml_model = dml.DoubleMLIRM(
             data_dml_base,
@@ -205,8 +204,9 @@ def marginal_effect_for_treatment(
             )
             params["model.y"] = dml_model.params["ml_l"][D]
             params["model.t"] = dml_model.params["ml_m"][D]
-
+    
     dml_model.fit()
+    losses = dml_model.nuisance_loss
 
     df_gate = pd.DataFrame()
     if gate:
@@ -274,4 +274,5 @@ def marginal_effect_for_treatment(
         df_cate.to_dict("list"),
         df_gate.to_dict("list"),
         params,
+        losses,
     )

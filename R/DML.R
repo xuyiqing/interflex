@@ -211,6 +211,7 @@ interflex.dml <- function(data,
             de.tr = treat_den,
             count.tr = treat.hist,
             dml.models = result[3][[1]],
+            dml.losses = result[4],
             estimator = "dml"
         )
     } else if (treat.type == "continuous") {
@@ -227,6 +228,7 @@ interflex.dml <- function(data,
             de.tr = de.tr,
             count.tr = NULL,
             dml.models = result[3][[1]],
+            dml.losses = result[4],
             estimator = "dml"
         )
     }
