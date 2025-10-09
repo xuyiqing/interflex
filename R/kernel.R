@@ -158,7 +158,7 @@ interflex.kernel <- function(data,
 
         # construct weight
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        density.mean <- exp(mean(log(Xdensity$y)))
+        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
         # bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
         bw.adapt <- bw*sqrt(density.mean/temp_density)
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
@@ -234,7 +234,7 @@ interflex.kernel <- function(data,
         }
 
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        density.mean <- exp(mean(log(Xdensity$y)))
+        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
         # bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
         bw.adapt <- bw*sqrt(density.mean/temp_density)
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
@@ -329,7 +329,7 @@ interflex.kernel <- function(data,
         formula <- paste0(formula, "|", formula.iv)
         formula <- as.formula(formula)
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        density.mean <- exp(mean(log(Xdensity$y)))
+        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
         # bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
         bw.adapt <- bw*sqrt(density.mean/temp_density)
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
@@ -413,7 +413,7 @@ interflex.kernel <- function(data,
 
         temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
         #bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        density.mean <- exp(mean(log(Xdensity$y)))
+        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
         bw.adapt <- bw * sqrt(density.mean/temp_density)
         w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
         if (0 %in% w) {
