@@ -17,7 +17,7 @@ interflex.lasso_discrete <- function(
 
   model.y  = "lasso",
   model.t  = "lasso",
-
+  neval = 50,
   basis.type           = c("polynomial", "bspline", "none"),
   include.interactions = FALSE,
   poly.degree          = 2,
@@ -129,6 +129,7 @@ interflex.lasso_discrete <- function(
         spline_df             = spline.df,
         spline_degree         = spline.degree,
         lambda_seq            = lambda.seq,
+        CI = CI,
         verbose               = verbose
       )
 
@@ -166,6 +167,7 @@ interflex.lasso_discrete <- function(
       spline_df             = spline.df,
       spline_degree         = spline.degree,
       lambda_seq            = lambda.seq,
+      CI = CI,
       verbose               = verbose
     )
 

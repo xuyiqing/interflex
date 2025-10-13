@@ -386,6 +386,7 @@ bootstrapGTE <- function(
   spline_df            = 4,
   spline_degree        = 2,
   lambda_seq           = NULL,
+  CI = TRUE,
   verbose              = TRUE
 ) {
   signal     <- match.arg(signal)
@@ -419,73 +420,88 @@ bootstrapGTE <- function(
   K    <- length(X_group)
   XZ0  <- fit_full$XZ_design
 
-  if(verbose) message("2) Bootstrapping…")
-  cl <- parallel::makeCluster(parallel::detectCores())
-  doParallel::registerDoParallel(cl)
-  `%dopar%` <- foreach::`%dopar%`
-  idx <- seq_len(n)
+  if(CI == TRUE){
+    if(verbose) message("2) Bootstrapping…")
+    cl <- parallel::makeCluster(parallel::detectCores())
+    doParallel::registerDoParallel(cl)
+    `%dopar%` <- foreach::`%dopar%`
+    idx <- seq_len(n)
 
-  res_mat <- foreach::foreach(
-    b = seq_len(B),
-    .combine  = "rbind",
-    .export = c("estimateGTE"),
-    .packages = c("glmnet","splines")
-  ) %dopar% {
-    set.seed(1000 + b)
-    ids    <- sample(idx, n, replace=TRUE)
-    dat_b  <- data[ids,   , drop=FALSE]
-    XZ_b   <- XZ0[ ids,   , drop=FALSE]
+    res_mat <- foreach::foreach(
+      b = seq_len(B),
+      .combine  = "rbind",
+      .export = c("estimateGTE"),
+      .packages = c("glmnet","splines")
+    ) %dopar% {
+      set.seed(1000 + b)
+      ids    <- sample(idx, n, replace=TRUE)
+      dat_b  <- data[ids,   , drop=FALSE]
+      XZ_b   <- XZ0[ ids,   , drop=FALSE]
 
-    fit_b <- estimateGTE(
-      data                 = dat_b,
-      Y                    = Y,
-      D                    = D,
-      X                    = X,
-      Z                    = NULL,        # design matrix already built
-      FE                   = FE,
-      estimand             = estimand,
-      signal               = signal,
-      basis_type           = "none",      # design fixed
-      include_interactions = FALSE,
-      poly_degree          = poly_degree,
-      spline_df            = spline_df,
-      spline_degree        = spline_degree,
-      XZ_design            = XZ_b,        # pass in bootstrap design
-      outcome_model_type   = outcome_model_type,
-      ps_model_type        = ps_model_type,
-      lambda_cv            = lambda_used, # reuse full-sample λ's
-      lambda_seq           = lambda_seq,
-      verbose              = FALSE
+      fit_b <- estimateGTE(
+        data                 = dat_b,
+        Y                    = Y,
+        D                    = D,
+        X                    = X,
+        Z                    = NULL,        # design matrix already built
+        FE                   = FE,
+        estimand             = estimand,
+        signal               = signal,
+        basis_type           = "none",      # design fixed
+        include_interactions = FALSE,
+        poly_degree          = poly_degree,
+        spline_df            = spline_df,
+        spline_degree        = spline_degree,
+        XZ_design            = XZ_b,        # pass in bootstrap design
+        outcome_model_type   = outcome_model_type,
+        ps_model_type        = ps_model_type,
+        lambda_cv            = lambda_used, # reuse full-sample λ's
+        lambda_seq           = lambda_seq,
+        verbose              = FALSE
+      )
+      fit_b$gte_df$GTE
+    }
+    parallel::stopCluster(cl)
+
+    if(verbose) message("3) Computing SE & CIs…")
+    se   <- apply(res_mat, 2, sd, na.rm=TRUE)
+    ci_l <- apply(res_mat, 2, quantile, probs=alpha/2, na.rm=TRUE)
+    ci_u <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)
+    
+    uni  <- calculate_uniform_quantiles(t(res_mat), alpha)
+
+
+    results <- data.frame(
+      X                = as.numeric(X_group),
+      GTE              = gte_full,
+      SE               = se,
+      CI.lower         = ci_l,
+      CI.upper         = ci_u,
+      CI.lower.uniform = uni$Q_j[,1],
+      CI.upper.uniform = uni$Q_j[,2],
+      stringsAsFactors = FALSE
     )
-    fit_b$gte_df$GTE
+
+    if(verbose) message("Done.")
+    list(
+      results      = results,
+      boot_results = res_mat,
+      coverage     = uni$coverage,
+      fit_full     = fit_full
+    )    
   }
-  parallel::stopCluster(cl)
+  else{
+    results <- data.frame(
+      X                = as.numeric(X_group),
+      GTE              = gte_full,
+      stringsAsFactors = FALSE
+    )
+    list(
+      results      = results,
+      fit_full     = fit_full
+    )  
+  }
 
-  if(verbose) message("3) Computing SE & CIs…")
-  se   <- apply(res_mat, 2, sd, na.rm=TRUE)
-  ci_l <- apply(res_mat, 2, quantile, probs=alpha/2, na.rm=TRUE)
-  ci_u <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)
-  
-  uni  <- calculate_uniform_quantiles(t(res_mat), alpha)
 
-
-  results <- data.frame(
-    X                = as.numeric(X_group),
-    GTE              = gte_full,
-    SE               = se,
-    CI.lower         = ci_l,
-    CI.upper         = ci_u,
-    CI.lower.uniform = uni$Q_j[,1],
-    CI.upper.uniform = uni$Q_j[,2],
-    stringsAsFactors = FALSE
-  )
-
-  if(verbose) message("Done.")
-  list(
-    results      = results,
-    boot_results = res_mat,
-    coverage     = uni$coverage,
-    fit_full     = fit_full
-  )
 }
 

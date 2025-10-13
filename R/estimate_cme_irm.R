@@ -650,8 +650,9 @@ bootstrapCME <- function(
     # Dimension-reduction method for final CME curve
     reduce.dimension   = c("bspline","kernel"),
     best_span          = NULL,
+    neval = 100, 
     x.eval             = NULL,
-    
+    CI = TRUE,
     verbose = TRUE
 ) {
   if (verbose) message("BootstrapCME Step 1: Running baseline CME estimation on full data...")
@@ -679,6 +680,7 @@ bootstrapCME <- function(
     lambda_seq         = lambda_seq,
     reduce.dimension   = reduce.dimension,
     best_span          = best_span,
+    neval = neval,
     x.eval             = x.eval,
     verbose            = verbose
   )
@@ -692,101 +694,115 @@ bootstrapCME <- function(
   XZ_full        <- fit_full$XZ_design
   lambda_cv      <- fit_full$lambda_cv
   best_span_full <- fit_full$best_span
-  
-  if (verbose) message("BootstrapCME Step 2: Setting up bootstrap storage and parallel cluster...")
-  cme_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
-  idx_seq <- seq_len(n)
-  
-  if (!requireNamespace("doParallel", quietly = TRUE)) {
-    stop("Package 'doParallel' not installed. Please install or remove parallel usage.")
-  }
-  nCores <- parallel::detectCores()
-  cl <- parallel::makeCluster(nCores)
-  doParallel::registerDoParallel(cl)
-  `%dopar%` <- foreach::`%dopar%`
-  
-  if (verbose) message("BootstrapCME Step 3: Starting bootstrap loop...")
-  res_list <- foreach::foreach(
-    b = 1:B,
-    .combine = "rbind",
-    .export  = "estimateCME",
-    .packages = c("splines","glmnet","mgcv")
-  ) %dopar% {
-    set.seed(1000 + b)
-    idx_b <- sample(idx_seq, size = n, replace = TRUE)
-    data_b <- data[idx_b, , drop = FALSE]
-    XZ_b <- XZ_full[idx_b, , drop = FALSE]
-    use_out_model <- outcome_model_type
-    use_ps_model  <- ps_model_type
-    
-    fit_b <- estimateCME(
-      data               = data_b,
-      Y                  = Y,
-      D                  = D,
-      X                  = X,
-      Z                  = NULL, # design matrix already provided
-      FE                 = FE,   
-      estimand           = estimand,
-      signal             = signal,
-      XZ_design          = XZ_b,
-      outcome_model_type = use_out_model,
-      ps_model_type      = use_ps_model,
-      basis_type         = "none",  # not needed if XZ_design is given
-      include_interactions= FALSE,
-      spline_df          = spline_df,
-      spline_degree      = spline_degree,
-      lambda_seq         = lambda_seq,
-      reduce.dimension   = reduce.dimension,
-      best_span          = best_span_full,
-      x.eval             = x.eval,
-      # --- CHANGE MADE HERE ---
-      # The `selected_covars` argument has been removed from this function call.
-      # The logic remains correct, as each bootstrap run now correctly performs its own
-      # variable selection internally.
-      lambda_cv = lambda_cv,
-      verbose            = FALSE
-    )
-    fit_b$cme_df$CME
-  }
-  parallel::stopCluster(cl)
-  if (verbose) message("BootstrapCME Step 4: Bootstrap loop complete.")
-  
-  cme_mat_bs[,] <- res_list
-  
-  if (verbose) message("BootstrapCME Step 5: Computing bootstrap SE and confidence intervals...")
-  alpha_lower <- alpha / 2
-  alpha_upper <- 1 - alpha_lower
-  
-  cme_se <- apply(cme_mat_bs, 2, sd, na.rm = TRUE)
-  cme_ci_l <- apply(cme_mat_bs, 2, quantile, probs = alpha_lower, na.rm = TRUE)
-  cme_ci_u <- apply(cme_mat_bs, 2, quantile, probs = alpha_upper, na.rm = TRUE)
-  
-  theta_mat <- t(cme_mat_bs)
-  uni_res   <- calculate_uniform_quantiles(theta_mat, alpha)
 
-  
-  cme_ci_l_uni <- uni_res$Q_j[,1]
-  cme_ci_u_uni <- uni_res$Q_j[,2]
-  coverage_uni <- uni_res$coverage
-  
-  final_df <- data.frame(
-    X                = x.eval,
-    CME              = cme_full,
-    SE               = cme_se,
-    CI.lower         = cme_ci_l,
-    CI.upper         = cme_ci_u,
-    CI.lower.uniform = cme_ci_l_uni,
-    CI.upper.uniform = cme_ci_u_uni
-  )
-  
-  if (verbose) message("BootstrapCME Step 6: Finalizing and returning bootstrap results.")
-  out_list <- list(
-    results    = final_df,
-    boot_results = cme_mat_bs,
-    coverage = coverage_uni,
-    fit_full = fit_full
-  )
-  
-  return(out_list)
+  if(CI == TRUE){
+    
+    if (verbose) message("BootstrapCME Step 2: Setting up bootstrap storage and parallel cluster...")
+    cme_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
+    idx_seq <- seq_len(n)
+    
+    if (!requireNamespace("doParallel", quietly = TRUE)) {
+      stop("Package 'doParallel' not installed. Please install or remove parallel usage.")
+    }
+    nCores <- parallel::detectCores()
+    cl <- parallel::makeCluster(nCores)
+    doParallel::registerDoParallel(cl)
+    `%dopar%` <- foreach::`%dopar%`
+    
+    if (verbose) message("BootstrapCME Step 3: Starting bootstrap loop...")
+    res_list <- foreach::foreach(
+      b = 1:B,
+      .combine = "rbind",
+      .export  = "estimateCME",
+      .packages = c("splines","glmnet","mgcv")
+    ) %dopar% {
+      set.seed(1000 + b)
+      idx_b <- sample(idx_seq, size = n, replace = TRUE)
+      data_b <- data[idx_b, , drop = FALSE]
+      XZ_b <- XZ_full[idx_b, , drop = FALSE]
+      use_out_model <- outcome_model_type
+      use_ps_model  <- ps_model_type
+      
+      fit_b <- estimateCME(
+        data               = data_b,
+        Y                  = Y,
+        D                  = D,
+        X                  = X,
+        Z                  = NULL, # design matrix already provided
+        FE                 = FE,   
+        estimand           = estimand,
+        signal             = signal,
+        XZ_design          = XZ_b,
+        outcome_model_type = use_out_model,
+        ps_model_type      = use_ps_model,
+        basis_type         = "none",  # not needed if XZ_design is given
+        include_interactions= FALSE,
+        spline_df          = spline_df,
+        spline_degree      = spline_degree,
+        lambda_seq         = lambda_seq,
+        reduce.dimension   = reduce.dimension,
+        best_span          = best_span_full,
+        x.eval             = x.eval,
+        # --- CHANGE MADE HERE ---
+        # The `selected_covars` argument has been removed from this function call.
+        # The logic remains correct, as each bootstrap run now correctly performs its own
+        # variable selection internally.
+        lambda_cv = lambda_cv,
+        verbose            = FALSE
+      )
+      fit_b$cme_df$CME
+    }
+    parallel::stopCluster(cl)
+    if (verbose) message("BootstrapCME Step 4: Bootstrap loop complete.")
+    
+    cme_mat_bs[,] <- res_list
+    
+    if (verbose) message("BootstrapCME Step 5: Computing bootstrap SE and confidence intervals...")
+    alpha_lower <- alpha / 2
+    alpha_upper <- 1 - alpha_lower
+    
+    cme_se <- apply(cme_mat_bs, 2, sd, na.rm = TRUE)
+    cme_ci_l <- apply(cme_mat_bs, 2, quantile, probs = alpha_lower, na.rm = TRUE)
+    cme_ci_u <- apply(cme_mat_bs, 2, quantile, probs = alpha_upper, na.rm = TRUE)
+    
+    theta_mat <- t(cme_mat_bs)
+    uni_res   <- calculate_uniform_quantiles(theta_mat, alpha)
+
+    
+    cme_ci_l_uni <- uni_res$Q_j[,1]
+    cme_ci_u_uni <- uni_res$Q_j[,2]
+    coverage_uni <- uni_res$coverage
+    
+    final_df <- data.frame(
+      X                = x.eval,
+      CME              = cme_full,
+      SE               = cme_se,
+      CI.lower         = cme_ci_l,
+      CI.upper         = cme_ci_u,
+      CI.lower.uniform = cme_ci_l_uni,
+      CI.upper.uniform = cme_ci_u_uni
+    )
+    
+    if (verbose) message("BootstrapCME Step 6: Finalizing and returning bootstrap results.")
+    out_list <- list(
+      results    = final_df,
+      boot_results = cme_mat_bs,
+      coverage = coverage_uni,
+      fit_full = fit_full
+    )
+    
+    return(out_list)    
+  }
+  else{
+    final_df <- data.frame(
+      X                = x.eval,
+      CME              = cme_full
+    )
+    out_list <- list(
+      results    = final_df,
+      fit_full = fit_full
+    )
+    return(out_list)    
+  }
 }
 

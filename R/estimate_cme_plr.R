@@ -53,6 +53,7 @@ estimateCME_PLR <- function(
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
     x.eval               = NULL,    # grid of X values for final CME curve
+    neval = 100,
     # --- CHANGE MADE HERE ---
     # The `selected_covars` argument has been removed from this function signature.
     # It was not being used as an input. The function still correctly calculates
@@ -99,7 +100,7 @@ estimateCME_PLR <- function(
 
   n <- nrow(data)
   if (is.null(x.eval)) {
-    x.eval <- seq(min(Xvec), max(Xvec), length.out = 100)
+    x.eval <- seq(min(Xvec), max(Xvec), length.out = neval)
   }
 
   ##############################################################################
@@ -546,6 +547,8 @@ bootstrapCME_PLR <- function(
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
     x.eval               = NULL,     # grid of X values for final CME curve
+    neval = 100,
+    CI = TRUE,
     verbose              = TRUE
 ) {
   basis_type       <- match.arg(basis_type)
@@ -574,6 +577,7 @@ bootstrapCME_PLR <- function(
     reduce.dimension     = reduce.dimension,
     bw                   = bw,
     x.eval               = x.eval,
+    neval = neval, 
     verbose              = verbose
   )
   if (verbose) cat("  -> Full-sample fit complete.\n")
@@ -597,134 +601,145 @@ bootstrapCME_PLR <- function(
   lambda_cv       <- fit_full$lambda_cv
   need_tune       <- !is.null(selected_covars)
 
-  ###########################################################################
-  # 2. Prepare storage for bootstrap draws
-  ###########################################################################
-  if (verbose) cat("BootstrapPLR Step 2: Preparing for", B, "bootstrap draws...\n")
-  fit_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
-  idx_seq    <- seq_len(n)
+  if(CI == TRUE){
+    ###########################################################################
+    # 2. Prepare storage for bootstrap draws
+    ###########################################################################
+    if (verbose) cat("BootstrapPLR Step 2: Preparing for", B, "bootstrap draws...\n")
+    fit_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
+    idx_seq    <- seq_len(n)
 
-  ###########################################################################
-  # 3. Set up parallel backend
-  ###########################################################################
-  if (verbose) cat("BootstrapPLR Step 3: Setting up parallel backend...\n")
-  if (!requireNamespace("doParallel", quietly = TRUE)) {
-    stop("Package 'doParallel' is required for parallel bootstrap.")
-  }
-  nCores <- parallel::detectCores()
-  cl     <- parallel::makeCluster(nCores)
-  doParallel::registerDoParallel(cl)
+    ###########################################################################
+    # 3. Set up parallel backend
+    ###########################################################################
+    if (verbose) cat("BootstrapPLR Step 3: Setting up parallel backend...\n")
+    if (!requireNamespace("doParallel", quietly = TRUE)) {
+      stop("Package 'doParallel' is required for parallel bootstrap.")
+    }
+    nCores <- parallel::detectCores()
+    cl     <- parallel::makeCluster(nCores)
+    doParallel::registerDoParallel(cl)
 
-  ###########################################################################
-  # 4. Parallel bootstrap loop
-  ###########################################################################
-  if (verbose) cat("BootstrapPLR Step 4: Running bootstrap loop...\n")
-  `%dopar%` <- foreach::`%dopar%`
+    ###########################################################################
+    # 4. Parallel bootstrap loop
+    ###########################################################################
+    if (verbose) cat("BootstrapPLR Step 4: Running bootstrap loop...\n")
+    `%dopar%` <- foreach::`%dopar%`
 
-  res_list <- foreach::foreach(
-    b = 1:B,
-    .combine  = "rbind",
-    .export   = "estimateCME_PLR",
-    .packages = c("splines","glmnet","interflex")
-  ) %dopar% {
-    set.seed(b + 1234)
+    res_list <- foreach::foreach(
+      b = 1:B,
+      .combine  = "rbind",
+      .export   = "estimateCME_PLR",
+      .packages = c("splines","glmnet","interflex")
+    ) %dopar% {
+      set.seed(b + 1234)
 
-    # (a) Resample indices and data
-    idx_b  <- sample(idx_seq, size = n, replace = TRUE)
-    data_b <- data[idx_b, , drop = FALSE]
+      # (a) Resample indices and data
+      idx_b  <- sample(idx_seq, size = n, replace = TRUE)
+      data_b <- data[idx_b, , drop = FALSE]
 
-    # (b) Grab the corresponding rows of XZ_design (including FE dummies)
-    XZ_b <- fit_full$XZ_design[idx_b, , drop = FALSE]
+      # (b) Grab the corresponding rows of XZ_design (including FE dummies)
+      XZ_b <- fit_full$XZ_design[idx_b, , drop = FALSE]
 
-    # (c) Re-fit PLR on bootstrap sample, passing FE and precomputed XZ_b
-    fit_b <- estimateCME_PLR(
-      data                 = data_b,
-      Y                    = Y,
-      D                    = D,
-      X                    = X,
-      Z                    = NULL,
-      FE                   = FE,
-      XZ_design            = XZ_b,
-      outcome_model_type   = outcome_model_type,
-      treatment_model_type = treatment_model_type,
-      basis_type           = basis_type,
-      include_interactions = include_interactions,
-      poly_degree          = poly_degree,
-      spline_df            = spline_df,
-      spline_degree        = spline_degree,
-      lambda_cv            = if (need_tune) lambda_cv else NULL,
-      lambda_seq           = lambda_seq,
-      reduce.dimension     = reduce.dimension,
-      bw                   = bw,
-      x.eval               = x.eval,
-      # --- CHANGE MADE HERE ---
-      # The `selected_covars` argument has been removed from this function call
-      # to align with the updated `estimateCME_PLR` signature.
-      verbose              = FALSE
+      # (c) Re-fit PLR on bootstrap sample, passing FE and precomputed XZ_b
+      fit_b <- estimateCME_PLR(
+        data                 = data_b,
+        Y                    = Y,
+        D                    = D,
+        X                    = X,
+        Z                    = NULL,
+        FE                   = FE,
+        XZ_design            = XZ_b,
+        outcome_model_type   = outcome_model_type,
+        treatment_model_type = treatment_model_type,
+        basis_type           = basis_type,
+        include_interactions = include_interactions,
+        poly_degree          = poly_degree,
+        spline_df            = spline_df,
+        spline_degree        = spline_degree,
+        lambda_cv            = if (need_tune) lambda_cv else NULL,
+        lambda_seq           = lambda_seq,
+        reduce.dimension     = reduce.dimension,
+        bw                   = bw,
+        x.eval               = x.eval,
+        verbose              = FALSE
+      )
+
+      # Return the CME curve for this bootstrap as a single row
+      c(fit_b$cme_df$CME_fit)
+    }
+
+    # Stop parallel cluster
+    parallel::stopCluster(cl)
+    if (verbose) cat("  -> Bootstrap loop complete.\n")
+
+    # Fill fit_mat_bs with bootstrap results
+    for (b in seq_len(B)) {
+      fit_mat_bs[b, ] <- res_list[b, 1:nEval]
+    }
+
+    ###########################################################################
+    # 5. Pointwise normal-based intervals
+    ###########################################################################
+    if (verbose) cat("BootstrapPLR Step 5: Computing pointwise SEs and CIs...\n")
+    fit_se    <- apply(fit_mat_bs, 2, sd, na.rm = TRUE)
+    zcrit     <- qnorm(1 - alpha/2)
+
+    alpha_lower <- alpha / 2
+    alpha_upper <- 1 - alpha_lower
+
+    fit_ci_l <- apply(fit_mat_bs, 2, quantile, probs = alpha_lower, na.rm = TRUE)
+    fit_ci_u <- apply(fit_mat_bs, 2, quantile, probs = alpha_upper, na.rm = TRUE)
+
+    ###########################################################################
+    # 6. Uniform confidence intervals (if desired)
+    ###########################################################################
+    if (verbose) cat("BootstrapPLR Step 6: Computing uniform CIs...\n")
+    theta_matrix <- t(fit_mat_bs)  # nEval x B
+
+    uni_res      <- calculate_uniform_quantiles(theta_matrix, alpha)
+    Q_j          <- uni_res$Q_j      # nEval x 2
+    coverage     <- uni_res$coverage
+
+    fit_ci_l_uni <- Q_j[, 1]
+    fit_ci_u_uni <- Q_j[, 2]
+
+    ###########################################################################
+    # 7. Assemble final results
+    ###########################################################################
+    if (verbose) cat("BootstrapPLR Step 7: Assembling output...\n")
+    fit_df <- data.frame(
+      X                = x.eval,
+      CME              = cme_out,
+      SE               = fit_se,
+      CI.lower         = fit_ci_l,
+      CI.upper         = fit_ci_u,
+      CI.lower.uniform = fit_ci_l_uni,
+      CI.upper.uniform = fit_ci_u_uni
     )
 
-    # Return the CME curve for this bootstrap as a single row
-    c(fit_b$cme_df$CME_fit)
+    ###########################################################################
+    # 8. Return list
+    ###########################################################################
+    return(list(
+      results         = fit_df,
+      selected_covars = selected_covars,
+      fit_full        = fit_full,
+      coverage        = coverage
+    ))
+  }
+  else{
+    fit_df <- data.frame(
+      X                = x.eval,
+      CME              = cme_out
+    )
+    return(list(
+      results         = fit_df,
+      selected_covars = selected_covars,
+      fit_full        = fit_full
+    ))
   }
 
-  # Stop parallel cluster
-  parallel::stopCluster(cl)
-  if (verbose) cat("  -> Bootstrap loop complete.\n")
-
-  # Fill fit_mat_bs with bootstrap results
-  for (b in seq_len(B)) {
-    fit_mat_bs[b, ] <- res_list[b, 1:nEval]
-  }
-
-  ###########################################################################
-  # 5. Pointwise normal-based intervals
-  ###########################################################################
-  if (verbose) cat("BootstrapPLR Step 5: Computing pointwise SEs and CIs...\n")
-  fit_se    <- apply(fit_mat_bs, 2, sd, na.rm = TRUE)
-  zcrit     <- qnorm(1 - alpha/2)
-
-  alpha_lower <- alpha / 2
-  alpha_upper <- 1 - alpha_lower
-
-  fit_ci_l <- apply(fit_mat_bs, 2, quantile, probs = alpha_lower, na.rm = TRUE)
-  fit_ci_u <- apply(fit_mat_bs, 2, quantile, probs = alpha_upper, na.rm = TRUE)
-
-  ###########################################################################
-  # 6. Uniform confidence intervals (if desired)
-  ###########################################################################
-  if (verbose) cat("BootstrapPLR Step 6: Computing uniform CIs...\n")
-  theta_matrix <- t(fit_mat_bs)  # nEval x B
-
-  uni_res      <- calculate_uniform_quantiles(theta_matrix, alpha)
-  Q_j          <- uni_res$Q_j      # nEval x 2
-  coverage     <- uni_res$coverage
-
-  fit_ci_l_uni <- Q_j[, 1]
-  fit_ci_u_uni <- Q_j[, 2]
-
-  ###########################################################################
-  # 7. Assemble final results
-  ###########################################################################
-  if (verbose) cat("BootstrapPLR Step 7: Assembling output...\n")
-  fit_df <- data.frame(
-    X                = x.eval,
-    CME              = cme_out,
-    SE               = fit_se,
-    CI.lower         = fit_ci_l,
-    CI.upper         = fit_ci_u,
-    CI.lower.uniform = fit_ci_l_uni,
-    CI.upper.uniform = fit_ci_u_uni
-  )
-
-  ###########################################################################
-  # 8. Return list
-  ###########################################################################
-  return(list(
-    results         = fit_df,
-    selected_covars = selected_covars,
-    fit_full        = fit_full,
-    coverage        = coverage
-  ))
 }
 
 

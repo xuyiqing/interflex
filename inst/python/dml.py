@@ -68,7 +68,7 @@ def set_model(model, param, discrete_outcome):
 
     elif model_lower in {"network", "neural_network", "neural network", "nn"}:
         if "max_iter" not in param:
-            param["max_iter"] = 1000
+            param["max_iter"] = 3000
 
         model_set = (
             MLPClassifier(**param) if discrete_outcome else MLPRegressor(**param)

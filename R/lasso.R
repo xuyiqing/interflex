@@ -17,7 +17,7 @@ interflex.lasso <- function(data,
                          
                          model.y  = "lasso",
                          model.t  = "lasso",
-                         
+                         neval = 50,
                          basis.type          = c("polynomial", "bspline", "none"),
                          include.interactions = TRUE,
                          poly.degree         = 2,
@@ -31,7 +31,7 @@ interflex.lasso <- function(data,
                          x.eval             = NULL,
                          verbose            = TRUE,
                          figure             = TRUE,
-                         CI                 = CI,
+                         CI                 = TRUE,
                          order              = NULL,
                          subtitles          = NULL,
                          show.subtitles     = NULL,
@@ -193,6 +193,8 @@ interflex.lasso <- function(data,
         reduce.dimension     = reduce.dimension,
         best_span            = best.span,
         x.eval               = x.eval,
+        neval = neval,
+        CI = CI,
         verbose              = verbose
       )
       
@@ -231,6 +233,8 @@ interflex.lasso <- function(data,
       reduce.dimension      = reduce.dimension,
       bw                    = bw,
       x.eval                = x.eval,
+      neval = neval,
+      CI = CI,
       verbose               = verbose
     )
     TE.output.all <- data.frame(result$results, check.names = FALSE)

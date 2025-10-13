@@ -288,6 +288,7 @@ bootstrapGATE_PLR <- function(
   spline_df            = 4,
   spline_degree        = 2,
   lambda_seq           = NULL,
+  CI = CI,
   verbose              = TRUE
 ) {
   # 1) Prep & full-sample fit ------------------------------------------------
@@ -319,81 +320,96 @@ bootstrapGATE_PLR <- function(
   XZ0         <- full$XZ_design
   lambda_used <- full$lambda_used    # list(outcome=…, treatment=…)
 
-  # 2) Parallel bootstrap ----------------------------------------------------
-  if (verbose) message("BootstrapGATE_PLR: launching cluster…")
-  if (!requireNamespace("doParallel", quietly=TRUE)) {
-    stop("Package 'doParallel' required for parallel bootstrap.")
-  }
-  cl <- parallel::makeCluster(parallel::detectCores())
-  doParallel::registerDoParallel(cl)
+  if(CI == TRUE){
+    # 2) Parallel bootstrap ----------------------------------------------------
+    if (verbose) message("BootstrapGATE_PLR: launching cluster…")
+    if (!requireNamespace("doParallel", quietly=TRUE)) {
+      stop("Package 'doParallel' required for parallel bootstrap.")
+    }
+    cl <- parallel::makeCluster(parallel::detectCores())
+    doParallel::registerDoParallel(cl)
 
-  if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws…")
-  res_mat <- foreach::foreach(
-    b = seq_len(B),
-    .combine  = "rbind",
-    .export   = "estimateGATE_PLR",
-    .packages = c("glmnet","splines")
-  ) %dopar% {
-    set.seed(1000 + b)
-    idx <- sample(n, n, replace = TRUE)
-    db  <- data[idx, , drop = FALSE]
-    XZb <- XZ0[idx, , drop = FALSE]
+    if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws…")
+    res_mat <- foreach::foreach(
+      b = seq_len(B),
+      .combine  = "rbind",
+      .export   = "estimateGATE_PLR",
+      .packages = c("glmnet","splines")
+    ) %dopar% {
+      set.seed(1000 + b)
+      idx <- sample(n, n, replace = TRUE)
+      db  <- data[idx, , drop = FALSE]
+      XZb <- XZ0[idx, , drop = FALSE]
 
-    fb <- estimateGATE_PLR(
-      data                 = db,
-      Y                    = Y,
-      D                    = D,
-      X                    = X,
-      Z                    = NULL,        # design already in XZb
-      FE                   = FE,
-      XZ_design            = XZb,
-      outcome_model_type   = outcome_model_type,
-      treatment_model_type = treatment_model_type,
-      basis_type           = basis_type,
-      include_interactions = include_interactions,
-      poly_degree          = poly_degree,
-      spline_df            = spline_df,
-      spline_degree        = spline_degree,
-      lambda_cv            = lambda_used,  # reuse full-sample λ’s
-      lambda_seq           = lambda_seq,
-      verbose              = FALSE
+      fb <- estimateGATE_PLR(
+        data                 = db,
+        Y                    = Y,
+        D                    = D,
+        X                    = X,
+        Z                    = NULL,        # design already in XZb
+        FE                   = FE,
+        XZ_design            = XZb,
+        outcome_model_type   = outcome_model_type,
+        treatment_model_type = treatment_model_type,
+        basis_type           = basis_type,
+        include_interactions = include_interactions,
+        poly_degree          = poly_degree,
+        spline_df            = spline_df,
+        spline_degree        = spline_degree,
+        lambda_cv            = lambda_used,  # reuse full-sample λ’s
+        lambda_seq           = lambda_seq,
+        verbose              = FALSE
+      )
+
+      # extract GATEs in same X-order
+      sapply(lvls, function(lv) {
+        pos <- which(fb$gate_df$X == lv)
+        if (length(pos)==1) fb$gate_df$GATE[pos] else NA_real_
+      })
+    }
+    parallel::stopCluster(cl)
+
+    # 3) Compute SE & CIs -------------------------------------------------------
+    if (verbose) message("BootstrapGATE_PLR: summarizing draws…")
+    se    <- apply(res_mat, 2, sd, na.rm=TRUE)
+    cil   <- apply(res_mat, 2, quantile, probs=alpha/2,   na.rm=TRUE)
+    cih   <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)
+    
+    uni   <- calculate_uniform_quantiles(t(res_mat), alpha)
+
+
+    results <- data.frame(
+      X                = as.numeric(lvls),
+      GATE             = g_full,
+      SE               = se,
+      CI.lower         = cil,
+      CI.upper         = cih,
+      CI.lower.uniform = uni$Q_j[,1],
+      CI.upper.uniform = uni$Q_j[,2],
+      stringsAsFactors = FALSE
     )
 
-    # extract GATEs in same X-order
-    sapply(lvls, function(lv) {
-      pos <- which(fb$gate_df$X == lv)
-      if (length(pos)==1) fb$gate_df$GATE[pos] else NA_real_
-    })
+    if (verbose) message("BootstrapGATE_PLR: done.")
+    list(
+      results      = results,
+      boot_results = res_mat,
+      coverage     = uni$coverage,
+      fit_full     = full
+    )    
   }
-  parallel::stopCluster(cl)
+  else{
+    results <- data.frame(
+      X                = as.numeric(lvls),
+      GATE             = g_full,
+      stringsAsFactors = FALSE
+    )
+    list(
+      results      = results,
+      fit_full     = full
+    )     
+  }
 
-  # 3) Compute SE & CIs -------------------------------------------------------
-  if (verbose) message("BootstrapGATE_PLR: summarizing draws…")
-  se    <- apply(res_mat, 2, sd, na.rm=TRUE)
-  cil   <- apply(res_mat, 2, quantile, probs=alpha/2,   na.rm=TRUE)
-  cih   <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)
-  
-  uni   <- calculate_uniform_quantiles(t(res_mat), alpha)
 
-
-  results <- data.frame(
-    X                = as.numeric(lvls),
-    GATE             = g_full,
-    SE               = se,
-    CI.lower         = cil,
-    CI.upper         = cih,
-    CI.lower.uniform = uni$Q_j[,1],
-    CI.upper.uniform = uni$Q_j[,2],
-    stringsAsFactors = FALSE
-  )
-
-  if (verbose) message("BootstrapGATE_PLR: done.")
-  list(
-    results      = results,
-    boot_results = res_mat,
-    coverage     = uni$coverage,
-    fit_full     = full
-  )
 }
 
 
