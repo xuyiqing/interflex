@@ -542,7 +542,7 @@ interflex.kernel <- function(data,
         cat("Cross-validating bandwidth ... \n")
         if (length(grid) == 1) {
             rangeX <- max(data[, X]) - min(data[, X])
-            bw.grid <- exp(seq(log(rangeX / 50), log(rangeX), length.out = grid))
+            bw.grid <- exp(seq(log(rangeX / 200), log(rangeX), length.out = grid))
         } else {
             bw.grid <- grid
         }

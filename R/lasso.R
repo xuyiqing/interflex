@@ -152,7 +152,7 @@ interflex.lasso <- function(data,
   
   treat.base        <- treat.info[["base"]]
   TE.output.all.list <- list()
-  
+  fit_full.list <- list()
   # -------------------------------
   # Branch 1: Discrete D / Binary
   # -------------------------------
@@ -200,6 +200,7 @@ interflex.lasso <- function(data,
       
       TE.output.all <- data.frame(result$results, check.names = FALSE)
       TE.output.all.list[[ other.treat.origin[char] ]] <- TE.output.all
+      fit_full.list[[ other.treat.origin[char] ]] <- result$fit_full
     }
   }
   
@@ -240,12 +241,9 @@ interflex.lasso <- function(data,
     TE.output.all <- data.frame(result$results, check.names = FALSE)
     
     # replicate same plot for each D.sample label
-    k <- 1
-    for (d_ref in D.sample) {
-      label <- label.name[k]
-      TE.output.all.list[[ label ]] <- TE.output.all
-      k <- k + 1
-    }
+    label <- label.name[1]
+    TE.output.all.list[[ label ]] <- TE.output.all
+    fit_full.list[[label]] <- result$fit_full
   }
   
   # -------------------------------
@@ -263,6 +261,7 @@ interflex.lasso <- function(data,
       hist.out   = hist.out,
       de.tr      = treat_den,
       count.tr   = treat.hist,
+      fit_full = fit_full.list,
       estimator  = "lasso"
     )
   } else if (treat.type == "continuous") {
@@ -277,6 +276,7 @@ interflex.lasso <- function(data,
       hist.out   = hist.out,
       de.tr      = de.tr,
       count.tr   = NULL,
+      fit_full = fit_full.list,
       estimator  = "lasso"
     )
   }

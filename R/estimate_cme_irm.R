@@ -253,7 +253,7 @@ estimateCME <- function(
   # a) outcome models
   out_fit1 <- out_fit0 <- NULL
   mu1_hat  <- mu0_hat  <- rep(NA_real_, n)
-  
+
   if (do_outcome) {
     if (verbose) cat("   Fitting outcome model for treated (D=1) units...\n")
     idx1 <- which(Dvec==1)
@@ -330,6 +330,7 @@ estimateCME <- function(
   }
   
   # b) propensity score model
+  ps_fit <- rep(NA_real_, n)
   if (do_ps) {
     if (verbose) cat("   Fitting propensity score model (no FE)...\n")
     
@@ -391,6 +392,8 @@ estimateCME <- function(
     nz    <- which(as.numeric(coefs) != 0)
     setdiff(nz,1) - 1  # subtract 1 to align with col indices in x_mat
   }
+
+  loss.save <- list()
   
   if (signal=="outcome" && outcome_lasso) {
     lambda_cv_save <- list(outcome1 = out_fit1$lambda, outcome0 = out_fit0$lambda)
@@ -410,6 +413,10 @@ estimateCME <- function(
       lm0 <- lm(y ~ ., data=df0_sub)
       out_fit1 <- list(fit=lm1, type="lm")
       out_fit0 <- list(fit=lm0, type="lm")
+      mse1_n <- mean(residuals(lm1)^2)
+      mse0_n <- mean(residuals(lm0)^2)
+      loss.save[['outcome1']] <- mse1_n
+      loss.save[['outcome0']] <- mse0_n
     }
   } else if (signal=="ipw" && ps_lasso) {
     lambda_cv_save <- list(treatment = ps_fit$lambda)
@@ -421,6 +428,8 @@ estimateCME <- function(
       dfp_sub <- data.frame(d=Dvec, XZ_sub)
       final_logit <- glm(d ~ ., data=dfp_sub, family=binomial("logit"))
       ps_fit <- list(fit=final_logit, type="glm")
+      logloss_mean <- -as.numeric(logLik(final_logit)) / nobs(final_logit)
+      loss.save[['treatment']] <- logloss_mean
     }
     
   } else if (signal=="aipw" && outcome_lasso && ps_lasso) {
@@ -447,6 +456,13 @@ estimateCME <- function(
       dfp_sub <- data.frame(d=Dvec, XZ_sub)
       final_logit <- glm(d ~ ., data=dfp_sub, family=binomial("logit"))
       ps_fit <- list(fit=final_logit, type="glm")
+
+      mse1_n <- mean(residuals(lm1)^2)
+      mse0_n <- mean(residuals(lm0)^2)
+      loss.save[['outcome1']] <- mse1_n
+      loss.save[['outcome0']] <- mse0_n
+      logloss_mean <- -as.numeric(logLik(final_logit)) / nobs(final_logit)
+      loss.save[['treatment']] <- logloss_mean
     }
   }
   
@@ -595,6 +611,7 @@ estimateCME <- function(
     reduce.dimension = reduce.dimension,
     best_span   = best_span,
     lambda_cv = lambda_cv_save,
+    loss = loss.save,
     selected_covars = selected_covars
   )
   return(out)
