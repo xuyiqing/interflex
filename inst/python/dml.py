@@ -1,6 +1,13 @@
 import gc
+import warnings
 
 gc.collect()
+
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message=r".*force_all_finite.*renamed to 'ensure_all_finite'.*",
+)
 
 import patsy
 import multiprocessing
