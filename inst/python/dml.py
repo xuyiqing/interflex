@@ -1,6 +1,13 @@
 import gc
+import warnings
 
 gc.collect()
+
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message=r".*force_all_finite.*renamed to 'ensure_all_finite'.*",
+)
 
 import patsy
 import multiprocessing
@@ -30,7 +37,7 @@ def set_model(model, param, discrete_outcome):
         model_set = LogisticRegression() if discrete_outcome else LinearRegression()
 
     elif model_lower in {"regularization", "r"}:
-        model_set = ElasticNet(**param)
+        model_set = LogisticRegression(**param) if discrete_outcome else LogisticRegression(**param)
 
     elif model_lower in {
         "randomforest",

@@ -37,6 +37,7 @@ plot.interflex <- function(x,
                            density.color = c("gray50", "red"),
                            density.color.alpha = 0.3,
                            show.all = FALSE,
+                           show.uniform.CI = TRUE,
                            scale = 1.1,
                            height = 7,
                            width = 10,
@@ -958,7 +959,7 @@ plot.interflex <- function(x,
                         }
                     }
 
-                    if ("CI_uniform_lower" %in% colnames(tempest)) {
+                    if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI == TRUE) {
                         if (by.group == FALSE) {
                             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = CI_uniform_lower), linetype = "dashed", color = "gray50") + geom_line(data = tempest, aes(x = X, y = CI_uniform_upper), linetype = "dashed", color = "gray50")
                         } else {
@@ -1057,7 +1058,7 @@ plot.interflex <- function(x,
                             )
                         }
                     }
-                    if ("CI_uniform_lower" %in% colnames(tempest)) {
+                    if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI == TRUE) {
                         if (by.group == FALSE) {
                             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = CI_uniform_lower), linetype = "dashed", color = "gray50") + geom_line(data = tempest, aes(x = X, y = CI_uniform_upper), linetype = "dashed", color = "gray50")
                         } else {
