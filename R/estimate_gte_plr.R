@@ -43,8 +43,8 @@ estimateGATE_PLR <- function(
   basis_type           = c("polynomial","bspline","none"),
   include_interactions = FALSE,
   poly_degree          = 2,
-  spline_df            = 4,
-  spline_degree        = 2,
+  spline_df            = 5,
+  spline_degree        = 3,
 
   lambda_cv  = NULL,  # list(outcome=…, treatment=…)
   lambda_seq = NULL,  # λ grid for glmnet

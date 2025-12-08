@@ -55,8 +55,8 @@ estimateCME <- function(
     poly_degree        = 2,      # only used if basis_type="polynomial"
     
     # B-spline parameters (used if basis_type="bspline", or for final CME fit)
-    spline_df          = 4,
-    spline_degree      = 2,
+    spline_df          = 5,
+    spline_degree      = 3,
     
     lambda_cv = NULL, # stored penalty parameters
     lambda_seq        = NULL, # optional custom lambda sequence for glmnet
@@ -413,10 +413,14 @@ estimateCME <- function(
       lm0 <- lm(y ~ ., data=df0_sub)
       out_fit1 <- list(fit=lm1, type="lm")
       out_fit0 <- list(fit=lm0, type="lm")
-      mse1_n <- mean(residuals(lm1)^2)
-      mse0_n <- mean(residuals(lm0)^2)
-      loss.save[['outcome1']] <- mse1_n
-      loss.save[['outcome0']] <- mse0_n
+      loo_rmse_lm <- function(fit) {
+        e   <- residuals(fit)
+        h   <- hatvalues(fit)
+        ecv <- e / (1 - h)          # LOO residuals
+        sqrt(mean(ecv^2))
+      }
+      loss.save[['outcome1']] <- loo_rmse_lm(lm1)
+      loss.save[['outcome0']] <- loo_rmse_lm(lm0)
     }
   } else if (signal=="ipw" && ps_lasso) {
     lambda_cv_save <- list(treatment = ps_fit$lambda)
@@ -428,8 +432,19 @@ estimateCME <- function(
       dfp_sub <- data.frame(d=Dvec, XZ_sub)
       final_logit <- glm(d ~ ., data=dfp_sub, family=binomial("logit"))
       ps_fit <- list(fit=final_logit, type="glm")
-      logloss_mean <- -as.numeric(logLik(final_logit)) / nobs(final_logit)
-      loss.save[['treatment']] <- logloss_mean
+
+      loo_logloss_logit_fast <- function(fit, eps = 1e-15) {
+        y   <- fit$y
+        mu  <- fitted(fit)
+        eta <- fit$linear.predictors
+        h   <- hatvalues(fit) 
+        adj     <- (h / (1 - h)) * (y - mu) / (mu * (1 - mu))
+        p_loo   <- plogis(eta - adj)
+        p_loo <- pmin(pmax(p_loo, eps), 1 - eps)
+        -mean(y * log(p_loo) + (1 - y) * log(1 - p_loo))
+      }
+      #logloss_mean <- -as.numeric(logLik(final_logit)) / nobs(final_logit)
+      loss.save[['treatment']] <- loo_logloss_logit_fast(final_logit) 
     }
     
   } else if (signal=="aipw" && outcome_lasso && ps_lasso) {
@@ -457,12 +472,26 @@ estimateCME <- function(
       final_logit <- glm(d ~ ., data=dfp_sub, family=binomial("logit"))
       ps_fit <- list(fit=final_logit, type="glm")
 
-      mse1_n <- mean(residuals(lm1)^2)
-      mse0_n <- mean(residuals(lm0)^2)
-      loss.save[['outcome1']] <- mse1_n
-      loss.save[['outcome0']] <- mse0_n
-      logloss_mean <- -as.numeric(logLik(final_logit)) / nobs(final_logit)
-      loss.save[['treatment']] <- logloss_mean
+      loo_rmse_lm <- function(fit) {
+        e   <- residuals(fit)
+        h   <- hatvalues(fit)
+        ecv <- e / (1 - h)          # LOO residuals
+        sqrt(mean(ecv^2))
+      }
+      loss.save[['outcome1']] <- loo_rmse_lm(lm1)
+      loss.save[['outcome0']] <- loo_rmse_lm(lm0)
+      loo_logloss_logit_fast <- function(fit, eps = 1e-15) {
+        y   <- fit$y
+        mu  <- fitted(fit)
+        eta <- fit$linear.predictors
+        h   <- hatvalues(fit) 
+        adj     <- (h / (1 - h)) * (y - mu) / (mu * (1 - mu))
+        p_loo   <- plogis(eta - adj)
+        p_loo <- pmin(pmax(p_loo, eps), 1 - eps)
+        -mean(y * log(p_loo) + (1 - y) * log(1 - p_loo))
+      }
+      #logloss_mean <- -as.numeric(logLik(final_logit)) / nobs(final_logit)
+      loss.save[['treatment']] <- loo_logloss_logit_fast(final_logit) 
     }
   }
   

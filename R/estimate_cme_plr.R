@@ -44,8 +44,8 @@ estimateCME_PLR <- function(
     poly_degree          = 2,       # only used if basis_type="polynomial"
 
     # B-spline parameters (used if basis_type="bspline", or for final CME fit)
-    spline_df            = 4,
-    spline_degree        = 2,
+    spline_df            = 5,
+    spline_degree        = 3,
 
     lambda_cv            = NULL,    # stored penalty parameters (list with
                                     #   elements 'outcome' and 'treatment' if pre-tuned)
@@ -441,7 +441,7 @@ estimateCME_PLR <- function(
         X.eval = x.eval,
         CV     = TRUE,
         parallel = TRUE,
-        cores    = parallel::detectCores()
+        cores    = parallel::detectCores()-1
       )
     } else {
       sol_k <- interflex::interflex(

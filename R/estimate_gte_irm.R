@@ -51,8 +51,8 @@ estimateGTE <- function(
   basis_type = c("polynomial","bspline","none"),
   include_interactions = FALSE,
   poly_degree  = 2,
-  spline_df    = 4,
-  spline_degree = 2,
+  spline_df    = 5,
+  spline_degree = 3,
   XZ_design    = NULL,    # optional prebuilt matrix
   outcome_model_type = "lasso",  # "linear","ridge","lasso"
   ps_model_type      = "lasso",  # "linear","ridge","lasso"
