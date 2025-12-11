@@ -46,12 +46,12 @@ estimateGATE_PLR <- function(
   spline_df            = 5,
   spline_degree        = 3,
 
-  lambda_cv  = NULL,  # list(outcome=…, treatment=…)
-  lambda_seq = NULL,  # λ grid for glmnet
+  lambda_cv  = NULL,  # list(outcome=..., treatment=...)
+  lambda_seq = NULL,  # lambda grid for glmnet
 
   verbose    = TRUE
 ) {
-  #— 0) prerequisites & lambda_cv check ———————————————————————————————
+  # 0) prerequisites & lambda_cv check 
   if (!requireNamespace("glmnet", quietly=TRUE)) {
     stop("Package 'glmnet' is required.")
   }
@@ -73,7 +73,7 @@ estimateGATE_PLR <- function(
   Dv <- data[[D]]
   Xv <- data[[X]]
 
-  #— 1) build or validate XZ_design ——————————————————————————————
+  # 1) build or validate XZ_design 
   if (!is.null(XZ_design)) {
     if (!is.matrix(XZ_design) || nrow(XZ_design)!=nrow(data)) {
       stop("Provided XZ_design must be a matrix with same #rows as data.")
@@ -146,7 +146,7 @@ estimateGATE_PLR <- function(
     if (verbose) cat("Design matrix built with", ncol(XZ_design), "columns.\n")
   }
 
-  #— 2) penalty factors for FE —————————————————————————————————————
+  # 2) penalty factors for FE 
   p        <- ncol(XZ_design)
   pf_out   <- pf_tr <- rep(1, p)
   if (!is.null(FE)) {
@@ -156,7 +156,7 @@ estimateGATE_PLR <- function(
     pf_tr[idx_fe]  <- 0
   }
 
-  #— 3) glmnet helper —————————————————————————————————————————————
+  # 3) glmnet helper 
   fit_glmnet <- function(y, Xm, type, lam, pf) {
     if (type == "linear") {
       df <- data.frame(y=y, Xm)
@@ -190,18 +190,18 @@ estimateGATE_PLR <- function(
     )
   }
 
-  #— 4) initial penalized fits —————————————————————————————————————
-  if (verbose) cat("Fitting outcome & treatment models…\n")
+  # 4) initial penalized fits 
+  if (verbose) cat("Fitting outcome & treatment models...\n")
   out0 <- fit_glmnet(Yv, XZ_design, outcome_model_type,
                      lambda_cv$outcome, pf_out)
   tr0  <- fit_glmnet(Dv, XZ_design, treatment_model_type,
                      lambda_cv$treatment, pf_tr)
 
-  #— 5) collect λ & active sets ————————————————————————————————————
+  # 5) collect lambda & active sets 
   lambda_used <- list(outcome=out0$lambda, treatment=tr0$lambda)
   selected    <- list(outcome=out0$active, treatment=tr0$active)
 
-  #— 6) post-selection refits if any penalized ————————————————————————
+  # 6) post-selection refits if any penalized 
   if (outcome_model_type != "linear") {
     ao <- out0$active
     if (length(ao) > 0) {
@@ -222,7 +222,7 @@ estimateGATE_PLR <- function(
     }
   }
 
-  #— 7) residualize ——————————————————————————————————————————————
+  # 7) residualize 
   predict_helper <- function(obj, Xm) {
     if (obj$type=="lm") {
       predict(obj$fit, newdata=as.data.frame(Xm))
@@ -235,8 +235,8 @@ estimateGATE_PLR <- function(
   ytilde <- Yv - yhat
   dtilde <- Dv - dhat
 
-  #— 8) group-by-X regression for GATE ————————————————————————————
-  if (verbose) cat("Computing GATE by group…\n")
+  # 8) group-by-X regression for GATE 
+  if (verbose) cat("Computing GATE by group...\n")
   fac   <- factor(Xv)
   lvls  <- levels(fac)
   gate  <- sapply(lvls, function(lv) {
@@ -245,7 +245,7 @@ estimateGATE_PLR <- function(
   })
   gate_df <- data.frame(X=lvls, GATE=gate, stringsAsFactors=FALSE)
 
-  #— 9) return everything —————————————————————————————————————————
+  # 9) return everything 
   ret <- list(
     XZ_design     = XZ_design,
     gate_df       = gate_df,
@@ -288,12 +288,12 @@ bootstrapGATE_PLR <- function(
   spline_df            = 4,
   spline_degree        = 2,
   lambda_seq           = NULL,
-  CI = CI,
+  CI = TRUE,
   verbose              = TRUE
 ) {
   # 1) Prep & full-sample fit ------------------------------------------------
   basis_type <- match.arg(basis_type)
-  if (verbose) message("BootstrapGATE_PLR: fitting full-sample PLR…")
+  if (verbose) message("BootstrapGATE_PLR: fitting full-sample PLR...")
   full <- estimateGATE_PLR(
     data                 = data,
     Y                    = Y,
@@ -309,7 +309,7 @@ bootstrapGATE_PLR <- function(
     poly_degree          = poly_degree,
     spline_df            = spline_df,
     spline_degree        = spline_degree,
-    lambda_cv            = NULL,      # let full-sample CV select λ’s
+    lambda_cv            = NULL,      # let full-sample CV select lambda's
     lambda_seq           = lambda_seq,
     verbose              = verbose
   )
@@ -318,18 +318,18 @@ bootstrapGATE_PLR <- function(
   g_full      <- full$gate_df$GATE
   n           <- nrow(data)
   XZ0         <- full$XZ_design
-  lambda_used <- full$lambda_used    # list(outcome=…, treatment=…)
+  lambda_used <- full$lambda_used    # list(outcome=..., treatment=...)
 
   if(CI == TRUE){
     # 2) Parallel bootstrap ----------------------------------------------------
-    if (verbose) message("BootstrapGATE_PLR: launching cluster…")
+    if (verbose) message("BootstrapGATE_PLR: launching cluster...")
     if (!requireNamespace("doParallel", quietly=TRUE)) {
       stop("Package 'doParallel' required for parallel bootstrap.")
     }
     cl <- parallel::makeCluster(parallel::detectCores())
     doParallel::registerDoParallel(cl)
 
-    if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws…")
+    if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws...")
     res_mat <- foreach::foreach(
       b = seq_len(B),
       .combine  = "rbind",
@@ -356,7 +356,7 @@ bootstrapGATE_PLR <- function(
         poly_degree          = poly_degree,
         spline_df            = spline_df,
         spline_degree        = spline_degree,
-        lambda_cv            = lambda_used,  # reuse full-sample λ’s
+        lambda_cv            = lambda_used,  # reuse full-sample lambda's
         lambda_seq           = lambda_seq,
         verbose              = FALSE
       )
@@ -370,7 +370,7 @@ bootstrapGATE_PLR <- function(
     parallel::stopCluster(cl)
 
     # 3) Compute SE & CIs -------------------------------------------------------
-    if (verbose) message("BootstrapGATE_PLR: summarizing draws…")
+    if (verbose) message("BootstrapGATE_PLR: summarizing draws...")
     se    <- apply(res_mat, 2, sd, na.rm=TRUE)
     cil   <- apply(res_mat, 2, quantile, probs=alpha/2,   na.rm=TRUE)
     cih   <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)

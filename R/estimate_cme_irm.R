@@ -70,6 +70,7 @@ estimateCME <- function(
     verbose           = TRUE
 ) {
   
+  estimand <- match.arg(estimand)
   out_fit1 <- NULL
   out_fit0 <- NULL
   ps_fit <- NULL

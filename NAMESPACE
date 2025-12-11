@@ -7,7 +7,9 @@ importFrom("graphics", "hist", "par", "plot")
 importFrom("stats", "as.formula", "density", "dnorm", "lm", "median", "predict",
              "model.matrix", "na.omit", "pt", "qt", "quantile", "sd", "cov",
              "var", "vcov","coef", "relevel", "rnorm","pnorm","contr.sum",
-			 "glm.control","binomial", "glm", "poisson", "weighted.mean")
+			 "glm.control","binomial", "glm", "poisson", "weighted.mean", 
+			 "fitted", "hatvalues", "loess", "plogis", "poly",
+             "qnorm", "residuals")
 importFrom("ggplot2","geom_errorbar", "geom_hline", "labs" ,"geom_line", "geom_point", "geom_rect","geom_ribbon", "geom_smooth", 
 			"geom_vline", "ggplot", "ggtitle", "theme", "aes","element_text", "annotate", "xlab", "ylab", "aes_string", 
 			"coord_cartesian", "facet_wrap", "facet_grid","theme_bw","element_blank","ggsave","layer_scales","ylim","xlim",
@@ -23,7 +25,7 @@ importFrom("gridExtra","arrangeGrob")
 importFrom("ggplotify","as.ggplot")
 importFrom("grid","textGrob","gpar")
 importFrom("RColorBrewer","brewer.pal")
-importFrom("utils", "capture.output")
+importFrom("utils", "capture.output","combn")
 importFrom("gtable", "gtable_filter","gtable_add_grob","gtable_add_cols")
 importFrom("grDevices","col2rgb")
 importFrom("mvtnorm","rmvnorm")

@@ -57,13 +57,13 @@ estimateGTE <- function(
   outcome_model_type = "lasso",  # "linear","ridge","lasso"
   ps_model_type      = "lasso",  # "linear","ridge","lasso"
   lambda_cv    = NULL,    # list(outcome1, outcome0, treatment)
-  lambda_seq   = NULL,    # glmnet λ grid
+  lambda_seq   = NULL,    
   verbose      = TRUE
 ) {
   if (!requireNamespace("glmnet", quietly = TRUE)) {
     stop("Package 'glmnet' is required for penalized fits. Please install it.")
   }
-  #— 1) args & basic checks —————————————————————————————————————————————
+  # 1) args & basic checks 
   estimand   <- match.arg(estimand)
   signal     <- match.arg(signal)
   basis_type <- match.arg(basis_type)
@@ -83,7 +83,7 @@ estimateGTE <- function(
   Xvec <- data[[X]]
   if (!all(Dvec %in% c(0,1))) stop("D must be 0/1.")
 
-  #— 2) prepare Z_nonFE & FE_dummies ——————————————————————————————————
+  # 2) prepare Z_nonFE & FE_dummies 
   Z_nonFE <- if (!is.null(Z)) {
     stopifnot(all(Z %in% names(data)))
     data[, Z, drop=FALSE]
@@ -102,10 +102,10 @@ estimateGTE <- function(
     if(verbose) cat("Fixed effects -> dummies\n")
   }
 
-  #— 3) build design matrix if NULL ——————————————————————————————————
+  # 3) build design matrix if NULL 
   if (is.null(XZ_design)) {
     build_design_matrix <- function(X_vec, Z_nonFE, FE_dummies) {
-      # 3A) discrete X -> k–1 dummies
+      # 3A) discrete X -> k-1 dummies
       fX    <- factor(X_vec)
       X_mat <- model.matrix(~ fX)[,-1,drop=FALSE]
       colnames(X_mat) <- paste0(deparse(substitute(X)), "_", levels(fX)[-1])
@@ -164,7 +164,7 @@ estimateGTE <- function(
     grep(paste0("^(", paste(FE, collapse="|"), ")_"), colnames(XZ_design))
   } else integer(0)
 
-  #— 4) fit outcome & ps w/ post-selection ——————————————————————————————
+  # 4) fit outcome & ps w/ post-selection 
   requireNamespace("glmnet")
   selected <- list(outcome1=NULL, outcome0=NULL, ps=NULL)
   lambda_used <- list(outcome1=NULL, outcome0=NULL, treatment=NULL)
@@ -292,14 +292,14 @@ estimateGTE <- function(
     ps_fit <- p1$refit
   }
 
-  #— 5) for ATT, group-mean p(D=1|X) ————————————————————————————————
+  # 5) for ATT, group-mean p(D=1|X) 
   p_hat_X <- NULL
   if (estimand=="ATT") {
     grp <- tapply(Dvec, Xvec, mean)
     p_hat_X <- grp[as.character(Xvec)]
   }
 
-  #— 6) build individual signal —————————————————————————————————————
+  # 6) build individual signal 
   if (estimand=="ATE") {
     est_signal <- switch(signal,
       outcome = mu1_hat - mu0_hat,
@@ -315,7 +315,7 @@ estimateGTE <- function(
     )
   }
 
-  #— 7) collapse by X ————————————————————————————————————————————————
+  # 7) collapse by X 
   gte_vals <- tapply(est_signal, Xvec, mean)
   gte_df   <- data.frame(
     X   = names(gte_vals),
@@ -324,7 +324,7 @@ estimateGTE <- function(
     stringsAsFactors = FALSE
   )
 
-  #— 8) return everything ———————————————————————————————————————————
+  # 8) return everything 
   ret <- list(
     XZ_design   = XZ_design,
     mu1_hat     = mu1_hat,
@@ -393,7 +393,7 @@ bootstrapGTE <- function(
   estimand   <- match.arg(estimand)
   basis_type <- match.arg(basis_type)
 
-  if(verbose) message("1) Fit full-sample GTE…")
+  if(verbose) message("1) Fit full-sample GTE...")
   fit_full <- estimateGTE(
     data                 = data,
     Y                    = Y,
@@ -421,7 +421,7 @@ bootstrapGTE <- function(
   XZ0  <- fit_full$XZ_design
 
   if(CI == TRUE){
-    if(verbose) message("2) Bootstrapping…")
+    if(verbose) message("2) Bootstrapping...")
     cl <- parallel::makeCluster(parallel::detectCores())
     doParallel::registerDoParallel(cl)
     `%dopar%` <- foreach::`%dopar%`
@@ -455,7 +455,7 @@ bootstrapGTE <- function(
         XZ_design            = XZ_b,        # pass in bootstrap design
         outcome_model_type   = outcome_model_type,
         ps_model_type        = ps_model_type,
-        lambda_cv            = lambda_used, # reuse full-sample λ's
+        lambda_cv            = lambda_used, 
         lambda_seq           = lambda_seq,
         verbose              = FALSE
       )
@@ -463,7 +463,7 @@ bootstrapGTE <- function(
     }
     parallel::stopCluster(cl)
 
-    if(verbose) message("3) Computing SE & CIs…")
+    if(verbose) message("3) Computing SE & CIs...")
     se   <- apply(res_mat, 2, sd, na.rm=TRUE)
     ci_l <- apply(res_mat, 2, quantile, probs=alpha/2, na.rm=TRUE)
     ci_u <- apply(res_mat, 2, quantile, probs=1-alpha/2, na.rm=TRUE)

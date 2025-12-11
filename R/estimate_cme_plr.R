@@ -63,7 +63,7 @@ estimateCME_PLR <- function(
 
   basis_type       <- match.arg(basis_type)
   reduce.dimension <- match.arg(reduce.dimension)
-
+  
   ##############################################################################
   # 0. Basic checks and extract variables
   ##############################################################################
