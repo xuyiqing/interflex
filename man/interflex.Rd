@@ -2,105 +2,130 @@
 \alias{interflex}
 \title{Flexible Interactive Models}
 \description{Producing flexible marginal effect estimates with linear, binning, and kernel estimators}
-\usage{interflex(estimator, data, Y, D, X, treat.type = NULL,
-      base = NULL, Z = NULL, IV = NULL, FE = NULL, full.moderate = FALSE,
-      weights = NULL, na.rm = FALSE, Xunif = FALSE,
-      CI = TRUE, neval = 50, X.eval = NULL,
-      method = "linear", vartype = "delta",
-      vcov.type = "robust",time=NULL,
-      pairwise = TRUE,nboots = 200, nsimu = 1000,
-      parallel =TRUE,cores = 4, cl = NULL,
-      Z.ref = NULL, D.ref = NULL,
-      nbins = 3, cutoffs = NULL, wald = TRUE,
-      bw = NULL, kfold = 10, grid = 30,
-      metric = NULL, figure = TRUE, bin.labs = TRUE,
-      order = NULL, subtitles = NULL, show.subtitles = NULL,
-      Xdistr = "histogram", main = NULL,
-      Ylabel = NULL, Dlabel = NULL, Xlabel = NULL,
-      xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL,
-      theme.bw = FALSE, show.grid = TRUE, cex.main = NULL,
-      cex.sub = NULL, cex.lab = NULL, cex.axis = NULL,
-      interval = NULL, file = NULL, ncols = NULL,
-      pool = FALSE, color = NULL, show.all = FALSE,
-      legend.title = NULL, diff.values = NULL,
-      percentile = FALSE, gam.k = 10,
-	    angle=c(30, 100,-30,-120),
-	    span=NULL, scale = 1.1, height = 7, width = 10)
+\usage{
+interflex(estimator, data, Y, D, X, treat.type = NULL,
+  base = NULL, Z = NULL, IV = NULL, FE = NULL, full.moderate = FALSE,
+  weights = NULL, na.rm = FALSE, Xunif = FALSE, CI = TRUE, neval = 50,
+  X.eval = NULL, method = "linear", vartype = "delta",
+  vcov.type = "robust", time = NULL, pairwise = TRUE, nboots = 200,
+  nsimu = 1000, parallel = FALSE, cores = 4, cl = NULL, Z.ref = NULL,
+  D.ref = NULL, nbins = 3, cutoffs = NULL, wald = TRUE, bw = NULL,
+  kfold = 10, grid = 30, metric = NULL, model.y = "rf",
+  param.y = NULL, param.grid.y = NULL,
+  scoring.y = "neg_mean_squared_error", model.t = "rf", param.t = NULL,
+  param.grid.t = NULL, scoring.t = "neg_mean_squared_error", CV = FALSE,
+  n.folds = 10, n.jobs = -1, cf.n.folds = 5, gate = FALSE,
+  grf.num.trees = 4000, signal = c("aipw"), estimand = c("ATE"),
+  basis.type = c("bspline"), include.interactions = TRUE, poly.degree = 2,
+  spline.df = 5, spline.degree = 3, lambda.seq = NULL,
+  reduce.dimension = c("bspline"), figure = TRUE, bin.labs = TRUE,
+  order = NULL, subtitles = NULL, show.subtitles = NULL,
+  Xdistr = "histogram", main = NULL, Ylabel = NULL, Dlabel = NULL,
+  Xlabel = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL,
+  theme.bw = FALSE, show.grid = TRUE, show.uniform.CI = TRUE,
+  cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL,
+  interval = NULL, file = NULL, ncols = NULL, pool = FALSE, color = NULL,
+  show.all = FALSE, legend.title = NULL, diff.values = NULL,
+  percentile = FALSE, gam.k = 10, angle = c(30, 100, -30, -120),
+  span = NULL, scale = 1.1, height = 7, width = 10, box.pos = "down")
 }
 \arguments{
-  \item{estimator}{a string that specifies the estimator. Can be one of the following: "linear", "binning", "kernel" or "gam".}
-  \item{data}{a data.frame that stores Y, D, and X.}
+  \item{estimator}{a string that specifies the estimator. Can be one of the following: "raw", "linear", "binning", "kernel", "gam", "grf", "dml", or "lasso".}
+  \item{data}{a data.frame that stores \bold{Y}, \bold{D}, \bold{X} (and optionally \bold{Z}, \bold{IV}, \bold{FE}, \bold{weights}).}
   \item{Y}{a string, name of the outcome variable.}
   \item{D}{a string, name of the treatment variable.}
   \item{X}{a string, name of the moderating variable.}
-  \item{treat.type}{a string that specifies the type of the treatment variable. Can be one of the following: "discrete" and "continuous". If not specified, it will be automatically set based on the treatment variable. (If D is in numeric format and the number of multiple arms of D is larger than 5, treat.type will be set to "continuous". Otherwise, it will be set to "discrete".)}
-  \item{base}{a string specifying the base group if \bold{treat.type} is "discrete". If not specified, the base group will be selected based on numeric/character order of values in the treatment variable. For example, when treatment D can take values 0, 1, and 2, those observations with treatment 0 will be selected as the base group.}
-  \item{Z}{a vector of variable names of control variables.}
-  \item{IV}{a vector of variable names for the instrument variables of the treatment, doesn't support glm model in this version}
-  \item{FE}{a vector of variable names of fixed effects indicators, doesn't support glm model in this version}
-  \item{full.moderate}{a logical flag indicating whether to use fully moderated model that is default to FALSE. If it is set to TRUE, the program will include additional interactions between the moderating variable and other covariates. }
+  \item{treat.type}{a string specifying the type of the treatment. Must be "discrete" or "continuous". If not specified, it is set automatically: if \bold{D} is numeric and has more than 5 unique values, then "continuous"; otherwise "discrete".}
+  \item{base}{a string specifying the baseline treatment group when \bold{treat.type} is "discrete". If not specified, the baseline is chosen as the first level in sorted order of \bold{D}.}
+  \item{Z}{a character vector of covariate names.}
+  \item{IV}{a character vector of instrument variable names (only supported when \bold{method} = "linear").}
+  \item{FE}{a character vector of fixed-effect indicator names (only supported when \bold{method} = "linear").}
+  \item{full.moderate}{a logical flag indicating whether to use a fully moderated model, i.e., include additional interactions between \bold{X} and other covariates \bold{Z}.}
   \item{weights}{a string, name of the weighting variable.}
-  \item{na.rm}{a logical flag indicating whether to list-wise delete missing data. The algorithm will report an error if missing data exist.}
-  \item{Xunif}{a logical flag controlling whether to transform values of the moderator into their rank order.}
-  \item{CI}{a logical flag indicating whether the confidence intervals need to be shown. If \bold{CI} = FALSE, the bootstrap procedure will not be conducted.}
-  \item{neval}{an integer specifying the number of evaluation points. A large number would produce smoother marginal effects estimates but the algorithm will take more time to run.}
-  \item{X.eval}{a vector of manually selected evaluation points.}
-  \item{method}{a string that specifies the link function. Can be one of the following: "linear", "probit", "logit", "poisson", "nbinom". The default is "linear".}
-  \item{vartype}{a string that controls the method used for uncertainty estimation when \bold{estimator} = "linear" or "binning". Can be one of the following: "delta", "simu" and "bootstrap". The default is "delta".}
-  \item{vcov.type}{a string that controls the variance-covariance estimator. Can be one of the following: "homoscedastic"; "robust"; "cluster" and "pcse"(only for linear models). The default is "robust".}
-  \item{time}{a string specifying the name of time variable for panel corrected standard errors. Ignored when \bold{vcov.type} is not "pcse".}
-  \item{pairwise}{a logical flag indicating whether to switch on the \bold{pairwise} option when estimating panel corrected standard errors. Ignored when \bold{vcov.type} is not "pcse". The default is TRUE.}
-  \item{nboots}{an integer specifying the number of bootstrap runs. The default is 200.}
-  \item{nsimu}{an integer specifying the rounds of simulations. The default is 1000.}
-  \item{parallel}{a logical flag indicating whether parallel computing will be used in bootstrapping and/or cross-validation. Ignored if \bold{CI} = FALSE and \bold{bw} is specified.}
-  \item{cores}{an integer indicating the number of cores to be used in parallel computing. If not specified, the algorithm will use the maximum number of logical cores of your computer (warning: this could prevent you from multi-tasking on your computer).}
-  \item{cl}{a string specifying the name of clustering variable. If specified, the bootstrap and cross-validation procedure will be blocking on this variable. Ignored when \bold{CI} = FALSE.
-    When \bold{vartype} is "cluster", it specifies the name of unit variable for estimating clustered standard errors.}
-  \item{Z.ref}{a numeric vector specifies the value of covariates when estimating marginal effects in glm models, must have the same length and order as \bold{Z}. In the default setting, each element of \bold{Z.ref} equals to the mean of the corresponding covariate in the data.}
-  \item{D.ref}{a numeric vector specifies the value of \bold{D} when estimating marginal effects when \bold{D} is continuous. The default is the mean of \bold{D} in the data.}
-  \item{nbins}{an integer that determines the number of bins of the moderator. The sample will be divided based on integral multiples of 100/nbins percentile.  \bold{nbins} will be automatically
-    subtracted by 1 if more than one multiples of the percentile have the same value (for example, if the moderator has over 70\% zeros, both the 33 and 66 percentiles are zero). The default is 3. Ignored when \bold{cutoffs} is supplied. When nbins are set to 1, it only conducts a linear fit.}
-  \item{cutoffs}{a vector of numbers that determines how subgroups are divided based on the moderator X. When this option is supplied, \bold{nbins} will be ignored. The smallest number of the first interval and the largest number of the last interval do not need to be specified. Numbers smaller than the minimum or larger than the maximum of X will be ignored. \bold{nbins} equals to the length of this vector plus 1. Ignored if the treatment is dichotomous.}
-  \item{wald}{a logical flag controlling whether to conduct a Wald test.}
-  \item{bw}{a number that sets the bandwidth in Gaussian kernel reweighting.}
-  \item{kfold}{an integer specified the number of folds in cross-validation, default to 10.}
-  \item{grid}{either an integer indicating the number of candidates in a grid search to find the optimal bandwidth, or a vector of positive numbers of candidate bandwidths, default to 30. Ignored if \bold{bw} is specified.}
-  \item{metric}{a string specifies the criterion to be used in cross-validation to select bandwidth, can be one of the following:"MSE", "MAE", "Cross Entropy" and "AUC". The default will be "MSPE" if the outcome is not binary, otherwise the default will be "Cross Entropy"}
+  \item{na.rm}{a logical flag indicating whether to list-wise delete missing data in required variables. If \bold{na.rm} = FALSE, the function errors when missing values exist.}
+  \item{Xunif}{a logical flag controlling whether to transform \bold{X} to its percentile rank (scaled to 0--100).}
+  \item{CI}{a logical flag indicating whether to compute confidence intervals (if \bold{CI} = FALSE, CI-related bootstrap/simulation routines are skipped when applicable).}
+  \item{neval}{an integer specifying the number of evaluation points/grid size used by some estimators (larger values produce smoother curves but take longer).}
+  \item{X.eval}{a numeric vector of manually selected evaluation points for \bold{X} (used by some estimators such as \bold{estimator}="linear" or "kernel").}
+  \item{method}{a string specifying the outcome model: one of "linear", "probit", "logit", "poisson", or "nbinom".}
+  \item{vartype}{a string controlling uncertainty estimation for \bold{estimator} = "linear" or "binning": one of "delta", "simu", or "bootstrap".}
+  \item{vcov.type}{a string controlling the variance-covariance estimator for linear models: one of "homoscedastic", "robust", "cluster", or "pcse" (panel-corrected SEs; only for linear models).}
+  \item{time}{a string specifying the time variable name for \bold{vcov.type} = "pcse".}
+  \item{pairwise}{a logical flag for \bold{vcov.type} = "pcse" controlling the pairwise option.}
+  \item{nboots}{an integer specifying the number of bootstrap runs (when bootstrap-based inference is used).}
+  \item{nsimu}{an integer specifying the number of simulation draws (when simulation-based inference is used).}
+  \item{parallel}{a logical flag indicating whether to use parallel computing in bootstrap and/or cross-validation routines (when supported by the chosen estimator).}
+  \item{cores}{an integer indicating the number of cores to be used when \bold{parallel} = TRUE.}
+  \item{cl}{a string specifying the clustering/unit variable name for \bold{vcov.type} = "cluster" or \bold{vcov.type} = "pcse". It is also used to block some resampling routines when applicable.}
+  \item{Z.ref}{a vector specifying the reference values of covariates when estimating marginal effects/predicted values in GLM-type models. Must have the same length and order as the original \bold{Z}. For factor covariates, provide a level name; for numeric covariates, provide a numeric value. By default, numeric covariates are set to their sample mean (factor covariates are handled internally via contrast coding).}
+  \item{D.ref}{a numeric vector specifying reference values of \bold{D} when \bold{treat.type} = "continuous" (used for labeling/plotting). If not specified, it defaults to the median of \bold{D}.}
+  \item{nbins}{an integer determining the number of bins when discretizing the moderator for \bold{estimator} = "binning" (and also used in \bold{estimator}="raw" for some plots). When quantile cutpoints are not unique, the effective number of bins may be reduced automatically.}
+  \item{cutoffs}{a numeric vector of custom cutpoints for \bold{X}. If supplied, \bold{nbins} is ignored and the number of bins equals \code{length(cutoffs) + 1}.}
+  \item{wald}{a logical flag controlling whether to conduct a Wald test (used by some estimators such as \bold{estimator}="binning").}
+  \item{bw}{a positive number setting the bandwidth in Gaussian kernel reweighting for \bold{estimator} = "kernel".}
+  \item{kfold}{an integer specifying the number of folds used in cross-validation for bandwidth selection (kernel estimator).}
+  \item{grid}{either an integer indicating the number of candidate bandwidths in a grid search, or a numeric vector of candidate bandwidths (kernel estimator; ignored if \bold{bw} is specified).}
+  \item{metric}{a string specifying the criterion used in cross-validation to select bandwidth: one of "MSE", "MAE", "Cross Entropy", or "AUC". Default is "MSE" for non-binary outcomes and "Cross Entropy" for binary outcomes.}
+  \item{model.y}{outcome model used by \bold{estimator}="dml" (and also used by \bold{estimator}="lasso"). In the DML estimator, this string is passed to the underlying Python implementation (default "rf").}
+  \item{param.y}{named list of hyper-parameters for the DML outcome model (passed to Python).}
+  \item{param.grid.y}{named list specifying a hyper-parameter search grid for the DML outcome model (passed to Python; used when \bold{CV} = TRUE).}
+  \item{scoring.y}{a string specifying the scoring criterion used for tuning the DML outcome model (passed to Python; default "neg_mean_squared_error").}
+  \item{model.t}{treatment/propensity model used by \bold{estimator}="dml" (and also used by \bold{estimator}="lasso"). In the DML estimator, this string is passed to the underlying Python implementation (default "rf").}
+  \item{param.t}{named list of hyper-parameters for the DML treatment model (passed to Python).}
+  \item{param.grid.t}{named list specifying a hyper-parameter search grid for the DML treatment model (passed to Python; used when \bold{CV} = TRUE).}
+  \item{scoring.t}{a string specifying the scoring criterion used for tuning the DML treatment model (passed to Python; default "neg_mean_squared_error").}
+  \item{CV}{a logical flag indicating whether to tune the DML nuisance models via cross-validation (DML estimator).}
+  \item{n.folds}{an integer specifying the number of folds used in DML cross-fitting (DML estimator).}
+  \item{n.jobs}{an integer specifying the number of parallel jobs used in the Python implementation for DML (default -1 uses all available cores).}
+  \item{cf.n.folds}{an integer specifying the number of folds for internal cross-fitting (DML estimator).}
+  \item{gate}{a logical flag indicating whether to compute group-specific ATEs (GATE) in the DML estimator (if supported by the underlying Python routine).}
+  \item{grf.num.trees}{an integer specifying the number of trees for the generalized random forest when \bold{estimator}="grf".}
+  \item{signal}{(LASSO estimator) which signal to use when \bold{treat.type}="discrete": one of "outcome", "ipw", or "aipw".}
+  \item{estimand}{(LASSO estimator) the target estimand when \bold{treat.type}="discrete": one of "ATE" or "ATT".}
+  \item{basis.type}{(LASSO estimator) basis expansion for the moderator: one of "polynomial", "bspline", or "none".}
+  \item{include.interactions}{(LASSO estimator) whether to include interactions in the basis expansion.}
+  \item{poly.degree}{(LASSO estimator) degree of the polynomial basis when \bold{basis.type}="polynomial".}
+  \item{spline.df}{(LASSO estimator) degrees of freedom for B-splines when \bold{basis.type}="bspline".}
+  \item{spline.degree}{(LASSO estimator) degree of B-splines when \bold{basis.type}="bspline".}
+  \item{lambda.seq}{(LASSO estimator) an optional sequence of \code{lambda} values passed to \code{glmnet}.}
+  \item{reduce.dimension}{(LASSO estimator) method used for dimension reduction in the continuous-treatment case (e.g., "bspline" or "kernel").}
   \item{figure}{a logical flag controlling whether to draw a marginal effect plot.}
-  \item{bin.labs}{a logical flag indicating whether to show a label for each bin in a binning plot; only meaningful when \bold{nbins} is 3 or 4. The default is TRUE.}
-  \item{order}{a vector of strings that determines the order of treatment arms in the plot when visualizing marginal effects. It should contain all kinds of treatment arms except for the base group.}
-  \item{subtitles}{a vector of strings that determines the subtitles of subplots when \bold{pool} is FALSE, or determines the label in the legend when \bold{pool} is TRUE. It should have the same length as the number of categories of treatment arms minus one.}
+  \item{bin.labs}{a logical flag indicating whether to show a label for each bin in a binning plot; only meaningful when \bold{nbins} is 2--4.}
+  \item{order}{controls the order of panels/series in plots. For discrete treatments, it should contain all treatment arms except the baseline group. For continuous treatments, it can be a numeric vector of the reference \bold{D} values (matching \bold{D.ref}).}
+  \item{subtitles}{a vector controlling the subtitles of subplots when \bold{pool} = FALSE, or legend labels when \bold{pool} = TRUE.}
   \item{show.subtitles}{a logical flag controlling whether to show subtitles.}
-  \item{Xdistr}{a string indicating the way the distribution of the moderator will be plotted: "histogram" (or "hist"), "density", or "none". The default is "histogram".}
-  \item{main}{a string that controls the title of the plot.}
-  \item{Ylabel}{a string that controls the label of the outcome variable Y in the plot.}
-  \item{Dlabel}{a string that controls the label of the treatment variable D in the plot.}
-  \item{Xlabel}{a string that controls the label of the moderating variable X in the plot.}
-  \item{xlab}{a string that specifies the label of the x-axis.}
-  \item{ylab}{a string that specifies the label of the y-axis.}
-  \item{xlim}{a two-element numeric vector that controls the range of the x-axis to be shown in the plot.}
-  \item{ylim}{a two-element numeric vector that controls the range of the y-axis to be shown in the plot (with small adjustments to improve aesthetics).}
+  \item{Xdistr}{a string indicating how the distribution of the moderator will be plotted: "histogram" (or "hist"), "density", or "none".}
+  \item{main}{a string controlling the title of the plot.}
+  \item{Ylabel}{a string controlling the label of the outcome variable \bold{Y} in the plot.}
+  \item{Dlabel}{a string controlling the label of the treatment variable \bold{D} in the plot.}
+  \item{Xlabel}{a string controlling the label of the moderator \bold{X} in the plot.}
+  \item{xlab}{a string specifying the label of the x-axis.}
+  \item{ylab}{a string specifying the label of the y-axis.}
+  \item{xlim}{a two-element numeric vector controlling the x-axis range.}
+  \item{ylim}{a two-element numeric vector controlling the y-axis range.}
   \item{theme.bw}{a logical flag specifying whether to use a black-white theme.}
-  \item{show.grid}{a logical flag indicating whether to show grid in the plot.}
+  \item{show.grid}{a logical flag indicating whether to show grid lines in the plot.}
+  \item{show.uniform.CI}{a logical flag indicating whether to show uniform/simultaneous confidence intervals when they are available in the output (plotted as dashed lines).}
   \item{cex.main}{a numeric value that controls the font size of the plot title.}
   \item{cex.sub}{a numeric value that controls the font size of subtitles.}
   \item{cex.lab}{a numeric value that controls the font size of the axis labels.}
-  \item{cex.axis}{a numeric value that controls the font size of the axis numbers.}
-  \item{interval}{draw two vertical lines to demonstrate the interval used in replicated papers.}
-  \item{file}{a string that specifies the filename in which the plot is saved.}
-  \item{ncols}{an integral that controls the number of columns in the plot if \bold{pool} is FALSE.}
-  \item{pool}{a logical flag specifying whether to draw marginal effects or expected values of Y for each treatment arm in a single plot. The default is FALSE.}
-  \item{color}{a vector of colors that determines the color of lines when drawing the pool plot.}
-  \item{show.all}{a logical flag specifying whether to return the plots for each kinds of treatment level. If setting to TRUE, the program will return a list of ggplot2 objects.}
-  \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
-  \item{diff.values}{a numeric vector contain 2 or 3 elements which within the range of the moderator. The treatment effects at corresponding values of the moderator will be compared.}
-  \item{percentile}{a logical flag indicating whether to take values of the moderator on a percentile scale.}
-  \item{gam.k}{an integer indicating the dimension of the basis used to represent the smooth term. Smaller values of k produce smoother surfaces.}
-  \item{angle}{a vector of numbers indicating viewing angles (allows 1 to 4 values).}
-  \item{span}{hyper-parameter for the lowess fit. Large numbers produce smoother lines (from \bold{ggplot2}).}
-  \item{scale}{Multiplicative scaling factor of printed graph.}
-  \item{height}{Plot size (Height).}
-  \item{width}{Plot size (Width).}
+  \item{cex.axis}{a numeric value that controls the font size of axis tick labels.}
+  \item{interval}{draw two vertical lines to demonstrate an interval used in replicated papers.}
+  \item{file}{a string specifying the filename to save the plot (if not NULL).}
+  \item{ncols}{an integer controlling the number of columns in the plot when \bold{pool} is FALSE.}
+  \item{pool}{a logical flag specifying whether to draw all series in a single pooled plot.}
+  \item{color}{a vector of colors that determines the color of lines in pooled plots.}
+  \item{show.all}{a logical flag specifying whether to return all subplot objects (if TRUE, returns a list of ggplot objects).}
+  \item{legend.title}{a string specifying the title of the legend when \bold{pool} is TRUE.}
+  \item{diff.values}{a numeric vector (length 2 or 3) specifying moderator values at which treatment effects are compared (only available for some estimators; \bold{estimator}="binning" does not support this feature).}
+  \item{percentile}{a logical flag indicating whether \bold{diff.values} should be interpreted on a percentile scale (between 0 and 1).}
+  \item{gam.k}{(GAM estimator) dimension of the basis used to represent smooth terms.}
+  \item{angle}{(GAM estimator) a vector of numbers indicating viewing angles (allows 1 to 4 values).}
+  \item{span}{(RAW estimator) hyper-parameter for the loess fit (larger values produce smoother lines).}
+  \item{scale}{multiplicative scaling factor for saving the graph.}
+  \item{height}{plot height (in inches) when saving.}
+  \item{width}{plot width (in inches) when saving.}
+  \item{box.pos}{(RAW estimator) where to place the reference box in discrete-treatment raw plots: "down" (near minimum of \bold{Y}) or "up" (near maximum of \bold{Y}).}
 }
 \details{
   \bold{interflex} can implement the linear, binning and kernel estimator to estimate the marginal effects of D on Y across the supports of X in linear or generalized linear models. It also provides a few diagnostic tests for classic interaction models and convenient tools for visulization.
