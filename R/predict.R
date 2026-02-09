@@ -54,9 +54,9 @@ predict.interflex <- function(
         stop("Not an \"interflex\" object.")
     }
 
-    if (out$use.fe == TRUE) {
-        return(0)
-    }
+    #if (out$use.fe == TRUE) {
+    #    return(0)
+    #}
 
     treat.info <- out$treat.info
     treat.type <- treat.info[["treat.type"]]
