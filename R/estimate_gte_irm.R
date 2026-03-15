@@ -420,7 +420,7 @@ bootstrapGTE <- function(
   K    <- length(X_group)
   XZ0  <- fit_full$XZ_design
 
-  if(CI == TRUE){
+  if(isTRUE(CI)){
     if(verbose) message("2) Bootstrapping...")
     cl <- parallel::makeCluster(parallel::detectCores())
     doParallel::registerDoParallel(cl)

@@ -742,7 +742,7 @@ bootstrapCME <- function(
   lambda_cv      <- fit_full$lambda_cv
   best_span_full <- fit_full$best_span
 
-  if(CI == TRUE){
+  if(isTRUE(CI)){
     
     if (verbose) message("BootstrapCME Step 2: Setting up bootstrap storage and parallel cluster...")
     cme_mat_bs <- matrix(NA, nrow = B, ncol = nEval)

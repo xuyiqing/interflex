@@ -97,7 +97,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       box.pos = "down") {
     ##################################################### CHECK ##############################################################
     ## in case data is in tibble format
-    if (is.data.frame(data) == FALSE) {
+    if (!is.data.frame(data)) {
         data <- as.data.frame(data)
     }
     n <- dim(data)[1]
@@ -110,7 +110,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## Y
-    if (is.character(Y) == FALSE) {
+    if (!is.character(Y)) {
         stop("\"Y\" is not a string.")
     } else {
         Y <- Y[1]
@@ -122,7 +122,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
 
 
     ## D
-    if (is.character(D) == FALSE) {
+    if (!is.character(D)) {
         stop("\"D\" is not a string.")
     } else {
         D <- D[1]
@@ -133,7 +133,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## X
-    if (is.character(X) == FALSE) {
+    if (!is.character(X)) {
         stop("\"X\" is not a string.")
     } else {
         X <- X[1]
@@ -144,9 +144,9 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## Z
-    if (is.null(Z) == FALSE) {
+    if (!is.null(Z)) {
         for (i in 1:length(Z)) {
-            if (is.character(Z[i]) == FALSE) {
+            if (!is.character(Z[i])) {
                 stop("Some element in \"Z\" is not a string.")
             }
             if (!Z[i] %in% colnames(data)) {
@@ -157,13 +157,13 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## FE
-    if (is.null(FE) == FALSE) {
+    if (!is.null(FE)) {
         if (method != "linear") {
             stop("glm models with fixed effects are not supported in this version.")
         }
         requireNamespace("lfe")
         for (i in 1:length(FE)) {
-            if (is.character(FE[i]) == FALSE) {
+            if (!is.character(FE[i])) {
                 stop("Some element in \"FE\" is not a string.")
             }
             if (!FE[i] %in% colnames(data)) {
@@ -174,7 +174,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## IV
-    if (is.null(IV) == FALSE) {
+    if (!is.null(IV)) {
         if (method != "linear") {
             stop("glm models using instrumental variables are not supported in this version.")
         }
@@ -183,7 +183,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
         requireNamespace("AER")
         for (i in 1:length(IV)) {
-            if (is.character(IV[i]) == FALSE) {
+            if (!is.character(IV[i])) {
                 stop("Some element in \"IV\" is not a string.")
             }
             if (!IV[i] %in% colnames(data)) {
@@ -194,13 +194,13 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## fully moderated model
-    if (is.logical(full.moderate) == FALSE & is.numeric(full.moderate) == FALSE) {
+    if (!is.logical(full.moderate) & !is.numeric(full.moderate)) {
         stop("\"CI\" is not a logical flag.")
     }
 
     ## Weights
-    if (is.null(weights) == FALSE) {
-        if (is.character(weights) == FALSE) {
+    if (!is.null(weights)) {
+        if (!is.character(weights)) {
             stop("\"weights\" is not a string.")
         }
         if (!weights %in% colnames(data)) {
@@ -210,8 +210,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # cl
-    if (is.null(cl) == FALSE) {
-        if (is.character(cl) == FALSE) {
+    if (!is.null(cl)) {
+        if (!is.character(cl)) {
             stop("\"cl\" is not a string.")
         } else {
             cl <- cl[1]
@@ -223,22 +223,22 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## na.rm
-    if (is.logical(na.rm) == FALSE && is.numeric(na.rm) == FALSE) {
+    if (!is.logical(na.rm) && !is.numeric(na.rm)) {
         stop("\"na.rm\" is not a logical flag.")
     }
 
     ## Xunif
-    if (is.logical(Xunif) == FALSE && is.numeric(Xunif) == FALSE) {
+    if (!is.logical(Xunif) && !is.numeric(Xunif)) {
         stop("\"Xunif\" is not a logical flag.")
     }
 
     ## CI
-    if (is.logical(CI) == FALSE && is.numeric(CI) == FALSE) {
+    if (!is.logical(CI) && !is.numeric(CI)) {
         stop("\"CI\" is not a logical flag.")
     }
 
     ## method
-    if (is.null(method) == TRUE) {
+    if (is.null(method)) {
         method <- "linear"
     }
 
@@ -247,7 +247,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## vartype
-    if (is.null(vartype) == TRUE) {
+    if (is.null(vartype)) {
         vartype <- "simu"
     }
     if (!vartype %in% c("simu", "delta", "bootstrap")) {
@@ -255,7 +255,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## vcov.type
-    if (is.null(vcov.type) == TRUE) {
+    if (is.null(vcov.type)) {
         vcov.type <- "robust"
     }
     if (!vcov.type %in% c("robust", "homoscedastic", "cluster", "pcse")) {
@@ -263,28 +263,28 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     if (vcov.type == "pcse") {
-        if (is.null(FE) == FALSE) {
+        if (!is.null(FE)) {
             vcov.type <- "cluster"
             warning("Fixed-effect models do not allow panel corrected standard errors; changed to clustered standard errors.")
         }
         if (method != "linear") {
             stop("panel corrected standard error can only be used in linear model.")
         }
-        if (is.null(cl) == TRUE | is.null(time) == TRUE) {
+        if (is.null(cl) | is.null(time)) {
             stop("\"cl\" and \"time\" should be specified when using panel corrected standard error.")
         }
-        if (is.logical(pairwise) == FALSE & is.numeric(pairwise) == FALSE) {
+        if (!is.logical(pairwise) & !is.numeric(pairwise)) {
             stop("\"pairwise\" should be a logical flag.")
         }
     }
 
-    if (vcov.type == "cluster" & is.null(cl) == TRUE) {
+    if (vcov.type == "cluster" & is.null(cl)) {
         stop("\"cl\" should be specified when using clustered standard error.")
     }
 
     # nboots
-    if (is.null(nboots) == FALSE) {
-        if (is.numeric(nboots) == FALSE) {
+    if (!is.null(nboots)) {
+        if (!is.numeric(nboots)) {
             stop("\"nboots\" is not a positive integer.")
         } else {
             nboots <- nboots[1]
@@ -297,8 +297,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # nsimu
-    if (is.null(nsimu) == FALSE) {
-        if (is.numeric(nsimu) == FALSE) {
+    if (!is.null(nsimu)) {
+        if (!is.numeric(nsimu)) {
             stop("\"nsimu\" is not a positive integer.")
         } else {
             nsimu <- nsimu[1]
@@ -311,12 +311,12 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # Parallel
-    if (is.logical(parallel) == FALSE & is.numeric(parallel) == FALSE) {
+    if (!is.logical(parallel) & !is.numeric(parallel)) {
         stop("\"paralell\" is not a logical flag.")
     }
 
     # Cores
-    if (is.numeric(cores) == FALSE) {
+    if (!is.numeric(cores)) {
         stop("\"cores\" is not a positive integer.")
     } else {
         cores <- cores[1]
@@ -328,7 +328,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
 
     ## check missing values
     vars <- c(Y, D, X, Z, cl, time, weights, FE, IV)
-    if (na.rm == TRUE) {
+    if (na.rm) {
         data <- na.omit(data[, vars])
     } else {
         if (sum(is.na(data[, vars])) > 0) {
@@ -337,15 +337,15 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # Z.ref
-    if (is.null(Z.ref) == FALSE) {
+    if (!is.null(Z.ref)) {
         if (length(Z.ref) != length(Z)) {
             stop("\"Z.ref\" should have the same length as \"Z\".")
         }
     }
 
     # D.ref
-    if (is.null(D.ref) == FALSE) {
-        if (is.numeric(D.ref) == FALSE) {
+    if (!is.null(D.ref)) {
+        if (!is.numeric(D.ref)) {
             stop("\"D.ref\" is not a numeric variable.")
         }
         if (length(D.ref) > 9) {
@@ -354,13 +354,13 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # figure
-    if (is.logical(figure) == FALSE & is.numeric(figure) == FALSE) {
+    if (!is.logical(figure) & !is.numeric(figure)) {
         stop("\"figure\" is not a logical flag.")
     }
 
     # show.subtitles
-    if (is.null(show.subtitles) == FALSE) {
-        if (is.logical(show.subtitles) == FALSE & is.numeric(show.subtitles) == FALSE) {
+    if (!is.null(show.subtitles)) {
+        if (!is.logical(show.subtitles) & !is.numeric(show.subtitles)) {
             stop("\"show.subtitles\" is not a logical flag.")
         }
     }
@@ -371,15 +371,15 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # main
-    if (is.null(main) == FALSE) {
+    if (!is.null(main)) {
         main <- as.character(main)[1]
     }
 
     # Ylabel
-    if (is.null(Ylabel) == TRUE) {
+    if (is.null(Ylabel)) {
         Ylabel <- Y
     } else {
-        if (is.character(Ylabel) == FALSE) {
+        if (!is.character(Ylabel)) {
             stop("\"Ylabel\" is not a string.")
         } else {
             Ylabel <- Ylabel[1]
@@ -387,10 +387,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # Dlabel
-    if (is.null(Dlabel) == TRUE) {
+    if (is.null(Dlabel)) {
         Dlabel <- D
     } else {
-        if (is.character(Dlabel) == FALSE) {
+        if (!is.character(Dlabel)) {
             stop("\"Dlabel\" is not a string.")
         } else {
             Dlabel <- Dlabel[1]
@@ -398,10 +398,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # Xlabel
-    if (is.null(Xlabel) == TRUE) {
+    if (is.null(Xlabel)) {
         Xlabel <- X
     } else {
-        if (is.character(Xlabel) == FALSE) {
+        if (!is.character(Xlabel)) {
             stop("\"Xlabel\" is not a string.")
         } else {
             Xlabel <- Xlabel[1]
@@ -409,21 +409,21 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## axis labels
-    if (is.null(xlab) == FALSE) {
-        if (is.character(xlab) == FALSE) {
+    if (!is.null(xlab)) {
+        if (!is.character(xlab)) {
             stop("\"xlab\" is not a string.")
         }
     }
 
-    if (is.null(ylab) == FALSE) {
-        if (is.character(ylab) == FALSE) {
+    if (!is.null(ylab)) {
+        if (!is.character(ylab)) {
             stop("\"ylab\" is not a string.")
         }
     }
 
     ## xlim ylim
-    if (is.null(xlim) == FALSE) {
-        if (is.numeric(xlim) == FALSE) {
+    if (!is.null(xlim)) {
+        if (!is.numeric(xlim)) {
             stop("Some element in \"xlim\" is not numeric.")
         } else {
             if (length(xlim) != 2) {
@@ -432,8 +432,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
     }
 
-    if (is.null(ylim) == FALSE) {
-        if (is.numeric(ylim) == FALSE) {
+    if (!is.null(ylim)) {
+        if (!is.numeric(ylim)) {
             stop("Some element in \"ylim\" is not numeric.")
         } else {
             if (length(ylim) != 2) {
@@ -443,54 +443,54 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## theme.bw
-    if (is.logical(theme.bw) == FALSE & is.numeric(theme.bw) == FALSE) {
+    if (!is.logical(theme.bw) & !is.numeric(theme.bw)) {
         stop("\"theme.bw\" is not a logical flag.")
     }
 
     ## show.grid
-    if (is.logical(show.grid) == FALSE & is.numeric(show.grid) == FALSE) {
+    if (!is.logical(show.grid) & !is.numeric(show.grid)) {
         stop("\"show.grid\" is not a logical flag.")
     }
 
     ## font size
-    if (is.null(cex.main) == FALSE) {
-        if (is.numeric(cex.main) == FALSE) {
+    if (!is.null(cex.main)) {
+        if (!is.numeric(cex.main)) {
             stop("\"cex.main\" is not numeric.")
         }
     }
-    if (is.null(cex.sub) == FALSE) {
-        if (is.numeric(cex.sub) == FALSE) {
+    if (!is.null(cex.sub)) {
+        if (!is.numeric(cex.sub)) {
             stop("\"cex.sub\" is not numeric.")
         }
     }
-    if (is.null(cex.lab) == FALSE) {
-        if (is.numeric(cex.lab) == FALSE) {
+    if (!is.null(cex.lab)) {
+        if (!is.numeric(cex.lab)) {
             stop("\"cex.lab\" is not numeric.")
         }
     }
-    if (is.null(cex.axis) == FALSE) {
-        if (is.numeric(cex.axis) == FALSE) {
+    if (!is.null(cex.axis)) {
+        if (!is.numeric(cex.axis)) {
             stop("\"cex.axis\" is not numeric.")
         }
     }
 
     # interval
-    if (is.null(interval) == FALSE) {
-        if (is.numeric(interval) == FALSE) {
+    if (!is.null(interval)) {
+        if (!is.numeric(interval)) {
             stop("Some element in \"interval\" is not numeric.")
         }
     }
 
     # file
-    if (is.null(file) == FALSE) {
-        if (is.character(file) == FALSE) {
+    if (!is.null(file)) {
+        if (!is.character(file)) {
             stop("Wrong file name.")
         }
     }
 
     # ncols
-    if (is.null(ncols) == FALSE) {
-        if (is.numeric(ncols) == FALSE) {
+    if (!is.null(ncols)) {
+        if (!is.numeric(ncols)) {
             stop("\"ncols\" is not a positive integer.")
         } else {
             ncols <- ncols[1]
@@ -501,12 +501,12 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## pool
-    if (is.logical(pool) == FALSE & is.numeric(pool) == FALSE) {
+    if (!is.logical(pool) & !is.numeric(pool)) {
         stop("\"pool\" is not a logical flag.")
     }
 
     ## color
-    if (is.null(color) == FALSE) {
+    if (!is.null(color)) {
         color <- as.character(color)
         color.in <- c()
         for (char in color) {
@@ -521,13 +521,13 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## legend.title
-    if (is.null(legend.title) == FALSE) {
+    if (!is.null(legend.title)) {
         legend.title <- as.character(legend.title)[1]
     }
 
     ## diff.values
-    if (is.null(diff.values) == FALSE) {
-        if (is.numeric(diff.values) == FALSE) {
+    if (!is.null(diff.values)) {
+        if (!is.numeric(diff.values)) {
             stop("\"diff.values\" is not numeric.")
         }
         if (length(diff.values) != 3 & length(diff.values) != 2) {
@@ -543,14 +543,14 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## percentile
-    if (is.logical(percentile) == FALSE & is.numeric(percentile) == FALSE) {
+    if (!is.logical(percentile) & !is.numeric(percentile)) {
         stop("\"percentile\" is not a logical flag.")
     }
 
-    if (percentile == TRUE) {
+    if (percentile) {
         for (a in diff.values) {
             if (a < 0 | a > 1) {
-                stop("Elements in \"diff.values\" should be between 0 and 1 when percentile==TRUE.")
+                stop("Elements in \"diff.values\" should be between 0 and 1 when percentile.")
             }
         }
     }
@@ -585,7 +585,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # metric
-    if (is.null(metric) == TRUE) {
+    if (is.null(metric)) {
         if (length(unique(y)) == 2) {
             metric <- c("Cross Entropy")
         } else {
@@ -602,7 +602,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
 
 
     # Xunif
-    if (Xunif == TRUE) {
+    if (Xunif) {
         x <- data[, X]
         data[, X] <- rank(x, ties.method = "average") / length(x) * 100
         Xlabel <- paste(Xlabel, "(Percentile)")
@@ -614,23 +614,23 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     Z.origin <- Z
 
     for (a in Z) {
-        if (is.factor(data[, a]) == TRUE) {
+        if (is.factor(data[, a])) {
             to_dummy_var <- c(to_dummy_var, a)
             unique.a <- unique(as.character(data[, a]))
-            if (is.null(Z.ref) == FALSE) {
+            if (!is.null(Z.ref)) {
                 if (!(Z.ref[k] %in% unique.a)) {
                     stop("A value in \"Z.ref\" doesn't exist in the data...")
                 }
             }
-        } else if (is.character(data[, a]) == TRUE) {
+        } else if (is.character(data[, a])) {
             stop("\"Z\" should be numeric or factorial.")
         } else {
-            if (is.null(Z.ref) == FALSE) {
+            if (!is.null(Z.ref)) {
                 suppressWarnings(
                     ww <- as.numeric(Z.ref[k])
                 )
 
-                if (is.na(ww) == TRUE) {
+                if (is.na(ww)) {
                     stop("A value in \"Z.ref\" is not numeric... ")
                 }
             }
@@ -645,7 +645,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         names(contr.list) <- fnames
         to_dummy_form <- as.formula(paste("~", paste(fnames, collapse = " + ")))
 
-        if (is.null(Z.ref) == FALSE) {
+        if (!is.null(Z.ref)) {
             first_row <- as.data.frame(data[1, ])
             k <- 1
             for (a in Z) {
@@ -674,13 +674,13 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         data <- cbind(data, to_dummy_mat)
         Z <- Z[!Z %in% to_dummy_var]
         Z <- c(Z, dummy_colnames)
-        if (is.null(Z.ref) == FALSE) {
+        if (!is.null(Z.ref)) {
             Z.ref <- data[1, Z]
             data <- data[2:dim(data)[1], ]
         }
     }
 
-    if (is.null(Z.ref) == TRUE) {
+    if (is.null(Z.ref)) {
         Z.ref <- c()
         for (a in Z.origin) {
             if (!(a %in% to_dummy_var)) {
@@ -697,19 +697,19 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     rownames(data) <- NULL
 
     Z.X <- c()
-    if (full.moderate == TRUE & estimator != "kernel") {
+    if (full.moderate & estimator != "kernel") {
         for (sub.Z in Z) {
             Z.X <- c(Z.X, paste0(sub.Z, ".X"))
             data[, paste0(sub.Z, ".X")] <- data[, sub.Z] * data[, X]
         }
     }
-    if (full.moderate == TRUE) {
+    if (full.moderate) {
         cat("Use fully moderated model.\n")
     }
 
     ## treat
-    if (is.null(treat.type) == TRUE) {
-        if (is.numeric(data[, D]) == TRUE) {
+    if (is.null(treat.type)) {
+        if (is.numeric(data[, D])) {
             if (length(unique(data[, D])) > 5) {
                 treat.type <- "continuous"
             } else {
@@ -738,7 +738,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             stop("Too many kinds of treatment arms")
         }
         data[, D] <- as.character(data[, D])
-        if (is.null(base) == TRUE) {
+        if (is.null(base)) {
             base <- sort(unique(data[, D]))[1]
             f <- sprintf("Baseline group not specified; choose treat = %s as the baseline group. \n", base)
             cat(f)
@@ -757,7 +757,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         other.treat <- all.treat[which(all.treat != base)]
         other.treat <- sort(other.treat)
 
-        if (is.null(order) == FALSE) {
+        if (!is.null(order)) {
             order <- as.character(order)
             if (length(order) != length(unique(order))) {
                 stop("\"order\" should not contain repeated values.")
@@ -805,7 +805,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         names(other.treat) <- other.treat.origin
         names(base) <- base.origin
 
-        if (is.null(subtitles) == FALSE) {
+        if (!is.null(subtitles)) {
             if (length(subtitles) != length(other.treat) & estimator != "raw") {
                 stop("The number of elements in \"subtitles\" should be m-1(m is the number of different treatment arms).\n")
             }
@@ -814,11 +814,11 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             }
         }
 
-        if (is.logical(show.subtitles) == FALSE & is.numeric(show.subtitles) == FALSE & is.null(show.subtitles) == FALSE) {
+        if (!is.logical(show.subtitles) & !is.numeric(show.subtitles) & !is.null(show.subtitles)) {
             stop("\"show.subtitles\" is not a logical flag.")
         }
 
-        if (is.null(IV) == FALSE) {
+        if (!is.null(IV)) {
             if (length(IV) < length(other.treat)) {
                 stop("Insufficient number of IVs.\n")
             }
@@ -828,10 +828,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     if (treat.type == "continuous") {
         base <- NULL
         other.treat <- NULL
-        if (is.numeric(data[, D]) == FALSE) {
+        if (!is.numeric(data[, D])) {
             stop("\"D\" is not a numeric variable")
         }
-        if (is.null(D.ref) == TRUE) {
+        if (is.null(D.ref)) {
             D.sample <- quantile(data[, D], probs = c(0.5), na.rm = T)
             all.treat <- names(D.sample)
             ntreat <- length(D.sample)
@@ -842,7 +842,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             labelname <- paste0(labelname, " (", all.treat, ")")
             names(D.sample) <- labelname
         } else {
-            if (is.numeric(D.ref) == FALSE) {
+            if (!is.numeric(D.ref)) {
                 stop("\"D.ref\" is not a numeric variable")
             }
             D.sample <- D.ref
@@ -854,7 +854,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             all.treat <- labelname
             ntreat <- length(D.sample)
         }
-        if (is.null(IV) == FALSE) {
+        if (!is.null(IV)) {
             if (length(IV) < 1) {
                 stop("Insufficient number of IVs.\n")
             }
@@ -862,7 +862,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # number of columns
-    if (is.null(ncols) == FALSE) {
+    if (!is.null(ncols)) {
         if (ncols %% 1 != 0) {
             stop("\"ncols\" is not a positive integer.")
         } else {
@@ -889,7 +889,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     treat.info[["ncols"]] <- ncols
 
     # diff values
-    if (is.null(diff.values) == TRUE) {
+    if (is.null(diff.values)) {
         diff.values.plot <- NULL
         if(length(unique(data[,X]))<5){
             diff.values <- NULL
@@ -903,7 +903,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             stop("Can't calculate the difference using binning estimator...")
         }
 
-        if (percentile == TRUE) {
+        if (percentile) {
             diff.pc <- diff.values
             diff.values <- quantile(data[, X], probs = diff.values)
         }
@@ -911,14 +911,14 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         diff.values.plot <- diff.values
 
         if (length(diff.values) == 3) {
-            if (percentile == FALSE) {
+            if (!percentile) {
                 difference.name <- c(
                     paste0(round(diff.values[2], 3), " vs ", round(diff.values[1], 3)),
                     paste0(round(diff.values[3], 3), " vs ", round(diff.values[2], 3)),
                     paste0(round(diff.values[3], 3), " vs ", round(diff.values[1], 3))
                 )
             }
-            if (percentile == TRUE) {
+            if (percentile) {
                 difference.name <- c(
                     paste0(round(100 * diff.pc[2], 3), "%", " vs ", round(100 * diff.pc[1], 3), "%"),
                     paste0(round(100 * diff.pc[3], 3), "%", " vs ", round(100 * diff.pc[2], 3), "%"),
@@ -927,10 +927,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             }
         }
         if (length(diff.values) == 2) {
-            if (percentile == FALSE) {
+            if (!percentile) {
                 difference.name <- c(paste0(round(diff.values[2], 3), " vs ", round(diff.values[1], 3)))
             }
-            if (percentile == TRUE) {
+            if (percentile) {
                 difference.name <- c(paste0(round(100 * diff.pc[2], 3), "%", " vs ", round(100 * diff.pc[1], 3), "%"))
             }
         }
@@ -943,7 +943,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
 
     # Fixed effects
     ## change fixed effect variable to factor
-    if (is.null(FE) == FALSE) {
+    if (!is.null(FE)) {
         if (length(FE) == 1) {
             data[, FE] <- as.numeric(as.factor(data[, FE]))
         } else {
@@ -952,10 +952,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             })
         }
     }
-    if (is.null(cl) == FALSE) {
+    if (!is.null(cl)) {
         data[, cl] <- as.numeric(as.factor(data[, cl]))
     }
-    if (is.null(time) == FALSE) {
+    if (!is.null(time)) {
         data[, time] <- as.numeric(as.factor(data[, time]))
     }
 

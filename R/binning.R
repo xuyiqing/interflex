@@ -60,29 +60,28 @@ interflex.binning <- function(data,
 ){	
 	WEIGHTS <- NULL
 	n <- dim(data)[1]
-	treat.type <- treat.info[["treat.type"]]
-	if(treat.type=='discrete'){
-		other.treat <- treat.info[["other.treat"]]
-		other.treat.origin <- names(other.treat)
-		names(other.treat.origin) <- other.treat
-		all.treat <- treat.info[["all.treat"]]
-		all.treat.origin <- names(all.treat)
-		names(all.treat.origin) <- all.treat
-		base <- treat.info[["base"]]
+	ti <- .extract_treat_info(treat.info)
+	treat.type <- ti$treat.type
+	all.treat <- all.treat.origin <- NULL
+	if (treat.type == "discrete") {
+		other.treat <- ti$other.treat
+		other.treat.origin <- ti$other.treat.origin
+		all.treat <- ti$all.treat
+		all.treat.origin <- ti$all.treat.origin
+		base <- ti$base
 	}
-	if(treat.type=='continuous'){
-		D.sample <- treat.info[["D.sample"]]
-		label.name <- names(D.sample)
-		#names(label.name) <- D.sample
+	if (treat.type == "continuous") {
+		D.sample <- ti$D.sample
+		label.name <- ti$label.name
 	}
-	ncols <- treat.info[["ncols"]]  
+	ncols <- ti$ncols  
 
-	if(is.null(cl)==FALSE){ ## find clusters
+	if(!is.null(cl)){ ## find clusters
 		clusters<-unique(data[,cl])
 		id.list<-split(1:n,data[,cl])
 	}
 
-	if(is.null(FE)==TRUE){
+	if(is.null(FE)){
 		use_fe <- 0
 	}else{
 		use_fe <- 1
@@ -113,9 +112,9 @@ interflex.binning <- function(data,
 		formula <- paste0(formula,"+",D,"+DX")
 	}
   
-	if(is.null(Z)==FALSE){
+	if(!is.null(Z)){
 		formula <- paste0(formula,"+",paste0(Z,collapse="+"))
-		if(full.moderate==TRUE){
+		if(full.moderate){
 			formula <- paste0(formula,"+",paste0(Z.X,collapse="+"))
 		}
 		formula.origin <- formula
@@ -141,9 +140,9 @@ interflex.binning <- function(data,
 				formula.iv <- paste0(formula.iv,"+",sub.iv)
 				formula.iv <- paste0(formula.iv,"+",paste0(X,".",sub.iv))
 			}
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				formula.iv <- paste0(formula.iv,"+",paste0(Z,collapse="+"))
-				if(full.moderate==TRUE){
+				if(full.moderate){
 					formula.iv <- paste0(formula.iv,"+",paste0(Z.X,collapse="+"))
 				}
 			}
@@ -154,10 +153,10 @@ interflex.binning <- function(data,
 			formula <- paste0(Y,"~",X)
 			formula.iv <- ""
 			name.update <- c(X)
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				formula <- paste0(formula,"+",paste0(Z,collapse="+"))
 				name.update <- c(name.update,Z)
-				if(full.moderate==TRUE){
+				if(full.moderate){
 					formula <- paste0(formula,"+",paste0(Z.X,collapse="+"))
 					name.update <- c(name.update,Z.X)
 				}
@@ -191,7 +190,7 @@ interflex.binning <- function(data,
 	}
 	formula <- as.formula(formula)
   
-	if(is.null(weights)==TRUE){
+	if(is.null(weights)){
 		w <- rep(1,n)
 	}
 	else{
@@ -226,19 +225,19 @@ interflex.binning <- function(data,
 				model <- glm.nb(formula,data=data,weights=WEIGHTS)
 			)
 		}
-		if(model$converged==FALSE){
+		if(!model$converged){
 			stop("Linear estimator can't converge.")
 		}
 	}
 
-	if(use_fe==TRUE & is.null(IV)){
+	if(use_fe == 1 & is.null(IV)){
 		suppressWarnings(
 			model <- felm(formula,data=data,weights=w)
 		)
 	}
 
 	if(!is.null(IV)){
-		if(use_fe==TRUE){
+		if(use_fe == 1){
 			suppressWarnings(
 					model <- felm(formula,data=data,weights=w)
 			)
@@ -257,7 +256,7 @@ interflex.binning <- function(data,
 	  }
     }
 
-	if(use_fe==FALSE){
+	if(use_fe == 0){
 		if(vcov.type=="homoscedastic"){
 			model.vcov <- vcov(model)
 		}
@@ -274,7 +273,7 @@ interflex.binning <- function(data,
 		}
 	}
 
-	if(use_fe==TRUE){
+	if(use_fe == 1){
 		if (vcov.type=="homoscedastic") {
     		model.vcov <- vcov(model, type = "iid")
     	} 
@@ -293,9 +292,19 @@ interflex.binning <- function(data,
     }
 	
 	model.df <- model$df.residual
-	model.coef[which(is.na(model.coef))] <- 0
-	model.vcov[which(is.na(model.vcov))] <- 0
-	
+	na.coef <- which(is.na(model.coef))
+	if (length(na.coef) > 0) {
+		warning("NA coefficients detected in binning estimator (",
+				paste(names(model.coef)[na.coef], collapse = ", "),
+				"); replacing with 0.")
+		model.coef[na.coef] <- 0
+	}
+	na.vcov <- which(is.na(model.vcov))
+	if (length(na.vcov) > 0) {
+		warning("NA values detected in variance-covariance matrix of binning estimator; replacing with 0.")
+		model.vcov[na.vcov] <- 0
+	}
+
 	model.vcov.all <- matrix(0,nrow=length(model.coef),ncol=length(model.coef))
 	colnames(model.vcov.all) <- names(model.coef)
 	rownames(model.vcov.all) <- names(model.coef)
@@ -304,10 +313,16 @@ interflex.binning <- function(data,
 			model.vcov.all[a1,a2] <- model.vcov[a1,a2]
 		}
 	}
-	if(isSymmetric.matrix(model.vcov.all,tol = 1e-6)==FALSE){
-		warning(paste0("Option vcov.type==",vcov.type,"leads to unstable standard error in linear estimator, by default use homoscedastic standard error as an alternative.\n"))
+	if (!isSymmetric.matrix(model.vcov.all, tol = 1e-6)) {
+		warning("Option vcov.type=='", vcov.type,
+				"' leads to non-symmetric variance-covariance matrix in binning estimator. ",
+				"Falling back to homoscedastic standard errors.")
 		model.vcov.all <- vcov(model)
-		model.vcov.all[which(is.na(model.vcov.all))] <- 0
+		na.vcov.fb <- which(is.na(model.vcov.all))
+		if (length(na.vcov.fb) > 0) {
+			warning("NA values in fallback variance-covariance matrix; replacing with 0.")
+			model.vcov.all[na.vcov.fb] <- 0
+		}
 	}
 	model.vcov <- model.vcov.all
 
@@ -316,7 +331,7 @@ interflex.binning <- function(data,
 	##---------The Binning Estimator----------------------------------------
 	##----------------------------------------------------------------------
 	
-	if(is.null(cutoffs)==TRUE){
+	if(is.null(cutoffs)){
 		cuts.X<-quantile(data[,X],probs=seq(0,1,1/nbins))
 		if (length(unique(cuts.X))!=nbins+1) {
 			cuts.X <- unique(cuts.X)
@@ -366,11 +381,11 @@ interflex.binning <- function(data,
 		}
 	}
 	
-	if(is.null(Z)==FALSE){
-		if(full.moderate==FALSE){
+	if(!is.null(Z)){
+		if(!full.moderate){
 			formula.binning <- paste0(formula.binning,"+",paste0(Z,collapse="+"))
 		}
-		if(full.moderate==TRUE){
+		if(full.moderate){
 			for(a in Z){
 				for(i in 1:nbins){
 					data.touse[,paste0(a,'.G.',i)] <- as.numeric(groupX==i)*data.touse[,a]
@@ -389,7 +404,7 @@ interflex.binning <- function(data,
 	}
 
 	## iv regression
-	if(!is.null(IV) & use_fe==FALSE){
+	if(!is.null(IV) & use_fe == 0){
 		# use ivreg
 		#Y ~ -1 + G.1 + GX.1 + G.2 + GX.2 + G.3 + GX.3 + D*G.1 + 
         #D*GX.1 + D*G.2 + D*GX.2 + D*G.3 + D*GX.3|
@@ -406,11 +421,11 @@ interflex.binning <- function(data,
 				formula.binning.iv <- paste0(formula.binning.iv,'+',paste0(sub.iv,'.','G.',i),'+',paste0(sub.iv,'.','GX.',i))
 			}
 		}
-		if(is.null(Z)==FALSE){
-			if(full.moderate==FALSE){
+		if(!is.null(Z)){
+			if(!full.moderate){
 				formula.binning.iv <- paste0(formula.binning.iv,"+",paste0(Z,collapse="+"))
 			}
-			if(full.moderate==TRUE){
+			if(full.moderate){
 				for(a in Z){
 					for(i in 1:nbins){
 						formula.binning.iv <- paste0(formula.binning.iv,'+',paste0(a,'.G.',i),'+',paste0(a,'.GX.',i))
@@ -421,7 +436,7 @@ interflex.binning <- function(data,
 		formula.binning <- paste0(formula.binning,"|",formula.binning.iv)
 	}
 
-	if(!is.null(IV) & use_fe==TRUE){
+	if(!is.null(IV) & use_fe == 1){
 		# use felm
 		# Y ~ -1 + G.1 + GX.1 + G.2 + GX.2 + G.3 + GX.3 + Z1 + Z2
 		# |unit+year
@@ -435,12 +450,12 @@ interflex.binning <- function(data,
 			formula.binning.part1 <- paste0(formula.binning.part1,'+',paste0('G.',i),'+',paste0('GX.',i))
 			iv.reg.name <- c(iv.reg.name,paste0('G.',i),paste0('GX.',i))
 		}
-		if(is.null(Z)==FALSE){
-			if(full.moderate==FALSE){
+		if(!is.null(Z)){
+			if(!full.moderate){
 				formula.binning.part1 <- paste0(formula.binning.part1,"+",paste0(Z,collapse="+"))
 				iv.reg.name <- c(iv.reg.name,Z)
 			}
-			if(full.moderate==TRUE){
+			if(full.moderate){
 				for(a in Z){
 					for(i in 1:nbins){
 						formula.binning.part1 <- paste0(formula.binning.part1,'+',paste0(a,'.G.',i),'+',paste0(a,'.GX.',i))
@@ -488,7 +503,7 @@ interflex.binning <- function(data,
 	## binning fit
 	formula.binning <- as.formula(formula.binning)
 
-	if(use_fe==FALSE & is.null(IV)){
+	if(use_fe == 0 & is.null(IV)){
 		if(method=='linear'){
 			suppressWarnings(
 				model.binning <- glm(formula.binning,data=data.touse,weights=WEIGHTS)
@@ -515,19 +530,19 @@ interflex.binning <- function(data,
 			)
 		}
 		
-		if(model.binning$converged==FALSE){
+		if(!model.binning$converged){
 			stop("Binning estimator can't converge.")
 		}
 	}
 
 
-	if(use_fe==FALSE & !is.null(IV)){
+	if(use_fe == 0 & !is.null(IV)){
 		suppressWarnings(
 			model.binning <- ivreg(formula.binning,data=data.touse,weights=WEIGHTS)
 		)
 	}
 
-	if(use_fe==TRUE){
+	if(use_fe == 1){
 		w <- data.touse[,'WEIGHTS']
 		suppressWarnings(
 			model.binning <- felm(formula.binning,data=data.touse,weights=w)
@@ -536,11 +551,11 @@ interflex.binning <- function(data,
 	
 	model.binning.df <- model.binning$df.residual
 	model.binning.coef <- coef(model.binning) #keep the NaN(s) in coefficient 
-	if(!is.null(IV) & use_fe==TRUE){
+	if(!is.null(IV) & use_fe == 1){
 		names(model.binning.coef) <- iv.reg.name
 	}
 
-	if(use_fe==FALSE){
+	if(use_fe == 0){
 		if(vcov.type=="homoscedastic"){
 			model.binning.vcov <- vcov(model.binning)
 		}
@@ -555,7 +570,7 @@ interflex.binning <- function(data,
 		}
 	}
 
-	if(use_fe==TRUE){
+	if(use_fe == 1){
 		if (vcov.type=="homoscedastic") {
     		model.binning.vcov <- vcov(model.binning, type = "iid")
     	} 
@@ -566,7 +581,7 @@ interflex.binning <- function(data,
     		model.binning.vcov <- vcov(model.binning, type = "cluster") 
     	}
 	}
-	if(!is.null(IV) & use_fe==TRUE){
+	if(!is.null(IV) & use_fe == 1){
 		rownames(model.binning.vcov) <- colnames(model.binning.vcov) <- iv.reg.name
 	}
 	
@@ -579,14 +594,17 @@ interflex.binning <- function(data,
 			model.binning.vcov.all[a1,a2] <- model.binning.vcov[a1,a2]
 		}
 	}
-	if(isSymmetric.matrix(model.binning.vcov.all,tol = 1e-6)==FALSE){
-		warning(paste0("Option vcov.type==",vcov.type,"leads to unstable standard error in binning estimator, by default use homoscedastic standard error as an alternative.\n"))
-		#return(model.binning.vcov.all)
+	if(!isSymmetric.matrix(model.binning.vcov.all, tol = 1e-6)){
+		warning("Option vcov.type=='", vcov.type, "' leads to non-symmetric variance-covariance matrix in binning estimator. ",
+				"Falling back to homoscedastic standard errors.")
 		model.binning.vcov.all <- vcov(model.binning)
-		if(!is.null(IV) & use_fe==TRUE){
+		if(!is.null(IV) & use_fe == 1){
 			rownames(model.binning.vcov.all) <- colnames(model.binning.vcov.all) <- iv.reg.name
 		}
-		model.binning.vcov.all[which(is.na(model.binning.vcov.all))] <- 0
+		if(any(is.na(model.binning.vcov.all))){
+			warning("NA values in fallback variance-covariance matrix (binning-specific model); replacing with 0.")
+			model.binning.vcov.all[which(is.na(model.binning.vcov.all))] <- 0
+		}
 	}
 	model.binning.vcov <- model.binning.vcov.all
 
@@ -596,10 +614,10 @@ interflex.binning <- function(data,
 	#2, input: model.coef; char(discrete)/D.ref(continuous);
 	#3, output: marginal effects/treatment effects
 	gen.general.TE <- function(model.coef,char=NULL,D.ref=NULL){
-	if(is.null(char)==TRUE){
+	if(is.null(char)){
 		treat.type='continuous'
 	}
-	if(is.null(D.ref)==TRUE){
+	if(is.null(D.ref)){
 		treat.type='discrete'
 	}
 	
@@ -608,12 +626,12 @@ interflex.binning <- function(data,
 		if(treat.type=='discrete'){
 			link.1 <- model.coef['(Intercept)'] + X.eval*model.coef[X] + 1*model.coef[paste0('D.',char)] + X.eval*model.coef[paste0('DX.',char)]
 			link.0 <- model.coef['(Intercept)'] + X.eval*model.coef[X]
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 					target.Z <- Z.ref[a]
 					link.1 <- link.1 + target.Z*model.coef[a]
 					link.0 <- link.0 +target.Z*model.coef[a]
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						link.1 <- link.1 + target.Z*model.coef[paste0(a,'.X')]*X.eval
 						link.0 <- link.0 + target.Z*model.coef[paste0(a,'.X')]*X.eval
 					}
@@ -650,11 +668,11 @@ interflex.binning <- function(data,
 
 		if(treat.type=='continuous'){
 			link <- model.coef["(Intercept)"] + X.eval*model.coef[X] + model.coef[D]*D.ref + model.coef["DX"]*X.eval*D.ref
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 					target.Z <- Z.ref[a]
 					link <- link + target.Z*model.coef[a]
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						link <- link + target.Z*model.coef[paste0(a,'.X')]*X.eval
 					}
 				}
@@ -725,11 +743,11 @@ interflex.binning <- function(data,
 	#2, input: model.coef; model.vcov; char(discrete)/D.ref(continuous);
 	#3, output: sd of TE/ME;
 	gen.delta.TE <- function(model.coef,model.vcov,char=NULL,D.ref=NULL){
-	if(is.null(char)==TRUE){
+	if(is.null(char)){
 		treat.type <- 'continuous'
 		flag <- 1
 	}
-	if(is.null(D.ref)==TRUE){
+	if(is.null(D.ref)){
 		treat.type <- 'discrete'
 		if(char==base){
 			flag=0
@@ -747,7 +765,7 @@ interflex.binning <- function(data,
 			vec.0 <- c(0,0)
 			vec <- vec.1-vec.0
 			temp.vcov.matrix <- model.vcov[target.slice,target.slice]	
-			if(to.diff==TRUE){
+			if(to.diff){
 				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
 			}		
 			delta.sd <- sqrt((t(vec)%*%temp.vcov.matrix%*%vec)[1,1])
@@ -758,7 +776,7 @@ interflex.binning <- function(data,
 			target.slice <- c(D,'DX')
 			vec <- c(1,x)
 			temp.vcov.matrix <- model.vcov[target.slice,target.slice]
-			if(to.diff==TRUE){
+			if(to.diff){
 				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
 			}
 					
@@ -768,31 +786,31 @@ interflex.binning <- function(data,
 	}
 
 	gen.sd <- function(x,to.diff=FALSE){
-		if(use_fe==TRUE){
+		if(use_fe == 1){
 			return(gen.sd.fe(x=x,to.diff=to.diff))
 		}
 
 		if(treat.type=='discrete'){
 			link.1 <- model.coef['(Intercept)'] + x*model.coef[X] + 1*model.coef[paste0('D.',char)] + x*model.coef[paste0('DX.',char)]
 			link.0 <- model.coef['(Intercept)'] + x*model.coef[X]
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 						target.Z <- Z.ref[a]
 						link.1 <- link.1 + target.Z*model.coef[a]
 						link.0 <- link.0 +target.Z*model.coef[a]
-						if(full.moderate==TRUE){
+						if(full.moderate){
 							link.1 <- link.1 + target.Z*model.coef[paste0(a,'.X')]*x
 							link.0 <- link.0 + target.Z*model.coef[paste0(a,'.X')]*x
 						}
 					}
 			}
-			if(is.null(Z)==FALSE){
-				if(full.moderate==FALSE){
+			if(!is.null(Z)){
+				if(!full.moderate){
 					vec.1 <- c(1,x,1,x,Z.ref)
 					vec.0 <- c(1,x,0,0,Z.ref)
 					target.slice <- c('(Intercept)',X,paste0('D.',char),paste0('DX.',char),Z)
 				}
-				if(full.moderate==TRUE){
+				if(full.moderate){
 					vec.1 <- c(1,x,1,x,Z.ref,x*Z.ref)
 					vec.0 <- c(1,x,0,0,Z.ref,x*Z.ref)
 					target.slice <- c('(Intercept)',X,paste0('D.',char),paste0('DX.',char),Z,Z.X)
@@ -816,7 +834,7 @@ interflex.binning <- function(data,
 			if(method=='linear'){
 				vec <- vec.1-vec.0
 			}		
-			if(to.diff==TRUE){
+			if(to.diff){
 				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
 			}
 					
@@ -826,23 +844,23 @@ interflex.binning <- function(data,
 		
 		if(treat.type=='continuous'){
 			link <- model.coef["(Intercept)"] + x*model.coef[X] + model.coef[D]*D.ref + model.coef["DX"]*x*D.ref
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 					target.Z <- Z.ref[a]
 					link <- link + target.Z*model.coef[a]
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						link <- link + x*target.Z*model.coef[paste0(a,'.X')]
 					}
 				}
 			}
 				
-			if(is.null(Z)==FALSE){
-				if(full.moderate==FALSE){
+			if(!is.null(Z)){
+				if(!full.moderate){
 					vec1 <- c(1,x,D.ref,D.ref*x,Z.ref)
 					vec0 <- c(0,0,1,x,rep(0,length(Z)))
 					target.slice <- c('(Intercept)',X,D,'DX',Z)
 				}
-				if(full.moderate==TRUE){
+				if(full.moderate){
 					vec1 <- c(1,x,D.ref,D.ref*x,Z.ref,Z.ref*x)
 					vec0 <- c(0,0,1,x,rep(0,2*length(Z)))
 					target.slice <- c('(Intercept)',X,D,'DX',Z,Z.X)
@@ -868,7 +886,7 @@ interflex.binning <- function(data,
 				vec <- vec0
 			}
 					
-			if(to.diff==TRUE){
+			if(to.diff){
 				return(list(vec=vec,temp.vcov.matrix=temp.vcov.matrix))
 			}
 					
@@ -884,7 +902,7 @@ interflex.binning <- function(data,
 		TE.sd <- NULL
 	}
 	
-	if(treat.type=='discrete' & is.null(TE.sd)==FALSE){
+	if(treat.type=='discrete' & !is.null(TE.sd)){
 		names(TE.sd) <- rep(paste0("sd.",char),neval)
 	}		
 	
@@ -933,14 +951,14 @@ interflex.binning <- function(data,
 
 
 	gen.binning.TE <- function(model.binning.coef,char=NULL,D.ref=NULL){
-		if(is.null(char)==TRUE){
+		if(is.null(char)){
 			treat.type <- 'continuous'
 		}
-		if(is.null(D.ref)==TRUE){
+		if(is.null(D.ref)){
 			treat.type <- 'discrete'
 		}
 
-		if(use_fe==TRUE){
+		if(use_fe == 1){
 			return(gen.binning.TE.fe(model.binning.coef=model.binning.coef,char=char,D.ref=D.ref))
 		}
 				
@@ -949,18 +967,18 @@ interflex.binning <- function(data,
 			for(i in 1:nbins){
 				link.bin.1 <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.',char,'.','G.',i)]
 				link.bin.0 <- model.binning.coef[paste0("G.",i)]
-				if(is.null(Z)==FALSE){
+				if(!is.null(Z)){
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
-							if(is.na(model.binning.coef[a])==TRUE){
+						if(!full.moderate){
+							if(is.na(model.binning.coef[a])){
 								model.binning.coef[a] <- 0
 							}
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
 							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
 						}
-						if(full.moderate==TRUE){
-							if(is.na(model.binning.coef[paste0(a,".G.",i)])==TRUE){
+						if(full.moderate){
+							if(is.na(model.binning.coef[paste0(a,".G.",i)])){
 								model.binning.coef[paste0(a,".G.",i)] <- 0
 							}
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]
@@ -1000,17 +1018,17 @@ interflex.binning <- function(data,
 			binning.output <- c()
 			for(i in 1:nbins){
 				link.bin <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.G.',i)]*D.ref
-				if(is.null(Z)==FALSE){
+				if(!is.null(Z)){
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
-							if(is.na(model.binning.coef[a])==TRUE){
+						if(!full.moderate){
+							if(is.na(model.binning.coef[a])){
 								model.binning.coef[a] <- 0
 							}
 							link.bin <- link.bin + target.Z*model.binning.coef[a]
 						}
-						if(full.moderate==TRUE){
-							if(is.na(model.binning.coef[paste0(a,".G.",i)])==TRUE){
+						if(full.moderate){
+							if(is.na(model.binning.coef[paste0(a,".G.",i)])){
 								model.binning.coef[paste0(a,".G.",i)] <- 0
 							}
 							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]
@@ -1076,14 +1094,14 @@ interflex.binning <- function(data,
 	}
 
 	gen.binning.delta.TE <- function(model.binning.coef, model.binning.vcov, char=NULL, D.ref=NULL){
-		if(is.null(char)==TRUE){
+		if(is.null(char)){
 			treat.type='continuous'
 		}
-		if(is.null(D.ref)==TRUE){
+		if(is.null(D.ref)){
 			treat.type='discrete'
 		}
 
-		if(use_fe==TRUE){
+		if(use_fe == 1){
 			return(gen.binning.delta.TE.fe(model.binning.coef=model.binning.coef, model.binning.vcov=model.binning.vcov, char=char, D.ref=D.ref))
 		}
 
@@ -1095,25 +1113,25 @@ interflex.binning <- function(data,
 				link.bin.1 <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.',char,'.','G.',i)]
 				link.bin.0 <- model.binning.coef[paste0("G.",i)]
 				
-				if(is.null(Z)==FALSE){
+				if(!is.null(Z)){
 					vec.1 <- c(1,1,Z.ref)
 					vec.0 <- c(1,0,Z.ref)
-					if(full.moderate==FALSE){
+					if(!full.moderate){
 						target.slice <- c(paste0("G.",i),paste0('D.',char,'.','G.',i),Z)
 					}
 
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						target.slice <- c(paste0("G.",i),paste0('D.',char,'.','G.',i))
 					}
 
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
+						if(!full.moderate){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
 							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
 						}
 
-						if(full.moderate==TRUE){
+						if(full.moderate){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]
 							link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[paste0(a,".G.",i)]
 							target.slice <- c(target.slice, paste0(a,".G.",i))
@@ -1151,25 +1169,25 @@ interflex.binning <- function(data,
 		if(treat.type=='continuous'){
 			for(i in 1:nbins){
 				link.bin <- model.binning.coef[paste0("G.",i)] + model.binning.coef[paste0('D.G.',i)]*D.ref
-				if(is.null(Z)==FALSE){
+				if(!is.null(Z)){
 					vec1 <- c(1,D.ref,Z.ref)
 					vec0 <- c(0,1,rep(0,length(Z)))
 
-					if(full.moderate==FALSE){
+					if(!full.moderate){
 						target.slice <- c(paste0("G.",i),paste0('D.G.',i),Z)
 					}
 
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						target.slice <- c(paste0("G.",i),paste0('D.G.',i))
 					}
 
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
+						if(!full.moderate){
 							link.bin <- link.bin + target.Z*model.binning.coef[a]
 						}
 
-						if(full.moderate==TRUE){
+						if(full.moderate){
 							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]
 							target.slice <- c(target.slice, paste0(a,".G.",i))
 						}
@@ -1206,14 +1224,14 @@ interflex.binning <- function(data,
 	
 	## Function B.3a (link predict)
 	gen.link.binning <- function(model.binning.coef, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
-		if(is.null(char)==TRUE){
+		if(is.null(char)){
 			treat.type='continuous'
 		}
-		if(is.null(D.ref)==TRUE){
+		if(is.null(D.ref)){
 			treat.type=='discrete'
 		}
 
-		if(use_fe==TRUE){
+		if(use_fe == 1){
 			if(treat.type=='discrete'){
 				link.1 <- link.0 <- rep(0,length(X.eval))
 				return(list(link.1=link.1,link.0=link.0))
@@ -1245,14 +1263,14 @@ interflex.binning <- function(data,
 			
 			}
 			
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 					target.Z <- Z.ref[a]
-					if(full.moderate==FALSE){
+					if(!full.moderate){
 						link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
 						link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
 					}
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						for(i in 1:nbins){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
 										  target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
@@ -1275,13 +1293,13 @@ interflex.binning <- function(data,
 							model.binning.coef[paste0('D.G.',i)]*as.numeric(group.X.eval==i)*D.ref + 
 							model.binning.coef[paste0('D.GX.',i)]*as.numeric(group.X.eval==i)*D.ref*(X.eval-x0[i])
 			}
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 					target.Z <- Z.ref[a]
-					if(full.moderate==FALSE){
+					if(!full.moderate){
 						link.bin <- link.bin + target.Z*model.binning.coef[a]
 					}
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						for(i in 1:nbins){
 							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
 										target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
@@ -1300,14 +1318,14 @@ interflex.binning <- function(data,
 	#2. input: model.binning.coef, X.eval, cuts.X, x0
 	#3. output: predicted value using binning estimator
 	gen.pred.binning <- function(model.binning.coef, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
-		if(is.null(char)==TRUE){
+		if(is.null(char)){
 			treat.type='continuous'
 		}
-		if(is.null(D.ref)==TRUE){
+		if(is.null(D.ref)){
 			treat.type=='discrete'
 		}
 
-		if(use_fe==TRUE){
+		if(use_fe == 1){
 			if(treat.type=='discrete'){
 				link.1 <- link.0 <- E.base <- E.pred <- rep(0,length(X.eval))
 				return(list(E.pred=E.pred,E.base=E.base,link.1=link.1,link.0=link.0))
@@ -1340,14 +1358,14 @@ interflex.binning <- function(data,
 			
 			}
 			
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 					target.Z <- Z.ref[a]
-					if(full.moderate==FALSE){
+					if(!full.moderate){
 						link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
 						link.bin.0 <- link.bin.0 + target.Z*model.binning.coef[a]
 					}
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						for(i in 1:nbins){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
 										  target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
@@ -1390,13 +1408,13 @@ interflex.binning <- function(data,
 							model.binning.coef[paste0('D.G.',i)]*as.numeric(group.X.eval==i)*D.ref + 
 							model.binning.coef[paste0('D.GX.',i)]*as.numeric(group.X.eval==i)*D.ref*(X.eval-x0[i])
 			}
-			if(is.null(Z)==FALSE){
+			if(!is.null(Z)){
 				for(a in Z){
 					target.Z <- Z.ref[a]
-					if(full.moderate==FALSE){
+					if(!full.moderate){
 						link.bin <- link.bin + target.Z*model.binning.coef[a]
 					}
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						for(i in 1:nbins){
 							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",i)]*as.numeric(group.X.eval==i) + 
 										target.Z*model.binning.coef[paste0(a,".GX.",i)]*as.numeric(group.X.eval==i)*(X.eval-x0[i])
@@ -1422,20 +1440,20 @@ interflex.binning <- function(data,
 
 	## Function B.4a (binning link delta)
 	gen.link.binning.delta <- function(model.binning.coef, model.binning.vcov, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
-		if(is.null(char)==TRUE){
+		if(is.null(char)){
 			treat.type='continuous'
 		}
-		if(is.null(D.ref)==TRUE){
+		if(is.null(D.ref)){
 			treat.type=='discrete'
 		}
 		model.binning.coef[which(is.na(model.binning.coef))] <- 0
 
 		gen.link.binning.delta.sd <- function(x){
-			if(use_fe==TRUE){
+			if(use_fe == 1){
 				return(0)
 			}
 			group.xx <- cut(x,breaks=cuts.X, labels = FALSE,include.lowest = TRUE)
-			if(is.na(group.xx)==TRUE){
+			if(is.na(group.xx)){
 				return(NA)
 			}
 			if(treat.type=='discrete'){			
@@ -1456,8 +1474,8 @@ interflex.binning <- function(data,
 									  paste0("GX.",group.xx))
 				}
 				
-				if(is.null(Z)==FALSE){
-					if(full.moderate==FALSE){
+				if(!is.null(Z)){
+					if(!full.moderate){
 						target.slice <- c(target.slice,Z)
 						if(char!=base){
 							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx],Z.ref)
@@ -1466,7 +1484,7 @@ interflex.binning <- function(data,
 							vec <- c(1,x-x0[group.xx],Z.ref)
 						}
 					}
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						if(char!=base){
 							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx])
 						}
@@ -1476,10 +1494,10 @@ interflex.binning <- function(data,
 					}
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
+						if(!full.moderate){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
 						}	
-						if(full.moderate==TRUE){
+						if(full.moderate){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
 							target.slice <- c(target.slice, paste0(a,".G.",group.xx), paste0(a,".GX.",group.xx))
 							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
@@ -1511,22 +1529,22 @@ interflex.binning <- function(data,
 							  model.binning.coef[paste0('D.G.',group.xx)]*D.ref +
 							  model.binning.coef[paste0('D.GX.',group.xx)]*(x-x0[group.xx])*D.ref
 
-				if(is.null(Z)==FALSE){
-					if(full.moderate==FALSE){
+				if(!is.null(Z)){
+					if(!full.moderate){
 						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref,Z.ref)
 						target.slice <- c(target.slice,Z)
 					}
 
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref)
 					}
 
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
+						if(!full.moderate){
 							link.bin <- link.bin + target.Z*model.binning.coef[a]
 						}	
-						if(full.moderate==TRUE){
+						if(full.moderate){
 							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
 							target.slice <- c(target.slice,paste0(a,".G.",group.xx),paste0(a,".GX.",group.xx))
 							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
@@ -1552,21 +1570,21 @@ interflex.binning <- function(data,
 	#2. input: model.binning.coef, model.binning.vcov, X.eval, cuts.X, x0, char(discrete), D.ref(continuous)
 	#3. output: sd of predicted value(binning)
 	gen.pred.binning.delta <- function(model.binning.coef, model.binning.vcov, X.eval, cuts.X, x0, char=NULL, D.ref=NULL){
-		if(is.null(char)==TRUE){
+		if(is.null(char)){
 			treat.type='continuous'
 		}
-		if(is.null(D.ref)==TRUE){
+		if(is.null(D.ref)){
 			treat.type=='discrete'
 		}
 		model.binning.coef[which(is.na(model.binning.coef))] <- 0
 		
 		gen.pred.binning.delta.sd <- function(x){
-			if(use_fe==TRUE){
+			if(use_fe == 1){
 				return(0)
 			}
 
 			group.xx <- cut(x,breaks=cuts.X, labels = FALSE,include.lowest = TRUE)
-			if(is.na(group.xx)==TRUE){
+			if(is.na(group.xx)){
 				return(NA)
 			}
 			if(treat.type=='discrete'){
@@ -1592,8 +1610,8 @@ interflex.binning <- function(data,
 				
 				}
 				
-				if(is.null(Z)==FALSE){
-					if(full.moderate==FALSE){
+				if(!is.null(Z)){
+					if(!full.moderate){
 						target.slice <- c(target.slice,Z)
 						if(char!=base){
 							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx],Z.ref)
@@ -1603,7 +1621,7 @@ interflex.binning <- function(data,
 						}
 					}
 
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						if(char!=base){
 							vec <- c(1,x-x0[group.xx],1,x-x0[group.xx])
 						}
@@ -1614,10 +1632,10 @@ interflex.binning <- function(data,
 
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
+						if(!full.moderate){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[a]
 						}	
-						if(full.moderate==TRUE){
+						if(full.moderate){
 							link.bin.1 <- link.bin.1 + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
 							target.slice <- c(target.slice, paste0(a,".G.",group.xx), paste0(a,".GX.",group.xx))
 							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
@@ -1663,22 +1681,22 @@ interflex.binning <- function(data,
 							  model.binning.coef[paste0('D.G.',group.xx)]*D.ref +
 							  model.binning.coef[paste0('D.GX.',group.xx)]*(x-x0[group.xx])*D.ref
 
-				if(is.null(Z)==FALSE){
-					if(full.moderate==FALSE){
+				if(!is.null(Z)){
+					if(!full.moderate){
 						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref,Z.ref)
 						target.slice <- c(target.slice,Z)
 					}
 
-					if(full.moderate==TRUE){
+					if(full.moderate){
 						vec <- c(1,x-x0[group.xx],D.ref,(x-x0[group.xx])*D.ref)
 					}
 
 					for(a in Z){
 						target.Z <- Z.ref[a]
-						if(full.moderate==FALSE){
+						if(!full.moderate){
 							link.bin <- link.bin + target.Z*model.binning.coef[a]
 						}	
-						if(full.moderate==TRUE){
+						if(full.moderate){
 							link.bin <- link.bin + target.Z*model.binning.coef[paste0(a,".G.",group.xx)] + target.Z*model.binning.coef[paste0(a,".GX.",group.xx)]*(x-x0[group.xx])
 							target.slice <- c(target.slice,paste0(a,".G.",group.xx),paste0(a,".GX.",group.xx))
 							vec <- c(vec, target.Z, target.Z*(x-x0[group.xx]))
@@ -2071,7 +2089,7 @@ interflex.binning <- function(data,
 		}
 		
 		one.boot <- function(){
-			if (is.null(cl)==TRUE){
+			if (is.null(cl)){
 				smp <- sample(1:n,n,replace=TRUE)
 			} else{ ## block bootstrap
 				cluster.boot<-sample(clusters,length(clusters),replace=TRUE)
@@ -2088,7 +2106,7 @@ interflex.binning <- function(data,
 				}
 			}
 			
-			if(use_fe==FALSE & is.null(IV)){
+			if(use_fe == 0 & is.null(IV)){
 				## Linear Part
 				if(method=='linear'){
 					suppressWarnings(
@@ -2117,25 +2135,25 @@ interflex.binning <- function(data,
 				}
 			
 				#### check converge...
-				if(model.boot$converged==FALSE){
+				if(!model.boot$converged){
 					return(boot.out)
 				}
 			}
 
-			if(use_fe==TRUE & is.null(IV)){
+			if(use_fe == 1 & is.null(IV)){
 				w.boot <- data.boot[,'WEIGHTS']
 				suppressWarnings(
 					model.boot <- felm(formula,data=data.boot,weights=w.boot)
 				)
 			}
 
-			if(use_fe==FALSE & !is.null(IV)){
+			if(use_fe == 0 & !is.null(IV)){
 				suppressWarnings(
 					model.boot <- ivreg(formula,data=data.boot,weights=WEIGHTS)
 				)
 			}
 
-			if(use_fe==TRUE & !is.null(IV)){
+			if(use_fe == 1 & !is.null(IV)){
 				w.boot <- data.boot[,'WEIGHTS']
 				suppressWarnings(
 					model.boot <- felm(formula,data=data.boot,weights=w.boot)
@@ -2174,7 +2192,7 @@ interflex.binning <- function(data,
 				}
 			}
 
-			if(full.moderate==TRUE){
+			if(full.moderate){
 				#formula.binning <- paste0(formula.binning,"+",paste0(Z.X,collapse="+"))
 				for(a in Z){
 					for(i in 1:nbins){
@@ -2193,7 +2211,7 @@ interflex.binning <- function(data,
 				}
 			}
 
-			if(use_fe==FALSE & is.null(IV)){
+			if(use_fe == 0 & is.null(IV)){
 				if(method=='linear'){
 					suppressWarnings(
 						model.boot.binning <- glm(formula.binning,data=data.boot.binning,weights=WEIGHTS)
@@ -2220,7 +2238,7 @@ interflex.binning <- function(data,
 					)
 				}
 				
-				if(model.binning$converged==FALSE){
+				if(!model.binning$converged){
 					no.converge <- 1
 					model.binning.coef.boot <- NULL
 				}else{
@@ -2229,7 +2247,7 @@ interflex.binning <- function(data,
 				}
 			}
 			
-			if(use_fe==TRUE & is.null(IV)){
+			if(use_fe == 1 & is.null(IV)){
 				suppressWarnings(
 					model.boot.binning <- felm(formula.binning,data=data.boot.binning,weights=w.boot)
 				)
@@ -2237,7 +2255,7 @@ interflex.binning <- function(data,
 				no.converge <- 0
 			}
 
-			if(use_fe==FALSE & !is.null(IV)){
+			if(use_fe == 0 & !is.null(IV)){
 				suppressWarnings(
 					model.boot.binning <- ivreg(formula.binning,data=data.boot.binning,weights=WEIGHTS)
 				)
@@ -2245,7 +2263,7 @@ interflex.binning <- function(data,
 				no.converge <- 0
 			}
 
-			if(use_fe==TRUE & !is.null(IV)){
+			if(use_fe == 1 & !is.null(IV)){
 				suppressWarnings(
 					model.boot.binning <- felm(formula.binning,data=data.boot.binning,weights=w.boot)
 				)
@@ -2331,7 +2349,7 @@ interflex.binning <- function(data,
 		}
 		
 		
-		if(parallel==TRUE){
+		if(parallel){
 			requireNamespace("doParallel")
 			## require(iterators)
 			maxcores <- detectCores()
@@ -2352,7 +2370,7 @@ interflex.binning <- function(data,
 			bootout<-matrix(NA,all.length,0)
 			for(i in 1:nboots){
 				tempdata <- one.boot()
-				if(is.null(tempdata)==FALSE){
+				if(!is.null(tempdata)){
 					bootout<- cbind(bootout,tempdata)
 				}
 				if (i%%50==0) cat(i) else cat(".")
@@ -2495,74 +2513,22 @@ interflex.binning <- function(data,
 	}
 		
 	
-	if(TRUE){ # density or histogram
-	if (treat.type=='discrete'){ ## discrete D
-    # density
-    if(is.null(weights)==TRUE){
-      de <- density(data[,X])
-    }else {
-      suppressWarnings(de <- density(data[,X],weights=data[,'WEIGHTS']))
-    }
-    
-    treat_den <- list()
-    for (char in all.treat){
-      de.name <- paste0("den.",char)
-      if (is.null(weights)==TRUE){
-        de.tr <- density(data[data[,D]==char,X])
-      } 
-      else {
-        suppressWarnings(de.tr <- density(data[data[,D]==char,X],
-                                          weights=data[data[,D]==char,'WEIGHTS']))
-      }
-      treat_den[[all.treat.origin[char]]] <- de.tr
-    }
-    
-    # histogram
-    if (is.null(weights)==TRUE) {
-      hist.out<-hist(data[,X],breaks=80,plot=FALSE)
-    } else {
-      suppressWarnings(hist.out<-hist(data[,X],data[,'WEIGHTS'],
-                                      breaks=80,plot=FALSE))
-    } 
-    n.hist<-length(hist.out$mids)
-
-    # count the number of treated
-    treat.hist <- list()
-    for (char in all.treat) {
-      count1<-rep(0,n.hist)
-      treat_index<-which(data[,D]==char)
-      for (i in 1:n.hist) {
-        count1[i]<-sum(data[treat_index,X]>=hist.out$breaks[i] &
-                         data[treat_index,X]<hist.out$breaks[(i+1)])
-      }
-      count1[n.hist]<-sum(data[treat_index,X]>=hist.out$breaks[n.hist] &
-                            data[treat_index,X]<=hist.out$breaks[n.hist+1])
-      
-      treat.hist[[all.treat.origin[char]]] <- count1
-    }    
-  }  
-  
-  if (treat.type=='continuous'){ ## continuous D
-    if (is.null(weights)==TRUE){
-      de <- density(data[,X])
-    } else {
-      suppressWarnings(de <- density(data[,X],weights=data[,'WEIGHTS']))
-    }
-    if (is.null(weights)==TRUE){
-      hist.out<-hist(data[,X],breaks=80,plot=FALSE)
-    } else{
-      suppressWarnings(hist.out<-hist(data[,X],data[,'WEIGHTS'],
-                                      breaks=80,plot=FALSE))
-    }
-    de.co <- de.tr <- NULL 
-  } 
-}
+	# density or histogram
+	dens <- .compute_density(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+	de <- dens$de
+	treat_den <- dens$treat_den
+	hists <- .compute_histograms(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+	hist.out <- hists$hist.out
+	treat.hist <- hists$treat.hist
+	if (treat.type == "continuous") {
+		de.co <- de.tr <- NULL
+	}
 
 	
 	tests <- NULL
 	
 	#wald test: doesn't allow nbinom by far
-	if(wald==TRUE & use_fe==FALSE & is.null(IV)){
+	if(wald & use_fe == 0 & is.null(IV)){
 		data.wald <- data
 		sub.test <- NULL
 
@@ -2580,12 +2546,12 @@ interflex.binning <- function(data,
 				formula1.wald <- paste0(formula1.wald,"+",paste0(new.var.name,collapse="+"))
 			}
 
-			if (is.null(Z)==FALSE){
-				if(full.moderate==FALSE){
+			if (!is.null(Z)){
+				if(!full.moderate){
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 				}
-				if(full.moderate==TRUE){ #z
+				if(full.moderate){ #z
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z.X,collapse=" + "))
@@ -2701,7 +2667,7 @@ interflex.binning <- function(data,
 					data.wald[,paste0("DX.",char,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,paste0("D.",char)]*data.wald[,X]
 					new.var.name <- c(new.var.name,paste0("D.",char,".G.",i+1),paste0("DX.",char,".G.",i+1))
 				}
-				if(is.null(Z)==FALSE & full.moderate==TRUE){ #z
+				if(!is.null(Z) & full.moderate){ #z
 					zero.var.name <- c()
 					for(a in Z){
 						data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
@@ -2814,7 +2780,7 @@ interflex.binning <- function(data,
 								new.var.name <- c(new.var.name,paste0("D.",char,".G.",i+1),paste0("DX.",char,".G.",i+1))
 							}
 						}
-						if(is.null(Z)==FALSE & full.moderate==TRUE){ #z
+						if(!is.null(Z) & full.moderate){ #z
 							for(a in Z){
 								new.var.name <- c(new.var.name,paste0("Z.",a,".G.",i+1),paste0("ZX.",a,".G.",i+1))
 							}
@@ -2887,7 +2853,7 @@ interflex.binning <- function(data,
 				)
 	}
 	
-	if(wald==TRUE & use_fe==FALSE & !is.null(IV)){
+	if(wald & use_fe == 0 & !is.null(IV)){
 		# test 2 ivreg fit
 		data.wald <- data
 		sub.test <- NULL
@@ -2927,14 +2893,14 @@ interflex.binning <- function(data,
 			}
 
 			# add covariates
-			if (is.null(Z)==FALSE){
-				if(full.moderate==FALSE){
+			if (!is.null(Z)){
+				if(!full.moderate){
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 					formula0.iv <- paste0(formula0.iv, "+",paste(Z,collapse=" + "))
 					formula1.iv <- paste0(formula1.iv, "+",paste(Z,collapse=" + "))
 				}
-				if(full.moderate==TRUE){ #z
+				if(full.moderate){ #z
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z.X,collapse=" + "))
@@ -3050,14 +3016,14 @@ interflex.binning <- function(data,
 			}
 
 			# add covariates
-			if (is.null(Z)==FALSE){
-				if(full.moderate==FALSE){
+			if (!is.null(Z)){
+				if(!full.moderate){
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 					formula0.iv <- paste0(formula0.iv, "+",paste(Z,collapse=" + "))
 					formula1.iv <- paste0(formula1.iv, "+",paste(Z,collapse=" + "))
 				}
-				if(full.moderate==TRUE){ #z
+				if(full.moderate){ #z
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z,collapse=" + "))
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 					formula0.wald <- paste0(formula0.wald, "+",paste(Z.X,collapse=" + "))
@@ -3154,11 +3120,11 @@ interflex.binning <- function(data,
 					}
 
 					# add covariates
-					if (is.null(Z)==FALSE){
-						if(full.moderate==FALSE){
+					if (!is.null(Z)){
+						if(!full.moderate){
 							formula0.sub.wald <- paste0(formula0.sub.wald, "+",paste(Z,collapse=" + "))
 						}
-						if(full.moderate==TRUE){ #z
+						if(full.moderate){ #z
 							formula0.sub.wald <- paste0(formula0.sub.wald, "+",paste(Z,collapse=" + "))
 							formula0.sub.wald <- paste0(formula0.sub.wald, "+",paste(Z.X,collapse=" + "))
 							zero.var.name <- c()
@@ -3210,7 +3176,7 @@ interflex.binning <- function(data,
 		)
 	}
 
-	if(wald==TRUE & use_fe==TRUE & is.null(IV)){
+	if(wald & use_fe == 1 & is.null(IV)){
 		data.wald <- data
 		sub.test <- NULL
 		if(treat.type=='continuous'){
@@ -3231,11 +3197,11 @@ interflex.binning <- function(data,
 
 			constraints <- as.formula(paste0("~",paste0(constrain.terms, collapse = "|")))
 
-			if (is.null(Z)==FALSE){
-				if(full.moderate==FALSE){
+			if (!is.null(Z)){
+				if(!full.moderate){
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 				}
-				if(full.moderate==TRUE){ #z
+				if(full.moderate){ #z
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z,collapse=" + "))
 					formula1.wald <- paste0(formula1.wald, "+",paste(Z.X,collapse=" + "))
 					zero.var.name <- c()
@@ -3288,7 +3254,7 @@ interflex.binning <- function(data,
 
 				constrain.terms <- c(constrain.terms,new.var.name)
 
-				if(is.null(Z)==FALSE & full.moderate==TRUE){ #z
+				if(!is.null(Z) & full.moderate){ #z
 					zero.var.name <- c()
 					for(a in Z){
 						data.wald[,paste0("Z.",a,".G.",i+1)] <- as.numeric(groupX==(i+1))*data.wald[,a]
@@ -3360,7 +3326,7 @@ interflex.binning <- function(data,
 				)
 	}
 
-	if(wald==TRUE & use_fe==TRUE & !is.null(IV)){
+	if(wald & use_fe == 1 & !is.null(IV)){
 		#use the wald test in felm
 		data.wald <- data
 		sub.test <- NULL
@@ -3413,7 +3379,7 @@ interflex.binning <- function(data,
 	}
 	
 	#Plot
-  if(figure==TRUE){
+  if(figure){
 	class(final.output) <- "interflex"
 	figure.output <- plot.interflex(	x=final.output,
 									order = order,

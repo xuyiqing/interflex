@@ -57,7 +57,7 @@ plot.interflex <- function(x,
 
 
 
-    if (pool == TRUE) {
+    if (pool) {
         p <- interflex.plot.pool(
             out = x,
             diff.values = diff.values,
@@ -127,33 +127,33 @@ plot.interflex <- function(x,
     count.tr <- out$count.tr
     estimator <- out$estimator
 
-    if (is.null(show.subtitles) == FALSE) {
-        if (is.logical(show.subtitles) == FALSE & is.numeric(show.subtitles) == FALSE) {
+    if (!is.null(show.subtitles)) {
+        if (!is.logical(show.subtitles) & !is.numeric(show.subtitles)) {
             stop("\"show.subtitles\" is not a logical flag.")
         }
     }
 
     # CI
-    if (is.null(CI) == FALSE) {
-        if (is.logical(CI) == FALSE & is.numeric(CI) == FALSE) {
+    if (!is.null(CI)) {
+        if (!is.logical(CI) & !is.numeric(CI)) {
             stop("\"CI\" is not a logical flag.")
         }
 
         if (estimator == "kernel") {
-            if (CI == TRUE & out$CI == FALSE) {
+            if (isTRUE(CI) & isFALSE(out$CI)) {
                 stop("Please set CI to FALSE.")
             }
         }
     }
 
     if (estimator == "kernel") {
-        if (is.null(CI) == TRUE) {
+        if (is.null(CI)) {
             CI <- out$CI
         }
     }
 
     if (estimator == "binning" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "lasso") {
-        if (is.null(CI) == TRUE) {
+        if (is.null(CI)) {
             CI <- TRUE
         }
     }
@@ -164,15 +164,15 @@ plot.interflex <- function(x,
     }
 
     # main
-    if (is.null(main) == FALSE) {
+    if (!is.null(main)) {
         main <- as.character(main)[1]
     }
 
     # Ylabel
-    if (is.null(Ylabel) == TRUE) {
+    if (is.null(Ylabel)) {
         Ylabel <- out$Ylabel
     } else {
-        if (is.character(Ylabel) == FALSE) {
+        if (!is.character(Ylabel)) {
             stop("\"Ylabel\" is not a string.")
         } else {
             Ylabel <- Ylabel[1]
@@ -180,10 +180,10 @@ plot.interflex <- function(x,
     }
 
     # Dlabel
-    if (is.null(Dlabel) == TRUE) {
+    if (is.null(Dlabel)) {
         Dlabel <- out$Dlabel
     } else {
-        if (is.character(Dlabel) == FALSE) {
+        if (!is.character(Dlabel)) {
             stop("\"Dlabel\" is not a string.")
         } else {
             Dlabel <- Dlabel[1]
@@ -191,10 +191,10 @@ plot.interflex <- function(x,
     }
 
     # Xlabel
-    if (is.null(Xlabel) == TRUE) {
+    if (is.null(Xlabel)) {
         Xlabel <- out$Xlabel
     } else {
-        if (is.character(Xlabel) == FALSE) {
+        if (!is.character(Xlabel)) {
             stop("\"Xlabel\" is not a string.")
         } else {
             Xlabel <- Xlabel[1]
@@ -202,35 +202,35 @@ plot.interflex <- function(x,
     }
 
     ## axis labels
-    if (is.null(xlab) == FALSE) {
-        if (is.character(xlab) == FALSE) {
+    if (!is.null(xlab)) {
+        if (!is.character(xlab)) {
             stop("\"xlab\" is not a string.")
         }
     }
-    if (is.null(ylab) == FALSE) {
-        if (is.character(ylab) == FALSE) {
+    if (!is.null(ylab)) {
+        if (!is.character(ylab)) {
             stop("\"ylab\" is not a string.")
         }
     }
 
-    if (is.null(xlab) == TRUE) {
+    if (is.null(xlab)) {
         xlab <- c(paste("Moderator: ", Xlabel, sep = ""))
     } else {
-        if (is.character(xlab) == FALSE) {
+        if (!is.character(xlab)) {
             stop("\"xlab\" is not a string.")
         }
     }
-    if (is.null(ylab) == TRUE) {
+    if (is.null(ylab)) {
         ylab <- c(paste("Marginal Effect of ", Dlabel, " on ", Ylabel, sep = ""))
     } else {
-        if (is.character(ylab) == FALSE) {
+        if (!is.character(ylab)) {
             stop("\"ylab\" is not a string.")
         }
     }
 
     ## xlim ylim
-    if (is.null(xlim) == FALSE) {
-        if (is.numeric(xlim) == FALSE) {
+    if (!is.null(xlim)) {
+        if (!is.numeric(xlim)) {
             stop("Some element in \"xlim\" is not numeric.")
         } else {
             if (length(xlim) != 2) {
@@ -239,8 +239,8 @@ plot.interflex <- function(x,
         }
     }
 
-    if (is.null(ylim) == FALSE) {
-        if (is.numeric(ylim) == FALSE) {
+    if (!is.null(ylim)) {
+        if (!is.numeric(ylim)) {
             stop("Some element in \"ylim\" is not numeric.")
         } else {
             if (length(ylim) != 2) {
@@ -250,52 +250,52 @@ plot.interflex <- function(x,
     }
 
     ## theme.bw
-    if (is.logical(theme.bw) == FALSE & is.numeric(theme.bw) == FALSE) {
+    if (!is.logical(theme.bw) & !is.numeric(theme.bw)) {
         stop("\"theme.bw\" is not a logical flag.")
     }
 
     ## show.grid
-    if (is.logical(show.grid) == FALSE & is.numeric(show.grid) == FALSE) {
+    if (!is.logical(show.grid) & !is.numeric(show.grid)) {
         stop("\"show.grid\" is not a logical flag.")
     }
 
     ## font size
-    if (is.null(cex.main) == FALSE) {
-        if (is.numeric(cex.main) == FALSE) {
+    if (!is.null(cex.main)) {
+        if (!is.numeric(cex.main)) {
             stop("\"cex.main\" is not numeric.")
         }
     }
-    if (is.null(cex.sub) == FALSE) {
-        if (is.numeric(cex.sub) == FALSE) {
+    if (!is.null(cex.sub)) {
+        if (!is.numeric(cex.sub)) {
             stop("\"cex.sub\" is not numeric.")
         }
     }
-    if (is.null(cex.lab) == FALSE) {
-        if (is.numeric(cex.lab) == FALSE) {
+    if (!is.null(cex.lab)) {
+        if (!is.numeric(cex.lab)) {
             stop("\"cex.lab\" is not numeric.")
         }
     }
-    if (is.null(cex.axis) == FALSE) {
-        if (is.numeric(cex.axis) == FALSE) {
+    if (!is.null(cex.axis)) {
+        if (!is.numeric(cex.axis)) {
             stop("\"cex.axis\" is not numeric.")
         }
     }
 
     ## bin.labs
-    if (is.logical(bin.labs) == FALSE & is.numeric(bin.labs) == FALSE) {
+    if (!is.logical(bin.labs) & !is.numeric(bin.labs)) {
         stop("\"bin.labs\" is not a logical flag.")
     }
 
     ## interval
-    if (is.null(interval) == FALSE) {
-        if (is.numeric(interval) == FALSE) {
+    if (!is.null(interval)) {
+        if (!is.numeric(interval)) {
             stop("Some element in \"interval\" is not numeric.")
         }
     }
 
     ## file
-    if (is.null(file) == FALSE) {
-        if (is.character(file) == FALSE) {
+    if (!is.null(file)) {
+        if (!is.character(file)) {
             stop("Wrong file name.")
         }
     }
@@ -303,7 +303,7 @@ plot.interflex <- function(x,
     ## order/subtitles
     if (treat.type == "discrete") {
         other.treat <- sort(all.treat[which(all.treat != base)])
-        if (is.null(order) == FALSE) {
+        if (!is.null(order)) {
             order <- as.character(order)
             if (length(order) != length(unique(order))) {
                 stop("\"order\" should not contain repeated values.")
@@ -319,19 +319,19 @@ plot.interflex <- function(x,
             other.treat <- order
         }
 
-        if (is.null(show.subtitles) == TRUE) {
+        if (is.null(show.subtitles)) {
             if (length(other.treat) == 1) {
                 show.subtitles <- FALSE
             } else {
                 show.subtitles <- TRUE
             }
 
-            if (is.null(subtitles) == FALSE) {
+            if (!is.null(subtitles)) {
                 show.subtitles <- TRUE
             }
         }
 
-        if (is.null(subtitles) == FALSE) {
+        if (!is.null(subtitles)) {
             if (length(subtitles) != length(other.treat)) {
                 stop("The number of elements in \"subtitles\" should be m-1(m is the number of different treatment arms).")
             }
@@ -339,8 +339,8 @@ plot.interflex <- function(x,
     }
 
     if (treat.type == "continuous") {
-        if (is.null(order) == FALSE) {
-            if (is.numeric(order) == FALSE) {
+        if (!is.null(order)) {
+            if (!is.numeric(order)) {
                 stop("\"order\" should be numeric.")
             }
             if (length(order) != length(unique(order))) {
@@ -359,19 +359,19 @@ plot.interflex <- function(x,
             label.name <- label.name.order
         }
 
-        if (is.null(show.subtitles) == TRUE) {
+        if (is.null(show.subtitles)) {
             if (length(label.name) == 1) {
                 show.subtitles <- FALSE
             } else {
                 show.subtitles <- TRUE
             }
 
-            if (is.null(subtitles) == FALSE) {
+            if (!is.null(subtitles)) {
                 show.subtitles <- TRUE
             }
         }
 
-        if (is.null(subtitles) == FALSE) {
+        if (!is.null(subtitles)) {
             if (length(subtitles) != length(label.name)) {
                 stop("The number of elements in \"subtitles\" should equal to the number of values in D.ref.")
             }
@@ -379,7 +379,7 @@ plot.interflex <- function(x,
     }
 
     ## ncols
-    if (is.null(ncols) == FALSE) {
+    if (!is.null(ncols)) {
         if (ncols %% 1 != 0) {
             stop("\"ncols\" is not a positive integer.")
         } else {
@@ -431,11 +431,11 @@ plot.interflex <- function(x,
     min.XX <- min(tempxx)
     max.XX <- max(tempxx)
 
-    if (is.null(diff.values) == FALSE) {
+    if (!is.null(diff.values)) {
         if (estimator == "binning") {
             stop("\"diff.values\" can only work after linear or kernel model is applied.")
         }
-        if (is.numeric(diff.values) == FALSE) {
+        if (!is.numeric(diff.values)) {
             stop("\"diff.values\" is not numeric.")
         }
         if (length(diff.values) < 2) {
@@ -495,8 +495,8 @@ plot.interflex <- function(x,
             est.bin3 <- list() ## missing part
             yrange <- c(0)
             for (char in other.treat) {
-                est.bin2[[char]] <- as.matrix(est.bin[[char]][which(is.na(est.bin[[char]][, 2]) == FALSE), ])
-                est.bin3[[char]] <- as.matrix(est.bin[[char]][which(is.na(est.bin[[char]][, 2]) == TRUE), ])
+                est.bin2[[char]] <- as.matrix(est.bin[[char]][which(!is.na(est.bin[[char]][, 2])), ])
+                est.bin3[[char]] <- as.matrix(est.bin[[char]][which(is.na(est.bin[[char]][, 2])), ])
                 if (dim(est.bin2[[char]])[2] == 1) {
                     est.bin2[[char]] <- t(est.bin2[[char]])
                 }
@@ -504,14 +504,14 @@ plot.interflex <- function(x,
                     est.bin3[[char]] <- t(est.bin3[[char]])
                 }
 
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)], est.bin[[char]][, c(4, 5)]))))
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2], est.bin[[char]][, 2]))))
                 }
             }
 
-            if (is.null(ylim) == FALSE) {
+            if (!is.null(ylim)) {
                 yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
             }
             X.lvls <- est.lin[[other.treat[1]]][, 1]
@@ -527,15 +527,15 @@ plot.interflex <- function(x,
             est.bin3 <- list() ## missing part
             yrange <- c(0)
             for (label in label.name) {
-                est.bin2[[label]] <- as.matrix(est.bin[[label]][which(is.na(est.bin[[label]][, 2]) == FALSE), ])
-                est.bin3[[label]] <- as.matrix(est.bin[[label]][which(is.na(est.bin[[label]][, 2]) == TRUE), ])
+                est.bin2[[label]] <- as.matrix(est.bin[[label]][which(!is.na(est.bin[[label]][, 2])), ])
+                est.bin3[[label]] <- as.matrix(est.bin[[label]][which(is.na(est.bin[[label]][, 2])), ])
                 if (dim(est.bin2[[label]])[2] == 1) {
                     est.bin2[[label]] <- t(est.bin2[[label]])
                 }
                 if (dim(est.bin3[[label]])[2] == 1) {
                     est.bin3[[label]] <- t(est.bin3[[label]])
                 }
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)], est.bin[[label]][, c(4, 5)]))))
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2], est.bin[[label]][, 2]))))
@@ -544,7 +544,7 @@ plot.interflex <- function(x,
 
             X.lvls <- est.lin[[label.name[1]]][, 1]
             errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-            if (is.null(ylim) == FALSE) {
+            if (!is.null(ylim)) {
                 yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
             }
             maxdiff <- (max(yrange) - min(yrange))
@@ -555,13 +555,13 @@ plot.interflex <- function(x,
     if (estimator == "dml") {
         if (treat.type == "discrete") {
             est.dml <- out$est.dml
-            if (by.group == TRUE) {
+            if (by.group) {
                 est.dml <- out$g.est.dml
             }
 
             yrange <- c(0)
             for (char in other.treat) {
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(4, 5)]))))
                     if (ncol(est.dml[[char]]) > 5) {
                         yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(6, 7)]))))
@@ -574,12 +574,12 @@ plot.interflex <- function(x,
         }
         if (treat.type == "continuous") {
             est.dml <- out$est.dml
-            if (by.group == TRUE) {
+            if (by.group) {
                 est.dml <- out$g.est.dml
             }
             yrange <- c(0)
             for (label in label.name) {
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(4, 5)]))))
                     if (ncol(est.dml[[label]]) > 5) {
                         yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(6, 7)]))))
@@ -591,7 +591,7 @@ plot.interflex <- function(x,
             X.lvls <- est.dml[[label.name[1]]][, 1]
         }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         maxdiff <- (max(yrange) - min(yrange))
@@ -603,7 +603,7 @@ plot.interflex <- function(x,
             est.lin <- out$est.lin
             yrange <- c(0)
             for (char in other.treat) {
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)]))))
                     if (ncol(est.lin[[char]]) > 5) {
                         yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(6, 7)]))))
@@ -619,7 +619,7 @@ plot.interflex <- function(x,
             est.lin <- out$est.lin
             yrange <- c(0)
             for (label in label.name) {
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)]))))
                     if (ncol(est.lin[[label]]) > 5) {
                         yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(6, 7)]))))
@@ -632,7 +632,7 @@ plot.interflex <- function(x,
         }
 
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         maxdiff <- (max(yrange) - min(yrange))
@@ -642,7 +642,7 @@ plot.interflex <- function(x,
     if (estimator == "kernel") {
         est.kernel <- out$est.kernel
         yrange <- c(0)
-        if (CI == FALSE) {
+        if (isFALSE(CI)) {
             if (treat.type == "discrete") {
                 for (char in other.treat) {
                     yrange <- c(yrange, na.omit(unlist(c(est.kernel[[char]][, 2]))))
@@ -658,7 +658,7 @@ plot.interflex <- function(x,
             }
         }
 
-        if (CI == TRUE) {
+        if (isTRUE(CI)) {
             if (treat.type == "discrete") {
                 for (char in other.treat) {
                     yrange <- c(yrange, na.omit(unlist(c(est.kernel[[char]][, c(4, 5)]))))
@@ -680,7 +680,7 @@ plot.interflex <- function(x,
             }
         }
 
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
@@ -691,12 +691,12 @@ plot.interflex <- function(x,
     if (estimator == "grf") {
         if (treat.type == "discrete") {
             est.grf <- out$est.grf
-            if (by.group == TRUE) {
+            if (by.group) {
                 est.grf <- out$est.grf
             }
             yrange <- c(0)
             for (char in other.treat) {
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(4, 5)]))))
                     if (ncol(est.grf[[char]]) > 5) {
                         yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(6, 7)]))))
@@ -708,7 +708,7 @@ plot.interflex <- function(x,
             X.lvls <- est.grf[[other.treat[1]]][, 1]
         }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         maxdiff <- (max(yrange) - min(yrange))
@@ -721,7 +721,7 @@ plot.interflex <- function(x,
 
             yrange <- c(0)
             for (char in other.treat) {
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lasso[[char]][, c(4, 5)]))))
                     if (ncol(est.lasso[[char]]) > 5) {
                         yrange <- c(yrange, na.omit(unlist(c(est.lasso[[char]][, c(6, 7)]))))
@@ -734,12 +734,12 @@ plot.interflex <- function(x,
         }
         if (treat.type == "continuous") {
             est.lasso <- out$est.lasso
-            if (by.group == TRUE) {
+            if (by.group) {
                 est.lasso <- out$est.lasso
             }
             yrange <- c(0)
             for (label in label.name) {
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     yrange <- c(yrange, na.omit(unlist(c(est.lasso[[label]][, c(4, 5)]))))
                     if (ncol(est.lasso[[label]]) > 5) {
                         yrange <- c(yrange, na.omit(unlist(c(est.lasso[[label]][, c(6, 7)]))))
@@ -751,7 +751,7 @@ plot.interflex <- function(x,
             X.lvls <- est.lasso[[label.name[1]]][, 1]
         }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         maxdiff <- (max(yrange) - min(yrange))
@@ -764,12 +764,12 @@ plot.interflex <- function(x,
         for (char in other.treat) {
             p1 <- ggplot()
             ## black white theme and mark zero
-            if (theme.bw == FALSE) {
+            if (!theme.bw) {
                 p1 <- p1 + geom_hline(yintercept = 0, colour = "white", size = 2)
             } else {
                 p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", size = 2)
             }
-            if (show.grid == FALSE) {
+            if (!show.grid) {
                 p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
             }
             p.group[[char]] <- p1
@@ -780,12 +780,12 @@ plot.interflex <- function(x,
         for (label in label.name) {
             p1 <- ggplot()
             ## black white theme and mark zero
-            if (theme.bw == FALSE) {
+            if (!theme.bw) {
                 p1 <- p1 + geom_hline(yintercept = 0, colour = "white", size = 2)
             } else {
                 p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", size = 2)
             }
-            if (show.grid == FALSE) {
+            if (!show.grid) {
                 p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
             }
             p.group[[label]] <- p1
@@ -924,19 +924,19 @@ plot.interflex <- function(x,
             for (char in other.treat) {
                 p1 <- p.group[[char]]
                 tempest <- est[[char]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     if (ncol(tempest) == 5) {
                         colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                     } else {
                         colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper", "CI_uniform_lower", "CI_uniform_upper")
                     }
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     tempest <- tempest[, c(1, 2)]
                     colnames(tempest) <- c("X", "TE")
                 }
                 tempest <- as.data.frame(tempest)
-                if (by.group == FALSE) {
+                if (!by.group) {
                     p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
                 } else {
                     p1 <- p1 + geom_point(
@@ -945,9 +945,9 @@ plot.interflex <- function(x,
                     )
                 }
 
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "lasso") {
-                        if (by.group == FALSE) {
+                        if (!by.group) {
                             p1 <- p1 + geom_ribbon(
                                 data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
                                 fill = CI.color, alpha = CI.color.alpha
@@ -959,8 +959,8 @@ plot.interflex <- function(x,
                         }
                     }
 
-                    if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI == TRUE) {
-                        if (by.group == FALSE) {
+                    if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI) {
+                        if (!by.group) {
                             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = CI_uniform_lower), linetype = "dashed", color = "gray50") + geom_line(data = tempest, aes(x = X, y = CI_uniform_upper), linetype = "dashed", color = "gray50")
                         } else {
                             p1 <- p1 + geom_errorbar(
@@ -974,7 +974,7 @@ plot.interflex <- function(x,
                 }
                 # ymin=min(yrange)-maxdiff/5
 
-                if (is.null(diff.values) == FALSE) {
+                if (!is.null(diff.values)) {
                     for (target.value in diff.values) {
                         Xnew <- abs(tempest[, "X"] - target.value)
                         d1 <- min(Xnew)
@@ -984,13 +984,13 @@ plot.interflex <- function(x,
                         label2 <- which.min(Xnew)
                         if (d1 == 0) {
                             est.mark <- tempest[label1, "TE"]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label1, "CI_lower"]
                                 ub.mark <- tempest[label1, "CI_upper"]
                             }
                         } else if (d2 == 0) {
                             est.mark <- tempest[label2, "TE"]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label2, "CI_lower"]
                                 ub.mark <- tempest[label2, "CI_upper"]
                             }
@@ -998,7 +998,7 @@ plot.interflex <- function(x,
                             est.mark1 <- tempest[label1, "TE"]
                             est.mark2 <- tempest[label2, "TE"]
                             est.mark <- ((est.mark1 * d2 + est.mark2 * d1) / (d1 + d2))
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark1 <- tempest[label1, "CI_lower"]
                                 ub.mark1 <- tempest[label1, "CI_upper"]
                                 lb.mark2 <- tempest[label2, "CI_lower"]
@@ -1009,7 +1009,7 @@ plot.interflex <- function(x,
                         }
 
                         p1 <- p1 + annotate("point", x = target.value, y = est.mark, size = 1, colour = "red")
-                        if (CI == TRUE) {
+                        if (isTRUE(CI)) {
                             p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = "red", size = 0.5, width = (max(tempxx) - min(tempxx)) / 30)
                         }
                     }
@@ -1022,7 +1022,7 @@ plot.interflex <- function(x,
             for (label in label.name) {
                 p1 <- p.group[[label]]
                 tempest <- est[[label]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     if (ncol(tempest) == 5) {
                         colnames(tempest) <- c("X", "ME", "sd", "CI_lower", "CI_upper")
                     } else {
@@ -1031,12 +1031,12 @@ plot.interflex <- function(x,
 
                     tempest <- as.data.frame(tempest)
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     tempest <- tempest[, c(1, 2)]
                     colnames(tempest) <- c("X", "ME")
                     tempest <- as.data.frame(tempest)
                 }
-                if (by.group == FALSE) {
+                if (!by.group) {
                     p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
                 } else {
                     p1 <- p1 + geom_point(
@@ -1045,9 +1045,9 @@ plot.interflex <- function(x,
                     )
                 }
 
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "lasso") {
-                        if (by.group == FALSE) {
+                        if (!by.group) {
                             p1 <- p1 + geom_ribbon(
                                 data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
                                 fill = CI.color, alpha = CI.color.alpha
@@ -1058,8 +1058,8 @@ plot.interflex <- function(x,
                             )
                         }
                     }
-                    if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI == TRUE) {
-                        if (by.group == FALSE) {
+                    if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI) {
+                        if (!by.group) {
                             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = CI_uniform_lower), linetype = "dashed", color = "gray50") + geom_line(data = tempest, aes(x = X, y = CI_uniform_upper), linetype = "dashed", color = "gray50")
                         } else {
                             p1 <- p1 + geom_errorbar(
@@ -1073,7 +1073,7 @@ plot.interflex <- function(x,
                 }
                 # ymin=min(yrange)-maxdiff/5
 
-                if (is.null(diff.values) == FALSE) {
+                if (!is.null(diff.values)) {
                     for (target.value in diff.values) {
                         Xnew <- abs(tempest[, "X"] - target.value)
                         d1 <- min(Xnew)
@@ -1083,13 +1083,13 @@ plot.interflex <- function(x,
                         label2 <- which.min(Xnew)
                         if (d1 == 0) {
                             est.mark <- tempest[label1, "ME"]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label1, "CI_lower"]
                                 ub.mark <- tempest[label1, "CI_upper"]
                             }
                         } else if (d2 == 0) {
                             est.mark <- tempest[label2, "ME"]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label2, "CI_lower"]
                                 ub.mark <- tempest[label2, "CI_upper"]
                             }
@@ -1097,7 +1097,7 @@ plot.interflex <- function(x,
                             est.mark1 <- tempest[label1, "ME"]
                             est.mark2 <- tempest[label2, "ME"]
                             est.mark <- ((est.mark1 * d2 + est.mark2 * d1) / (d1 + d2))
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark1 <- tempest[label1, "CI_lower"]
                                 ub.mark1 <- tempest[label1, "CI_upper"]
                                 lb.mark2 <- tempest[label2, "CI_lower"]
@@ -1108,7 +1108,7 @@ plot.interflex <- function(x,
                         }
 
                         p1 <- p1 + annotate("point", x = target.value, y = est.mark, size = 1, colour = "red")
-                        if (CI == TRUE) {
+                        if (isTRUE(CI)) {
                             p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = "red", size = 0.5, width = (max(tempxx) - min(tempxx)) / 30)
                         }
                     }
@@ -1125,13 +1125,13 @@ plot.interflex <- function(x,
                 p1 <- p.group[[char]]
                 tempest <- est.lin[[char]]
                 tempest.bin2 <- est.bin2[[char]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                     colnames(tempest.bin2) <- c("x0", "TE", "sd", "CI_lower", "CI_upper")
                     tempest <- as.data.frame(tempest)
                     tempest.bin2 <- as.data.frame(tempest.bin2)
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     tempest <- tempest[, c(1, 2)]
                     colnames(tempest) <- c("X", "TE")
                     tempest.bin2 <- tempest.bin2[, c(1, 2)]
@@ -1141,7 +1141,7 @@ plot.interflex <- function(x,
                 }
 
                 p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     p1 <- p1 + geom_ribbon(
                         data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
                         fill = CI.color, alpha = CI.color.alpha
@@ -1149,7 +1149,7 @@ plot.interflex <- function(x,
                 }
                 ## bin estimates
                 p1 <- p1 + geom_point(data = tempest.bin2, aes(x0, TE), size = 4 / treat_sc, shape = 21, fill = "white", colour = "red")
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     p1 <- p1 + geom_errorbar(
                         data = tempest.bin2, aes(x = x0, ymin = CI_lower, ymax = CI_upper), colour = "red", size = 1,
                         width = errorbar.width
@@ -1165,7 +1165,7 @@ plot.interflex <- function(x,
                 )
 
                 ## labels: L, M, H and so on
-                if (bin.labs == TRUE) {
+                if (bin.labs) {
                     if (nbins == 3) {
                         p1 <- p1 + annotate(
                             geom = "text", x = est.bin[[char]][1, 1], y = pos,
@@ -1216,13 +1216,13 @@ plot.interflex <- function(x,
                 p1 <- p.group[[label]]
                 tempest <- est.lin[[label]]
                 tempest.bin2 <- est.bin2[[label]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     colnames(tempest) <- c("X", "ME", "sd", "CI_lower", "CI_upper")
                     colnames(tempest.bin2) <- c("x0", "ME", "sd", "CI_lower", "CI_upper")
                     tempest <- as.data.frame(tempest)
                     tempest.bin2 <- as.data.frame(tempest.bin2)
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     tempest <- tempest[, c(1, 2)]
                     colnames(tempest) <- c("X", "ME")
                     tempest.bin2 <- tempest.bin2[, c(1, 2)]
@@ -1232,7 +1232,7 @@ plot.interflex <- function(x,
                 }
 
                 p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     p1 <- p1 + geom_ribbon(
                         data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
                         fill = CI.color, alpha = CI.color.alpha
@@ -1240,7 +1240,7 @@ plot.interflex <- function(x,
                 }
                 ## bin estimates
                 p1 <- p1 + geom_point(data = tempest.bin2, aes(x0, ME), size = 4 / treat_sc, shape = 21, fill = "white", colour = "red")
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     p1 <- p1 + geom_errorbar(
                         data = tempest.bin2, aes(x = x0, ymin = CI_lower, ymax = CI_upper), colour = "red", size = 1,
                         width = errorbar.width
@@ -1253,7 +1253,7 @@ plot.interflex <- function(x,
                 )
 
                 ## labels: L, M, H and so on
-                if (bin.labs == TRUE) {
+                if (bin.labs) {
                     if (nbins == 3) {
                         p1 <- p1 + annotate(
                             geom = "text", x = est.bin[[label]][1, 1], y = pos,
@@ -1301,31 +1301,31 @@ plot.interflex <- function(x,
     }
 
     # cex/title...
-    if (is.null(cex.lab) == TRUE) {
+    if (is.null(cex.lab)) {
         cex.lab <- 15
     } else {
         cex.lab <- 15 * cex.lab
     }
-    if (is.null(cex.axis) == TRUE) {
+    if (is.null(cex.axis)) {
         cex.axis <- 15 / treat_sc
     } else {
         cex.axis <- 15 * cex.axis / treat_sc
     }
     ## title
-    if (is.null(cex.main) == TRUE) {
+    if (is.null(cex.main)) {
         cex.main <- 18
     } else {
         cex.main <- 18 * cex.main
     }
 
-    if (is.null(cex.sub) == TRUE) {
+    if (is.null(cex.sub)) {
         cex.sub <- 12
     } else {
         cex.sub <- 12 * cex.sub
     }
 
     ## xlim and ylim
-    if (is.null(ylim) == FALSE) {
+    if (!is.null(ylim)) {
         ylim2 <- c(ylim[1] - (ylim[2] - ylim[1]) * 0.25 / 6, ylim[2] + (ylim[2] - ylim[1]) * 0.4 / 6)
     }
 
@@ -1334,7 +1334,7 @@ plot.interflex <- function(x,
         for (char in other.treat) {
             p1 <- p.group[[char]]
             ## mark the original interval (in replicated papers)
-            if (is.null(interval) == FALSE) {
+            if (!is.null(interval)) {
                 p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
             }
 
@@ -1342,25 +1342,25 @@ plot.interflex <- function(x,
             p1 <- p1 + xlab(NULL) + ylab(NULL) +
                 theme(axis.text = element_text(size = cex.axis))
 
-            if (show.subtitles == TRUE) {
-                if (is.null(subtitles) == TRUE) {
+            if (show.subtitles) {
+                if (is.null(subtitles)) {
                     subtitle.temp <- paste0("Treated = ", char, ", Baseline = ", base)
                     p1 <- p1 + labs(subtitle = subtitle.temp) + theme(plot.subtitle = element_text(hjust = 0.5, size = cex.sub, lineheight = .8))
                 }
 
-                if (is.null(subtitles) == FALSE) {
+                if (!is.null(subtitles)) {
                     subtitle.temp <- subtitles[k]
                     p1 <- p1 + labs(subtitle = subtitle.temp) + theme(plot.subtitle = element_text(hjust = 0.5, size = cex.sub, lineheight = .8))
                 }
             }
 
-            if (is.null(xlim) == FALSE & is.null(ylim) == FALSE) {
+            if (!is.null(xlim) & !is.null(ylim)) {
                 p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
             }
-            if (is.null(xlim) == TRUE & is.null(ylim) == FALSE) {
+            if (is.null(xlim) & !is.null(ylim)) {
                 p1 <- p1 + coord_cartesian(ylim = ylim2)
             }
-            if (is.null(xlim) == FALSE & is.null(ylim) == TRUE) {
+            if (!is.null(xlim) & is.null(ylim)) {
                 p1 <- p1 + coord_cartesian(xlim = xlim)
             }
 
@@ -1401,7 +1401,7 @@ plot.interflex <- function(x,
         for (label in label.name) {
             p1 <- p.group[[label]]
             ## mark the original interval (in replicated papers)
-            if (is.null(interval) == FALSE) {
+            if (!is.null(interval)) {
                 p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
             }
 
@@ -1409,25 +1409,25 @@ plot.interflex <- function(x,
             p1 <- p1 + xlab(NULL) + ylab(NULL) +
                 theme(axis.text = element_text(size = cex.axis))
 
-            if (show.subtitles == TRUE) {
-                if (is.null(subtitles) == TRUE) {
+            if (show.subtitles) {
+                if (is.null(subtitles)) {
                     subtitle.temp <- label
                     p1 <- p1 + labs(subtitle = subtitle.temp) + theme(plot.subtitle = element_text(hjust = 0.5, size = cex.sub, lineheight = .8))
                 }
 
-                if (is.null(subtitles) == FALSE) {
+                if (!is.null(subtitles)) {
                     subtitle.temp <- subtitles[k]
                     p1 <- p1 + labs(subtitle = subtitle.temp) + theme(plot.subtitle = element_text(hjust = 0.5, size = cex.sub, lineheight = .8))
                 }
             }
 
-            if (is.null(xlim) == FALSE & is.null(ylim) == FALSE) {
+            if (!is.null(xlim) & !is.null(ylim)) {
                 p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
             }
-            if (is.null(xlim) == TRUE & is.null(ylim) == FALSE) {
+            if (is.null(xlim) & !is.null(ylim)) {
                 p1 <- p1 + coord_cartesian(ylim = ylim2)
             }
-            if (is.null(xlim) == FALSE & is.null(ylim) == TRUE) {
+            if (!is.null(xlim) & is.null(ylim)) {
                 p1 <- p1 + coord_cartesian(xlim = xlim)
             }
 
@@ -1466,12 +1466,12 @@ plot.interflex <- function(x,
 
 
     ## save to file
-    if (is.null(file) == FALSE) {
+    if (!is.null(file)) {
         graph <- as.ggplot(graph)
         ggsave(file, graph, scale = scale, width = width, height = height)
     }
 
-    if (show.all == FALSE) {
+    if (!show.all) {
         graph <- as.ggplot(graph)
         return(graph)
     } else {

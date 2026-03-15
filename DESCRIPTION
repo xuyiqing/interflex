@@ -17,8 +17,7 @@ Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         lfe (>= 2.6-2291), gridExtra, grid, ggplotify, fixest,
         RColorBrewer,pcse, gtable, MASS, mvtnorm, pROC,
         ModelMetrics, Rcpp, lmtest, AER, future, reticulate, 
-		splines, glmnet
-Suggests: grf
+		splines, glmnet, grf
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true
 NeedsCompilation: yes

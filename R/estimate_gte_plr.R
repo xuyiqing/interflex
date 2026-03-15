@@ -320,7 +320,7 @@ bootstrapGATE_PLR <- function(
   XZ0         <- full$XZ_design
   lambda_used <- full$lambda_used    # list(outcome=..., treatment=...)
 
-  if(CI == TRUE){
+  if(isTRUE(CI)){
     # 2) Parallel bootstrap ----------------------------------------------------
     if (verbose) message("BootstrapGATE_PLR: launching cluster...")
     if (!requireNamespace("doParallel", quietly=TRUE)) {

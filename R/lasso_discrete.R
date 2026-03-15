@@ -63,7 +63,8 @@ interflex.lasso_discrete <- function(
   estimand         <- match.arg(estimand)
 
   diff.values.plot <- diff.info[["diff.values.plot"]]
-  treat.type       <- treat.info[["treat.type"]]
+  ti <- .extract_treat_info(treat.info)
+  treat.type <- ti$treat.type
 
   # weights
   n <- nrow(data)
@@ -74,27 +75,20 @@ interflex.lasso_discrete <- function(
   }
   data[["WEIGHTS"]] <- w
 
-  # X‐distribution
-  if (is.null(weights)) {
-    de      <- density(data[[X]])
-    hist.out<- hist(data[[X]], breaks=80, plot=FALSE)
-  } else {
-    suppressWarnings({
-      de      <- density(data[[X]], weights=data[["WEIGHTS"]])
-      hist.out<- hist(data[[X]], data[["WEIGHTS"]], breaks=80, plot=FALSE)
-    })
-  }
+  # X-distribution (density and histogram)
+  dens <- .compute_density(data, X, D, weights, treat.type)
+  de <- dens$de
+  hists <- .compute_histograms(data, X, D, weights, treat.type)
+  hist.out <- hists$hist.out
 
   TE.output.all.list <- list()
 
   # 1) DISCRETE TREATMENT ---------------------------------------------------
   if (treat.type == "discrete") {
-    other.treat        <- treat.info[["other.treat"]]
-    other.treat.origin <- names(other.treat)
-    names(other.treat.origin) <- other.treat
-    all.treat         <- treat.info[["all.treat"]]
-    all.treat.origin  <- names(all.treat)
-    names(all.treat.origin) <- all.treat
+    other.treat <- ti$other.treat
+    other.treat.origin <- ti$other.treat.origin
+    all.treat <- ti$all.treat
+    all.treat.origin <- ti$all.treat.origin
 
     if (verbose) {
       cat(">> Treatment is discrete/binary.\n")
@@ -140,8 +134,8 @@ interflex.lasso_discrete <- function(
 
   # 2) CONTINUOUS TREATMENT -------------------------------------------------
   else if (treat.type == "continuous") {
-    D.sample   <- treat.info[["D.sample"]]
-    label.name <- names(D.sample)
+    D.sample <- ti$D.sample
+    label.name <- ti$label.name
 
     if (verbose) {
       cat(">> Treatment is continuous.\n")

@@ -67,21 +67,18 @@ interflex.lasso <- function(data,
   estimand          <- match.arg(estimand)
   
   diff.values.plot <- diff.info[["diff.values.plot"]]
-  treat.type       <- treat.info[["treat.type"]]
-  
+  ti <- .extract_treat_info(treat.info)
+  treat.type <- ti$treat.type
+  all.treat <- all.treat.origin <- NULL
   if (treat.type == "discrete") {
-    other.treat        <- treat.info[["other.treat"]]
-    other.treat.origin <- names(other.treat)
-    names(other.treat.origin) <- other.treat
-    
-    all.treat         <- treat.info[["all.treat"]]
-    all.treat.origin  <- names(all.treat)
-    names(all.treat.origin) <- all.treat
+    other.treat <- ti$other.treat
+    other.treat.origin <- ti$other.treat.origin
+    all.treat <- ti$all.treat
+    all.treat.origin <- ti$all.treat.origin
   }
-  
   if (treat.type == "continuous") {
-    D.sample   <- treat.info[["D.sample"]]
-    label.name <- names(D.sample)
+    D.sample <- ti$D.sample
+    label.name <- ti$label.name
   }
   
   n <- nrow(data)
@@ -93,61 +90,13 @@ interflex.lasso <- function(data,
   data[["WEIGHTS"]] <- w
   
   # Compute density/histogram of X and (if discrete) by treatment levels
-  if (treat.type == "discrete") {
-    if (is.null(weights)) {
-      de <- density(data[[X]])
-    } else {
-      suppressWarnings(de <- density(data[[X]], weights = data[["WEIGHTS"]]))
-    }
-    treat_den  <- list()
-    for (char in all.treat) {
-      if (is.null(weights)) {
-        de.tr <- density(data[data[[D]] == char, X])
-      } else {
-        suppressWarnings(
-          de.tr <- density(data[data[[D]] == char, X],
-                           weights = data[data[[D]] == char, "WEIGHTS"])
-        )
-      }
-      treat_den[[ all.treat.origin[char] ]] <- de.tr
-    }
-    if (is.null(weights)) {
-      hist.out <- hist(data[[X]], breaks = 80, plot = FALSE)
-    } else {
-      suppressWarnings(
-        hist.out <- hist(data[[X]], data[["WEIGHTS"]],
-                         breaks = 80, plot = FALSE)
-      )
-    }
-    n.hist     <- length(hist.out$mids)
-    treat.hist <- list()
-    for (char in all.treat) {
-      count1     <- integer(n.hist)
-      treat_idx  <- which(data[[D]] == char)
-      for (i in seq_len(n.hist)) {
-        count1[i] <- sum(data[treat_idx, X] >= hist.out$breaks[i] &
-                         data[treat_idx, X] <  hist.out$breaks[i+1])
-      }
-      count1[n.hist] <- sum(data[treat_idx, X] >= hist.out$breaks[n.hist] &
-                            data[treat_idx, X] <= hist.out$breaks[n.hist+1])
-      treat.hist[[ all.treat.origin[char] ]] <- count1
-    }
-  }
-  
+  dens <- .compute_density(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+  de <- dens$de
+  treat_den <- dens$treat_den
+  hists <- .compute_histograms(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+  hist.out <- hists$hist.out
+  treat.hist <- hists$treat.hist
   if (treat.type == "continuous") {
-    if (is.null(weights)) {
-      de      <- density(data[[X]])
-    } else {
-      suppressWarnings(de <- density(data[[X]], weights = data[["WEIGHTS"]]))
-    }
-    if (is.null(weights)) {
-      hist.out <- hist(data[[X]], breaks = 80, plot = FALSE)
-    } else {
-      suppressWarnings(
-        hist.out <- hist(data[[X]], data[["WEIGHTS"]],
-                         breaks = 80, plot = FALSE)
-      )
-    }
     de.tr <- NULL
   }
   

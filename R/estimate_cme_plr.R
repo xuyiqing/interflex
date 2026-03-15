@@ -601,7 +601,7 @@ bootstrapCME_PLR <- function(
   lambda_cv       <- fit_full$lambda_cv
   need_tune       <- !is.null(selected_covars)
 
-  if(CI == TRUE){
+  if(isTRUE(CI)){
     ###########################################################################
     # 2. Prepare storage for bootstrap draws
     ###########################################################################
