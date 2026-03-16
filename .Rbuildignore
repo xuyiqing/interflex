@@ -1,1 +1,6 @@
 ^architecture\.md$
+^log$
+^_pkgdown\.yml$
+^\.lintr$
+^interflex\.Rproj$
+^\.Rproj\.user$

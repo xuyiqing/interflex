@@ -149,12 +149,25 @@ def marginal_effect_for_treatment(
         discrete_treatment,
     )
 
-    data_dml_base = dml.DoubleMLData(
-        df[[X, Y, D, *Z]],
-        y_col=Y,
-        d_cols=D,
-        x_cols=covariates,
-    )
+    if model_y.lower() in {"linear", "logistic", "l", "d", "regularization", "r"} and model_t.lower() in {"linear", "logistic", "l", "d", "regularization", "r"}:
+        df_x_bs = patsy.dmatrix("bs(x, degree=3, df=5)", {"x": df[[X]]})
+        df_x_bs = pd.DataFrame(df_x_bs)
+        df_x_bs.columns = [f"X_bs_{i}" for i in range(df_x_bs.shape[1])]
+        covariates = covariates + df_x_bs.columns.tolist()
+        df_new = pd.concat([df[[X, Y, D, *Z]], df_x_bs], axis=1)
+        data_dml_base = dml.DoubleMLData(
+            df_new,
+            y_col=Y,
+            d_cols=D,
+            x_cols=covariates,
+        )
+    else:
+        data_dml_base = dml.DoubleMLData(
+            df[[X, Y, D, *Z]],
+            y_col=Y,
+            d_cols=D,
+            x_cols=covariates,
+        )
 
     params = {"model.y": None, "model.t": None}
     if discrete_treatment:
