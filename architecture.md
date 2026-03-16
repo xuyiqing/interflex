@@ -5,7 +5,7 @@
 
 ## Overview
 
-**interflex** is an R package (v1.3.5) for diagnosing and visualizing multiplicative interaction models. It estimates non-linear marginal effects of a treatment (D) on an outcome (Y) across values of a moderator (X), supporting both discrete and continuous treatments. The package provides eight estimation strategies (linear, binning, kernel, GAM, raw, GRF, DML, lasso), unified behind a single `interflex()` entry point. Key external dependencies include ggplot2 (plotting), mgcv (GAM), grf (causal forests), glmnet (lasso/ridge), reticulate (Python DML integration), and Rcpp/RcppArmadillo (C++ fixed-effects backend).
+**interflex** is an R package (v1.3.5) for diagnosing and visualizing multiplicative interaction models. It estimates non-linear marginal effects of a treatment (D) on an outcome (Y) across values of a moderator (X), supporting both discrete and continuous treatments. The package provides eight estimation strategies (linear, binning, kernel, GAM, raw, GRF, DML, lasso), unified behind a single `interflex()` entry point. Key external dependencies include ggplot2 (plotting), mgcv (GAM), grf (causal forests), glmnet (lasso/ridge), reticulate (Python DML integration), and Rcpp/RcppArmadillo (C++ linear algebra stubs).
 
 ---
 
@@ -55,11 +55,6 @@ graph TD
         DMLPY["dml.py — DML engine"]
     end
 
-    subgraph Cpp["C++ Backend"]
-        FPM["fastplm.cpp"]
-        IVF["iv_fastplm.cpp"]
-    end
-
     IFX --> LIN
     IFX --> BIN
     IFX --> KER
@@ -86,11 +81,6 @@ graph TD
     BIN --> VCL
     LIN --> VCL
     KER --> VCL
-    BIN --> FPM
-    KER --> FPM
-    LIN --> FPM
-    BIN --> IVF
-    KER --> IVF
     DML --> DMLPY
 
     style IFX fill:#1e90ff,stroke:#1565c0,color:#fff
@@ -125,10 +115,8 @@ graph TD
 | `R/utils.R` | Utils | Shared internal helpers: treat.info extraction, density, histograms | (internal: dot-prefixed) | no |
 | `R/uniform.R` | Utils | Uniform confidence interval quantiles via bootstrap/delta method | `calculate_uniform_quantiles()`, `calculate_delta_uniformCI()` | no |
 | `R/vcluster.R` | Utils | Cluster-robust variance-covariance matrix computation | `vcovCluster()` | no |
-| `R/RcppExports.R` | Utils | Auto-generated Rcpp bindings (do not edit) | `CppFastPlm()`, `CppIvFastPlm()` | no |
+| `R/RcppExports.R` | Utils | Auto-generated Rcpp bindings (do not edit) | `rcpparma_hello_world()`, etc. | no |
 | `inst/python/dml.py` | Python | DML estimation engine; B-spline expansion for linear/logistic models | `marginal_effect_for_treatment()` | yes (B-spline) |
-| `src/fastplm.cpp` | C++ | Fast fixed-effects OLS via Armadillo | `CppFastPlm()` | no |
-| `src/iv_fastplm.cpp` | C++ | Fast fixed-effects IV/2SLS via Armadillo | `CppIvFastPlm()` | no |
 | `DESCRIPTION` | Config | Package metadata; Imports, Depends, LinkingTo | N/A | no |
 | `NAMESPACE` | Config | Export pattern, S3 methods, importFrom declarations | N/A | no |
 | `.Rbuildignore` | Config | Patterns excluded from R CMD build | N/A | yes |
@@ -188,12 +176,6 @@ graph TD
     LAS --> CH
     LSD --> CH
 
-    LIN --> FPM["CppFastPlm()"]
-    BIN --> FPM
-    KER --> FPM
-    BIN --> IVF["CppIvFastPlm()"]
-    KER --> IVF
-
     LAS --> CME_P["estimateCME_PLR()"]
     LAS --> CME_I["estimateCME_IRM()"]
     LAS --> GTE_P["estimateGTE_PLR()"]
@@ -234,9 +216,9 @@ graph TD
 | `predict.interflex()` | `R/predict.R` | user (S3 method) | ggplot2 | no | Compute and plot predicted marginal effects |
 | `inter.test()` | `R/inter_test.R` | user (exported) | mgcv::gam | no | Test differences in marginal effects (dml style) |
 | `inter.test()` | `R/ttest.R` | user (exported) | mgcv::gam | **new** | Test differences in marginal effects (bs copy) |
-| `interflex.linear()` | `R/linear.R` | `interflex()` | `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `CppFastPlm`, `vcovCluster` | no | Linear interaction model estimation |
-| `interflex.binning()` | `R/binning.R` | `interflex()` | `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `CppFastPlm`, `CppIvFastPlm`, `vcovCluster` | no | Binning estimator |
-| `interflex.kernel()` | `R/kernel.R` | `interflex()` | `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `CppFastPlm`, `CppIvFastPlm`, `vcovCluster` | no | Kernel estimator |
+| `interflex.linear()` | `R/linear.R` | `interflex()` | `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `vcovCluster` | no | Linear interaction model estimation |
+| `interflex.binning()` | `R/binning.R` | `interflex()` | `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `vcovCluster` | no | Binning estimator |
+| `interflex.kernel()` | `R/kernel.R` | `interflex()` | `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `vcovCluster` | no | Kernel estimator |
 | `interflex.gam()` | `R/gam.R` | `interflex()` | `mgcv::gam` | no | GAM-based 3D surface estimation |
 | `interflex.raw()` | `R/raw.R` | `interflex()` | `.extract_treat_info` | no | Raw scatter plots with LOESS |
 | `interflex.grf()` | `R/grf.R` | `interflex()` | `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `grf::causal_forest` | no | Causal forest estimation |
@@ -254,9 +236,6 @@ graph TD
 | `vcovCluster()` | `R/vcluster.R` | binning, kernel, linear | `sandwich::estfun`, `sandwich::bread` | no | Cluster-robust variance-covariance |
 | `calculate_uniform_quantiles()` | `R/uniform.R` | binning, kernel, linear, lasso | — | no | Bootstrap uniform CI bands |
 | `calculate_delta_uniformCI()` | `R/uniform.R` | linear, binning | `MASS::mvrnorm` | no | Delta-method uniform CI bands |
-| `CppFastPlm()` | `src/fastplm.cpp` | binning, kernel, linear | — | no | Fast OLS with fixed effects (C++) |
-| `CppIvFastPlm()` | `src/iv_fastplm.cpp` | binning, kernel | — | no | Fast 2SLS/IV with fixed effects (C++) |
-
 ---
 
 ## Data Flow
@@ -363,19 +342,6 @@ All four sub-estimators use `glmnet::cv.glmnet()` for regularized nuisance funct
 
 ---
 
-## C++ Backend
-
-Two Rcpp/RcppArmadillo functions provide fast fixed-effects estimation:
-
-| Function | File | Purpose | Used By |
-| --- | --- | --- | --- |
-| `CppFastPlm()` | `src/fastplm.cpp` | OLS with high-dimensional fixed effects via Armadillo | binning, kernel, linear |
-| `CppIvFastPlm()` | `src/iv_fastplm.cpp` | IV/2SLS with high-dimensional fixed effects | binning, kernel |
-
-These are called when `FE` (fixed effects) or `IV` (instruments) are specified, replacing R's `lm()`/`felm()` for performance.
-
----
-
 ## Utility Functions (Added in Previous Refactoring Run)
 
 Three internal utility functions in `R/utils.R` consolidate previously duplicated code. They are dot-prefixed (`.extract_treat_info`, `.compute_density`, `.compute_histograms`) to prevent auto-export via the `exportPattern("^[[:alpha:]]+")` rule in NAMESPACE.
@@ -395,8 +361,6 @@ Three internal utility functions in `R/utils.R` consolidate previously duplicate
 - **Shared metadata**: `treat.info` and `diff.info` are computed once by the router and passed to every estimator. The `.extract_treat_info()` utility provides uniform unpacking.
 
 - **Inline plotting**: Each estimator builds its own ggplot figure internally rather than delegating to a separate plot function. The S3 `plot.interflex()` method re-renders from stored data.
-
-- **C++ acceleration for FE models**: Fixed-effects estimation bypasses R's formula interface and uses direct Armadillo matrix operations via Rcpp, critical for large datasets.
 
 - **Dot-prefix convention**: Internal helpers use `.` prefix to avoid export via the blanket `exportPattern("^[[:alpha:]]+")` rule, without requiring explicit `@keywords internal` tags.
 

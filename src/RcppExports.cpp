@@ -11,37 +11,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// fastplm
-List fastplm(arma::mat data, arma::mat FE, arma::colvec weight, int FEcoefs);
-RcppExport SEXP _interflex_fastplm(SEXP dataSEXP, SEXP FESEXP, SEXP weightSEXP, SEXP FEcoefsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type FE(FESEXP);
-    Rcpp::traits::input_parameter< arma::colvec >::type weight(weightSEXP);
-    Rcpp::traits::input_parameter< int >::type FEcoefs(FEcoefsSEXP);
-    rcpp_result_gen = Rcpp::wrap(fastplm(data, FE, weight, FEcoefs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// iv_fastplm
-List iv_fastplm(arma::mat Y, arma::mat X, arma::mat Z, arma::mat IV, arma::mat FE, arma::colvec weight, int FEcoefs);
-RcppExport SEXP _interflex_iv_fastplm(SEXP YSEXP, SEXP XSEXP, SEXP ZSEXP, SEXP IVSEXP, SEXP FESEXP, SEXP weightSEXP, SEXP FEcoefsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type Z(ZSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type IV(IVSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type FE(FESEXP);
-    Rcpp::traits::input_parameter< arma::colvec >::type weight(weightSEXP);
-    Rcpp::traits::input_parameter< int >::type FEcoefs(FEcoefsSEXP);
-    rcpp_result_gen = Rcpp::wrap(iv_fastplm(Y, X, Z, IV, FE, weight, FEcoefs));
-    return rcpp_result_gen;
-END_RCPP
-}
 // rcpparma_hello_world
 arma::mat rcpparma_hello_world();
 RcppExport SEXP _interflex_rcpparma_hello_world() {
@@ -87,8 +56,6 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_interflex_fastplm", (DL_FUNC) &_interflex_fastplm, 4},
-    {"_interflex_iv_fastplm", (DL_FUNC) &_interflex_iv_fastplm, 7},
     {"_interflex_rcpparma_hello_world", (DL_FUNC) &_interflex_rcpparma_hello_world, 0},
     {"_interflex_rcpparma_outerproduct", (DL_FUNC) &_interflex_rcpparma_outerproduct, 1},
     {"_interflex_rcpparma_innerproduct", (DL_FUNC) &_interflex_rcpparma_innerproduct, 1},
