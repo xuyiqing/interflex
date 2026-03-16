@@ -15,9 +15,11 @@ License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16),
         lfe (>= 2.6-2291), gridExtra, grid, ggplotify, fixest,
-        RColorBrewer,pcse, gtable, MASS, mvtnorm, pROC,
-        ModelMetrics, Rcpp, lmtest, AER, future, reticulate, 
-		splines, glmnet, grf
+        RColorBrewer, pcse, gtable, MASS, mvtnorm, pROC,
+        ModelMetrics, Rcpp, lmtest, AER, future,
+        splines, glmnet, grf,
+        DoubleML, mlr3, mlr3learners, data.table, paradox, ranger
+Suggests: mlr3tuning, lightgbm, nnet
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true
 NeedsCompilation: yes
