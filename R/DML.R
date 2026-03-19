@@ -187,14 +187,27 @@
         max_iter           = "maxit"
     )
 
+    # sklearn MLP params that have no nnet equivalent — silently drop
+    sklearn_only <- c("activation", "solver", "alpha", "learning_rate",
+                      "learning_rate_init", "batch_size", "momentum",
+                      "beta_1", "beta_2", "epsilon", "n_iter_no_change",
+                      "early_stopping", "validation_fraction", "shuffle",
+                      "power_t", "warm_start", "tol", "verbose",
+                      "random_state", "nesterovs_momentum")
+
     out <- list()
     for (nm in names(param)) {
+        if (nm %in% sklearn_only) next
         mapped_name <- if (nm %in% names(mapping)) mapping[[nm]] else nm
         val <- param[[nm]]
         # nnet supports only a single hidden layer
-        if (mapped_name == "size" && length(val) > 1L) {
-            warning("nnet supports only a single hidden layer; using the first element of hidden_layer_sizes.")
-            val <- val[1L]
+        if (mapped_name == "size") {
+            if (is.list(val)) val <- val[[1L]]
+            if (length(val) > 1L) {
+                warning("nnet supports only a single hidden layer; using the first element of hidden_layer_sizes.")
+                val <- val[[1L]]
+            }
+            val <- as.integer(val)
         }
         out[[mapped_name]] <- val
     }
