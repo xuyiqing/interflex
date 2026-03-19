@@ -16,56 +16,6 @@ To use double/debiased machine learning (DML) estimators, please install the **i
 devtools::install_github('xuyiqing/interflex')
 ```
 
-### Set up Python environment
-
-To use DML estimators in **interflex**, we rely on several Python packages. The integration between R and Python is facilitated by the **reticulate** package, which allows R to interface with Python seamlessly. The following steps set up a Python environment with all required dependencies.
-
-First, install the **reticulate** package in R. This package enables R to interface with Python.
-
-```{r eval=FALSE, include=TRUE}
-install.packages("reticulate", repos = 'http://cran.us.r-project.org', force = TRUE)
-```
-
-Then, we use [Miniconda](https://docs.anaconda.com/free/miniconda/), a minimal installer for Conda. Miniconda helps manage Python environments and packages. By default, the installation process will create a virtual environment named `r-reticulate`. 
-
-```{r eval=FALSE, include=TRUE}
-reticulate::install_miniconda(update = TRUE)
-```
-
-With Miniconda installed, we point to the platform using `use_condaenv`. This step is incorporated in the **interflex** package.
-
-```{r eval=FALSE, include=TRUE}
-reticulate::use_condaenv(condaenv = "r-reticulate")
-```
-
-Finally, install the necessary Python libraries. These libraries include tools for statistical modeling and machine learning that are essential for using the interflex package.
-
-```{r eval=FALSE, include=TRUE}
-reticulate::py_install(packages = c("patsy", "numpy", "pandas",
-                                    "scikit-learn", "doubleml", "econml"))
-```
-
-Some Mac users may encounter a "*** caught segfault ***" error. In that case, we recommend setting up a virtual environment. In Terminal, type:
-```{sh eval=FALSE}
-python3 -m venv ~/.virtualenvs/myenv
-source ~/.virtualenvs/myenv/bin/activate
-```
-
-Then install all Python packages there:
-```{sh eval=FALSE}
-pip install numpy
-pip install patsy
-pip install pandas
-pip install scikit-learn
-pip install econml
-pip install doubleml
-```
-
-In R, point to the newly set up environment `myenv`:
-```{r eval=FALSE, include=TRUE}
-reticulate::use_virtualenv("myenv")
-```
-
 ### Load packages
 
 These are packages are necessary for this tutorial:
@@ -75,8 +25,6 @@ library(ggplot2)
 library(ggpubr)
 library(rmarkdown)
 library(patchwork)
-
-reticulate::use_virtualenv("myenv") ## point to your Python environment
 ```
 
 ------------------------------------------------------------------------
