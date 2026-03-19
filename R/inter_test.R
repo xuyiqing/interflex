@@ -4,7 +4,7 @@ inter.test <- function(out,
                        diff.values,
                        percentile = FALSE,
                        k = 16) {
-    if (!class(out) %in% c("interflex")) {
+    if (!inherits(out, "interflex")) {
         stop("Not an \"interflex\" object.")
     }
 

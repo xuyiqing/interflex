@@ -1,5 +1,4 @@
 useDynLib(interflex, .registration=TRUE)
-exportPattern("^[[:alpha:]]+")
 importFrom(Rcpp, evalCpp)
 importFrom("grDevices", "col2rgb", "graphics.off", "pdf", "rgb")
 importFrom("parallel", "detectCores", "stopCluster", "makeCluster")
@@ -42,5 +41,6 @@ importFrom("splines","bs")
 import(mlr3learners)
 
 export(interflex)
+export(inter.test)
 S3method("plot", "interflex")
 S3method("predict", "interflex")

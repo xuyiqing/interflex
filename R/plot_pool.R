@@ -59,7 +59,7 @@ interflex.plot.pool <- function(
     r <- NULL
 
 
-    if (!class(out) %in% c("interflex")) {
+    if (!inherits(out, "interflex")) {
         stop("Not an \"interflex\" object.")
     }
 

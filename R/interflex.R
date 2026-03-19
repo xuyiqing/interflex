@@ -179,7 +179,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             stop("glm models using instrumental variables are not supported in this version.")
         }
         if (vcov.type == "pcse") {
-            stop("instrumental regression doesn't stop pcse variances.\n")
+            stop("instrumental regression doesn't support pcse variances.\n")
         }
         requireNamespace("AER")
         for (i in 1:length(IV)) {
@@ -195,7 +195,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
 
     ## fully moderated model
     if (!is.logical(full.moderate) & !is.numeric(full.moderate)) {
-        stop("\"CI\" is not a logical flag.")
+        stop("\"full.moderate\" is not a logical flag.")
     }
 
     ## Weights

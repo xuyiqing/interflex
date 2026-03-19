@@ -54,10 +54,6 @@ estimateCME_PLR <- function(
     bw                   = NULL,
     x.eval               = NULL,    # grid of X values for final CME curve
     neval = 100,
-    # --- CHANGE MADE HERE ---
-    # The `selected_covars` argument has been removed from this function signature.
-    # It was not being used as an input. The function still correctly calculates
-    # and returns the selected covariates as an output.
     verbose              = TRUE
 ) {
 

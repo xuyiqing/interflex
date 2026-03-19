@@ -63,10 +63,6 @@ estimateCME <- function(
     reduce.dimension  = c("bspline","kernel"), 
     best_span         = NULL,
     x.eval            = NULL, # grid of X values for final CME curve
-    # --- CHANGE MADE HERE ---
-    # The `selected_covars` argument has been removed from this function signature.
-    # It was not being used as an input, so removing it improves clarity.
-    # The function still calculates and returns the selected covariates as an output.
     verbose           = TRUE
 ) {
   
@@ -790,10 +786,6 @@ bootstrapCME <- function(
         reduce.dimension   = reduce.dimension,
         best_span          = best_span_full,
         x.eval             = x.eval,
-        # --- CHANGE MADE HERE ---
-        # The `selected_covars` argument has been removed from this function call.
-        # The logic remains correct, as each bootstrap run now correctly performs its own
-        # variable selection internally.
         lambda_cv = lambda_cv,
         verbose            = FALSE
       )

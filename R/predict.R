@@ -50,7 +50,7 @@ predict.interflex <- function(
 
 
     out <- object
-    if (!class(out) %in% c("interflex")) {
+    if (!inherits(out, "interflex")) {
         stop("Not an \"interflex\" object.")
     }
 
