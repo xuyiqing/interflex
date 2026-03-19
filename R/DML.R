@@ -475,41 +475,59 @@
 # Helper: Extract per-observation influence function values from DML model
 # --------------------------------------------------------------------------
 .extract_psi <- function(dml_model, n) {
-    # Primary: use psi_b from the DoubleML model
-    psi <- tryCatch({
-        psi_raw <- dml_model$psi_b
-        if (is.array(psi_raw) && length(dim(psi_raw)) == 3L) {
-            psi_raw[, 1, 1]
-        } else if (is.matrix(psi_raw)) {
-            psi_raw[, 1]
+    # Compute Semenova-Chernozhukov pseudo-outcome for CATE estimation:
+    #   phi_i = theta_hat - score_i / J_hat
+    # where score_i = psi_a_i * theta_hat + psi_b_i, J_hat = mean(psi_a_i)
+    #
+    # For PLR: psi_a = -D_tilde^2, psi_b = D_tilde * Y_tilde
+    # Raw psi_b has E[psi_b|X] = Var(D|X) * theta(X), NOT theta(X).
+    # The pseudo-outcome corrects this scaling so E[phi|X] = theta(X).
+
+    .extract_vec <- function(arr, n) {
+        if (is.null(arr)) return(NULL)
+        if (is.array(arr) && length(dim(arr)) == 3L) {
+            v <- arr[, 1, 1]
+        } else if (is.matrix(arr)) {
+            v <- arr[, 1]
         } else {
-            as.numeric(psi_raw)
+            v <- as.numeric(arr)
         }
-    }, error = function(e) NULL)
+        if (length(v) == n) v else NULL
+    }
 
-    if (!is.null(psi) && length(psi) == n) return(psi)
+    theta_hat <- tryCatch(as.numeric(dml_model$coef), error = function(e) NULL)
 
-    # Fallback: reconstruct from stored predictions and coefficients
-    # For PLR: psi_b = D_tilde * Y_tilde where Y_tilde = Y - l_hat, D_tilde = D - m_hat
-    # For IRM: use the AIPW score
-    psi2 <- tryCatch({
-        theta_hat <- dml_model$coef
-        # Access all_psi which is psi_a * theta + psi_b
-        all_psi <- dml_model$all_psi
-        if (is.array(all_psi) && length(dim(all_psi)) == 3L) {
-            # all_psi[i, 1, 1] = psi_a[i] * theta + psi_b[i], which is the centered score
-            # The pseudo-outcome is theta + psi / (-E[psi_a])
-            all_psi[, 1, 1] + theta_hat
-        } else {
-            NULL
+    # Try to get both psi_a and psi_b for the proper pseudo-outcome
+    psi_a <- tryCatch(.extract_vec(dml_model$psi_a, n), error = function(e) NULL)
+    psi_b <- tryCatch(.extract_vec(dml_model$psi_b, n), error = function(e) NULL)
+
+    if (!is.null(psi_a) && !is.null(psi_b) && !is.null(theta_hat)) {
+        J_hat <- mean(psi_a)
+        if (abs(J_hat) > 1e-12) {
+            score_i <- psi_a * theta_hat + psi_b
+            phi <- theta_hat - score_i / J_hat
+            return(phi)
         }
-    }, error = function(e) NULL)
+    }
 
-    if (!is.null(psi2) && length(psi2) == n) return(psi2)
+    # Fallback: if only psi_b available, rescale by -1/mean(psi_a) ≈ 1/mean(D_tilde^2)
+    if (!is.null(psi_b) && !is.null(psi_a) && !is.null(theta_hat)) {
+        J_hat <- mean(psi_a)
+        if (abs(J_hat) > 1e-12) {
+            return(psi_b / (-J_hat))
+        }
+    }
+
+    # Fallback: use psi_b rescaled by sample variance if psi_a unavailable
+    if (!is.null(psi_b)) {
+        warning("Could not extract psi_a from DML model. ",
+                "CATE estimates may have incorrect scale.")
+        return(psi_b)
+    }
 
     # Last resort: use the coefficient as a constant (ATE for everyone)
     warning("Could not extract individual pseudo-outcomes from DML model. Using constant ATE.")
-    rep(dml_model$coef, n)
+    rep(if (!is.null(theta_hat)) theta_hat else 0, n)
 }
 
 # --------------------------------------------------------------------------
