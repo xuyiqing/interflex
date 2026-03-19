@@ -1,0 +1,56 @@
+# Welcome! {.unnumbered}
+
+This Quarto book serves as a user manual for the **interflex** package in R, which estimates, visualizes, and interprets conditional marginal effects of a treatment on an outcome across different values of a moderator, and performs diagnostic tests of multiplicative interaction models.
+
+**interflex** implements a range of estimators for exploring treatment-moderator interactions:
+
+-   **Raw**: Scatterplots with LOESS smoothing for initial visual exploration
+-   **Binning**: A flexible semi-parametric approach that divides the moderator into bins
+-   **Kernel**: Kernel-based local regression for smooth marginal effect curves
+-   **Linear**: Standard linear interaction models with robust diagnostics
+-   **GAM**: Generalized additive models for flexible nonlinear effects
+-   **DML**: Double/debiased machine learning estimators for high-dimensional settings
+
+For methodological details, see:
+
+-   Hainmueller, Mummolo, and Xu (2019). [How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice](http://bit.ly/HMX2019). *Political Analysis*, 27(2), 163--192.
+
+::: {.callout-note appearance="simple"}
+### Source Code
+
+For those interested in exploring the algorithms used in **interflex**, please visit the source [GitHub Repo](https://github.com/xuyiqing/interflex) for further details.
+:::
+
+## Organization
+
+The user guide is structured into the following chapters:
+
+-   [Chapter @sec-continuous]\
+    Interflex with continuous outcomes: raw plots, binning estimator, kernel estimator, fixed effects, multiple treatment arms, predicted outcomes, and differences in treatment effects.
+
+-   [Chapter @sec-discrete]\
+    Interflex with discrete outcomes: linear, binning, and kernel estimators for binary response variables using logit link functions, including multiple treatment arms.
+
+-   [Chapter @sec-dml]\
+    Interflex with DML estimators: double/debiased machine learning for conditional marginal effects, including methodology overview, model selection, cross-validation, and two empirical applications.
+
+## Contributors
+
+The following individuals have contributed to **interflex**:
+
+-   [Jens Hainmueller](https://web.stanford.edu/~jhain/)
+-   [Jonathan Mummolo](https://www.jonathanmummolo.com/)
+-   [Tianzhu Qin](https://tianzhuqin.github.io/)
+-   Jiehan Liu
+-   Ziyi Liu
+-   [Yiqing Xu](https://yiqingxu.org/) (maintainer)
+
+## Report Bugs
+
+Please report any bugs by submitting an issue on [GitHub](https://github.com/xuyiqing/interflex/issues) or emailing the maintainer (yiqingxu [at] stanford.edu). We would appreciate it if you can include a minimally reproducible example. Your feedback is highly valued!
+
+<!-- badges: start -->
+
+**interflex**: [![Lifecycle: stable](https://lifecycle.r-lib.org/articles/figures/lifecycle-stable.svg)](https://www.tidyverse.org/lifecycle/#stable) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [<img src="https://www.r-pkg.org/badges/version/interflex" alt="CRAN status"/>](https://CRAN.R-project.org/package=interflex) [<img src="https://cranlogs.r-pkg.org/badges/grand-total/interflex" alt="CRAN downloads"/>](https://cran.r-project.org/web/packages/interflex/index.html)
+
+<!-- badges: end -->

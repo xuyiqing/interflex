@@ -1,22 +1,8 @@
 ---
-title: 'Interflex with Continuous Outcomes'
-output:
-  rmarkdown::html_vignette:
-    toc: false
-    toc_depth: 4
-    number_sections: false
-vignette: >
-  %\VignetteIndexEntry{Interflex with Continuous Outcomes}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}  
 ---
-<!-- 
-  Code to Justify Text
-    <style>
-    body {
-    text-align: justify}
-    </style>
--->   
+
+# Interflex with Continuous Outcomes {#sec-continuous}
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 knitr::opts_chunk$set(echo = TRUE)
@@ -24,7 +10,7 @@ knitr::opts_chunk$set(cache =TRUE)
 knitr::opts_chunk$set(warning=FALSE)
 ``` 
 
-Let's load the package as well as the simulated toy datasets. Note that **s6**-**s9** are for the tutorial for **interflex** with [discrete](discrete.html) outcomes.
+Let's load the package as well as the simulated toy datasets. Note that **s6**-**s9** are for the tutorial for **interflex** with [discrete](02-discrete.Rmd) outcomes.
 ```{r, message = FALSE}
 library(interflex)
 data(interflex)

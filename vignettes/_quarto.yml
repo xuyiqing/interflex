@@ -1,0 +1,36 @@
+project:
+  type: book
+
+book:
+  title: "interflex -- User Manual"
+  sidebar:
+    style: docked
+    background: light
+  chapters:
+    - index.qmd
+    - 01-continuous.Rmd
+    - 02-discrete.Rmd
+    - 03-dml.Rmd
+    - references.qmd
+
+bibliography: ref.bib
+
+nocite: |
+  @*
+
+suppress-bibliography: true
+
+format:
+  html:
+    theme: cosmo
+    code-fold: false
+    code-tools: true
+    code-link: true
+    toc-depth: 3
+
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+
+editor: visual

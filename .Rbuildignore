@@ -4,3 +4,4 @@
 ^\.lintr$
 ^interflex\.Rproj$
 ^\.Rproj\.user$
+^vignettes$
