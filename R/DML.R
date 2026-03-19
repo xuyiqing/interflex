@@ -99,10 +99,15 @@
             if (is.null(mapped[["subsample"]])) mapped[["subsample"]] <- 0.8
             if (is.null(mapped[["colsample_bytree"]])) mapped[["colsample_bytree"]] <- 0.8
             if (is.null(mapped[["verbose"]])) mapped[["verbose"]] <- 0L
-            # xgboost requires tree_method="hist" + grow_policy="lossguide" for max_leaves.
-            # This matches sklearn HistGradientBoosting which is lossguide by design.
-            if (is.null(mapped[["tree_method"]])) mapped[["tree_method"]] <- "hist"
-            if (is.null(mapped[["grow_policy"]])) mapped[["grow_policy"]] <- "lossguide"
+            # xgboost max_leaves requires booster+tree_method+grow_policy chain.
+            # Convert max_leaves to max_depth to avoid dependency issues.
+            if (!is.null(mapped[["max_leaves"]])) {
+                ml <- mapped[["max_leaves"]]
+                mapped[["max_leaves"]] <- NULL
+                if (is.null(mapped[["max_depth"]])) {
+                    mapped[["max_depth"]] <- as.integer(max(1L, ceiling(log2(ml))))
+                }
+            }
             if (discrete_outcome) {
                 learner <- do.call(mlr3::lrn, c(list("classif.xgboost", predict_type = "prob"), mapped))
             } else {
@@ -156,26 +161,48 @@
 }
 
 # --------------------------------------------------------------------------
-# Helper: Map sklearn HistGradientBoosting params -> xgboost params
+# Helper: Map sklearn HistGradientBoosting params -> lightgbm/xgboost params
 # --------------------------------------------------------------------------
 .map_boosting_params <- function(param) {
     if (is.null(param) || length(param) == 0L) return(list(verbose = 0L))
 
-    mapping <- c(
-        max_iter          = "nrounds",
-        n_estimators      = "nrounds",
-        max_depth         = "max_depth",
-        learning_rate     = "eta",
-        min_samples_leaf  = "min_child_weight",
-        max_leaf_nodes    = "max_leaves",
-        l2_regularization = "lambda",
-        max_features      = "colsample_bytree"
-    )
+    # Detect which backend will be used (same logic as .set_dml_learner)
+    has_lgb <- requireNamespace("mlr3extralearners", quietly = TRUE) &&
+               requireNamespace("lightgbm", quietly = TRUE)
 
-    out <- list(verbose = 0L)
+    if (has_lgb) {
+        mapping <- c(
+            max_iter          = "num_iterations",
+            n_estimators      = "num_iterations",
+            max_depth         = "max_depth",
+            learning_rate     = "learning_rate",
+            min_samples_leaf  = "min_data_in_leaf",
+            max_leaf_nodes    = "num_leaves",
+            l2_regularization = "lambda_l2",
+            max_features      = "feature_fraction"
+        )
+    } else {
+        mapping <- c(
+            max_iter          = "nrounds",
+            n_estimators      = "nrounds",
+            max_depth         = "max_depth",
+            learning_rate     = "eta",
+            min_samples_leaf  = "min_child_weight",
+            max_leaf_nodes    = "max_depth",
+            l2_regularization = "lambda",
+            max_features      = "colsample_bytree"
+        )
+    }
+
+    out <- list(verbose = if (has_lgb) -1L else 0L)
     for (nm in names(param)) {
         mapped_name <- if (nm %in% names(mapping)) mapping[[nm]] else nm
-        out[[mapped_name]] <- param[[nm]]
+        val <- param[[nm]]
+        # For xgboost: convert max_leaf_nodes to max_depth approximation
+        if (!has_lgb && nm == "max_leaf_nodes") {
+            val <- as.integer(max(1L, ceiling(log2(val))))
+        }
+        out[[mapped_name]] <- val
     }
     out
 }
@@ -241,16 +268,33 @@
                                     "boost", "gradient_boost", "gradient boost",
                                     "hist_gradient_boost", "hist gradient boost",
                                     "b", "gb", "hgb")) {
-        mapping <- c(
-            max_iter          = "nrounds",
-            n_estimators      = "nrounds",
-            max_depth         = "max_depth",
-            learning_rate     = "eta",
-            min_samples_leaf  = "min_child_weight",
-            max_leaf_nodes    = "max_leaves",
-            l2_regularization = "lambda",
-            max_features      = "colsample_bytree"
-        )
+        # Detect backend (same logic as .set_dml_learner / .map_boosting_params)
+        has_lgb <- requireNamespace("mlr3extralearners", quietly = TRUE) &&
+                   requireNamespace("lightgbm", quietly = TRUE)
+        if (has_lgb) {
+            mapping <- c(
+                max_iter          = "num_iterations",
+                n_estimators      = "num_iterations",
+                max_depth         = "max_depth",
+                learning_rate     = "learning_rate",
+                min_samples_leaf  = "min_data_in_leaf",
+                max_leaf_nodes    = "num_leaves",
+                l2_regularization = "lambda_l2",
+                max_features      = "feature_fraction"
+            )
+        } else {
+            # xgboost: map max_leaf_nodes -> max_depth to avoid dependency chain
+            mapping <- c(
+                max_iter          = "nrounds",
+                n_estimators      = "nrounds",
+                max_depth         = "max_depth",
+                learning_rate     = "eta",
+                min_samples_leaf  = "min_child_weight",
+                max_leaf_nodes    = "max_depth",
+                l2_regularization = "lambda",
+                max_features      = "colsample_bytree"
+            )
+        }
     } else if (model_lower %in% c("network", "neural_network", "neural network", "nn")) {
         mapping <- c(
             hidden_layer_sizes = "size",
@@ -277,6 +321,14 @@
         mapped_name <- if (nm %in% names(mapping)) mapping[[nm]] else nm
         vals <- param_grid[[nm]]
 
+        # xgboost: convert max_leaf_nodes values to max_depth via log2
+        if (nm == "max_leaf_nodes" && mapped_name == "max_depth") {
+            vals <- as.integer(pmax(1L, ceiling(log2(vals))))
+        }
+
+        # Skip if this mapped param was already added (e.g. max_depth from max_leaf_nodes)
+        if (mapped_name %in% names(param_list)) next
+
         # For hidden_layer_sizes mapped to size: extract first element from each architecture
         if (mapped_name == "size" && is.list(vals)) {
             vals <- vapply(vals, function(v) {
@@ -300,20 +352,6 @@
         }
     }
     if (length(param_list) == 0L) return(NULL)
-
-    # xgboost requires grow_policy="lossguide" when max_leaves is tuned.
-    # Include it as a fixed factor in the search space so it always travels
-    # with the tuned params (DoubleML may clone the learner fresh).
-    if ("max_leaves" %in% names(param_list) &&
-        model_lower %in% c("boosting", "gradient_boosting", "gradient boosting",
-                            "hist_gradient_boosting", "hist gradient boosting",
-                            "boost", "gradient_boost", "gradient boost",
-                            "hist_gradient_boost", "hist gradient boost",
-                            "b", "gb", "hgb")) {
-        param_list[["tree_method"]] <- paradox::p_fct(levels = "hist")
-        param_list[["grow_policy"]] <- paradox::p_fct(levels = "lossguide")
-    }
-
     do.call(paradox::ps, param_list)
 }
 
