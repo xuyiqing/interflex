@@ -299,6 +299,19 @@
         }
     }
     if (length(param_list) == 0L) return(NULL)
+
+    # xgboost requires grow_policy="lossguide" when max_leaves is tuned.
+    # Include it as a fixed factor in the search space so it always travels
+    # with the tuned params (DoubleML may clone the learner fresh).
+    if ("max_leaves" %in% names(param_list) &&
+        model_lower %in% c("boosting", "gradient_boosting", "gradient boosting",
+                            "hist_gradient_boosting", "hist gradient boosting",
+                            "boost", "gradient_boost", "gradient boost",
+                            "hist_gradient_boost", "hist gradient boost",
+                            "b", "gb", "hgb")) {
+        param_list[["grow_policy"]] <- paradox::p_fct(levels = "lossguide")
+    }
+
     do.call(paradox::ps, param_list)
 }
 
