@@ -39,6 +39,7 @@ importFrom("fixest","feols", "fixef", "degrees_freedom")
 importFrom("grf","causal_forest")
 importFrom("glmnet","cv.glmnet")
 importFrom("splines","bs")
+import(mlr3learners)
 
 export(interflex)
 S3method("plot", "interflex")

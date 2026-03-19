@@ -19,7 +19,7 @@ Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         ModelMetrics, Rcpp, lmtest, AER, future,
         splines, glmnet, grf,
         DoubleML, mlr3, mlr3learners, data.table, paradox, ranger
-Suggests: mlr3tuning, lightgbm, nnet
+Suggests: mlr3tuning, nnet, mlr3extralearners, lightgbm
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true
 NeedsCompilation: yes

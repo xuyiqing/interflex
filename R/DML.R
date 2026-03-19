@@ -10,6 +10,13 @@
 # Helper: Map model name to mlr3 learner
 # --------------------------------------------------------------------------
 .set_dml_learner <- function(model, param, discrete_outcome) {
+    # Ensure mlr3learners is loaded so learners (ranger, nnet, xgboost, etc.)
+    # are registered in mlr3's dictionary
+    if (requireNamespace("mlr3learners", quietly = TRUE)) {
+        # Loading the namespace registers the learners
+        loadNamespace("mlr3learners")
+    }
+
     model_lower <- tolower(model)
     if (is.null(param)) param <- list()
 
@@ -34,28 +41,69 @@
     }
 
     # --- random forest (ranger) ---
+    # Default params match sklearn RandomForest: max_features=1.0, min_samples_leaf=1
     if (model_lower %in% c("randomforest", "random forest", "random_forest",
                             "rf", "forest")) {
         mapped <- .map_rf_params(param)
+        # Set sklearn-matching defaults if user didn't specify
+        # sklearn RandomForest: n_estimators=100, min_samples_leaf=1
+        if (is.null(mapped[["min.node.size"]])) mapped[["min.node.size"]] <- 1L
+        if (is.null(mapped[["num.trees"]])) mapped[["num.trees"]] <- 100L
         if (discrete_outcome) {
             learner <- do.call(mlr3::lrn, c(list("classif.ranger", predict_type = "prob"), mapped))
         } else {
+            # For regression, sklearn uses max_features=1.0 (all features)
+            # ranger defaults to mtry=p/3 which produces much noisier nuisance estimates
+            # We override to use all features unless user specified
+            if (is.null(mapped[["mtry"]])) mapped[["mtry.ratio"]] <- 1.0
             learner <- do.call(mlr3::lrn, c(list("regr.ranger"), mapped))
         }
         return(learner)
     }
 
-    # --- boosting (lightgbm) ---
+    # --- boosting (lightgbm / xgboost fallback) ---
+    # lightgbm is algorithmically closest to sklearn HistGradientBoosting.
+    # Falls back to xgboost if lightgbm is not available.
     if (model_lower %in% c("boosting", "gradient_boosting", "gradient boosting",
                             "hist_gradient_boosting", "hist gradient boosting",
                             "boost", "gradient_boost", "gradient boost",
                             "hist_gradient_boost", "hist gradient boost",
                             "b", "gb", "hgb")) {
         mapped <- .map_boosting_params(param)
-        if (discrete_outcome) {
-            learner <- do.call(mlr3::lrn, c(list("classif.lightgbm", predict_type = "prob"), mapped))
+
+        # Try lightgbm first (closest to sklearn HistGradientBoosting)
+        has_lgb <- requireNamespace("mlr3extralearners", quietly = TRUE) &&
+                   requireNamespace("lightgbm", quietly = TRUE)
+        if (has_lgb) {
+            loadNamespace("mlr3extralearners")
+            # sklearn HGB defaults: learning_rate=0.1, max_iter=100, max_leaf_nodes=31,
+            # min_samples_leaf=20.  sklearn also uses early_stopping by default
+            # (n_iter_no_change=10, validation_fraction=0.1), so effective iterations
+            # are typically 30-60.  We use num_iterations=50 to approximate this.
+            if (is.null(mapped[["num_iterations"]])) mapped[["num_iterations"]] <- 50L
+            if (is.null(mapped[["learning_rate"]])) mapped[["learning_rate"]] <- 0.1
+            if (is.null(mapped[["num_leaves"]])) mapped[["num_leaves"]] <- 31L
+            if (is.null(mapped[["min_data_in_leaf"]])) mapped[["min_data_in_leaf"]] <- 20L
+            if (is.null(mapped[["verbose"]])) mapped[["verbose"]] <- -1L
+            if (discrete_outcome) {
+                learner <- do.call(mlr3::lrn, c(list("classif.lightgbm", predict_type = "prob"), mapped))
+            } else {
+                learner <- do.call(mlr3::lrn, c(list("regr.lightgbm"), mapped))
+            }
         } else {
-            learner <- do.call(mlr3::lrn, c(list("regr.lightgbm"), mapped))
+            # Fallback to xgboost
+            if (is.null(mapped[["nrounds"]])) mapped[["nrounds"]] <- 100L
+            if (is.null(mapped[["eta"]])) mapped[["eta"]] <- 0.1
+            if (is.null(mapped[["max_depth"]])) mapped[["max_depth"]] <- 5L
+            if (is.null(mapped[["min_child_weight"]])) mapped[["min_child_weight"]] <- 20L
+            if (is.null(mapped[["subsample"]])) mapped[["subsample"]] <- 0.8
+            if (is.null(mapped[["colsample_bytree"]])) mapped[["colsample_bytree"]] <- 0.8
+            if (is.null(mapped[["verbose"]])) mapped[["verbose"]] <- 0L
+            if (discrete_outcome) {
+                learner <- do.call(mlr3::lrn, c(list("classif.xgboost", predict_type = "prob"), mapped))
+            } else {
+                learner <- do.call(mlr3::lrn, c(list("regr.xgboost"), mapped))
+            }
         }
         return(learner)
     }
@@ -63,6 +111,9 @@
     # --- neural network (nnet) ---
     if (model_lower %in% c("network", "neural_network", "neural network", "nn")) {
         mapped <- .map_nn_params(param)
+        if (is.null(mapped[["size"]])) mapped[["size"]] <- 20L
+        if (is.null(mapped[["decay"]])) mapped[["decay"]] <- 0.01
+        if (is.null(mapped[["trace"]])) mapped[["trace"]] <- FALSE
         if (discrete_outcome) {
             learner <- do.call(mlr3::lrn, c(list("classif.nnet", predict_type = "prob"), mapped))
         } else {
@@ -98,22 +149,23 @@
 }
 
 # --------------------------------------------------------------------------
-# Helper: Map sklearn HistGradientBoosting params -> lightgbm params
+# Helper: Map sklearn HistGradientBoosting params -> xgboost params
 # --------------------------------------------------------------------------
 .map_boosting_params <- function(param) {
-    if (is.null(param) || length(param) == 0L) return(list(verbose = -1L))
+    if (is.null(param) || length(param) == 0L) return(list(verbose = 0L))
 
     mapping <- c(
-        max_iter          = "num_iterations",
-        n_estimators      = "num_iterations",
+        max_iter          = "nrounds",
+        n_estimators      = "nrounds",
         max_depth         = "max_depth",
-        learning_rate     = "learning_rate",
-        min_samples_leaf  = "min_data_in_leaf",
-        max_leaf_nodes    = "num_leaves",
-        l2_regularization = "lambda_l2"
+        learning_rate     = "eta",
+        min_samples_leaf  = "min_child_weight",
+        max_leaf_nodes    = "max_leaves",
+        l2_regularization = "lambda",
+        max_features      = "colsample_bytree"
     )
 
-    out <- list(verbose = -1L)
+    out <- list(verbose = 0L)
     for (nm in names(param)) {
         mapped_name <- if (nm %in% names(mapping)) mapping[[nm]] else nm
         out[[mapped_name]] <- param[[nm]]
@@ -170,13 +222,14 @@
                                     "hist_gradient_boost", "hist gradient boost",
                                     "b", "gb", "hgb")) {
         mapping <- c(
-            max_iter          = "num_iterations",
-            n_estimators      = "num_iterations",
+            max_iter          = "nrounds",
+            n_estimators      = "nrounds",
             max_depth         = "max_depth",
-            learning_rate     = "learning_rate",
-            min_samples_leaf  = "min_data_in_leaf",
-            max_leaf_nodes    = "num_leaves",
-            l2_regularization = "lambda_l2"
+            learning_rate     = "eta",
+            min_samples_leaf  = "min_child_weight",
+            max_leaf_nodes    = "max_leaves",
+            l2_regularization = "lambda",
+            max_features      = "colsample_bytree"
         )
     } else if (model_lower %in% c("network", "neural_network", "neural network", "nn")) {
         mapping <- c(
@@ -216,11 +269,13 @@
     psi <- .extract_psi(dml_model, n)
 
     # 2. B-spline basis for projection (df=5, degree=2 per spec)
-    B_train <- splines::bs(data_X, df = 5, degree = 2)
+    #    Include intercept to match Python patsy.dmatrix() behaviour
+    B_spline <- splines::bs(data_X, df = 5, degree = 2)
+    B_train <- cbind(1, B_spline)
 
     # 3. Evaluation grid
     x_grid <- seq(min(data_X), max(data_X), length.out = n_grid)
-    B_grid <- predict(B_train, newx = x_grid)
+    B_grid <- cbind(1, predict(B_spline, newx = x_grid))
 
     # 4. OLS projection: beta_hat = (B'B)^{-1} B' psi
     BtB <- crossprod(B_train)
@@ -230,10 +285,12 @@
     # 5. Predicted CATE on grid
     cate_hat <- as.numeric(B_grid %*% beta_hat)
 
-    # 6. HC (sandwich) variance: Omega = (B'B)^{-1} B' diag(e^2) B (B'B)^{-1} / n
+    # 6. HC0 sandwich variance: Omega = (B'B)^{-1} B' diag(e^2) B (B'B)^{-1}
+    #    Matches Python statsmodels model.cov_HC0 used by DoubleML BLP
+    #    crossprod(B*e) = t(B*e) %*% (B*e) = sum_i e_i^2 * B_i B_i' = B'diag(e^2)B
     residuals <- as.numeric(psi - B_train %*% beta_hat)
-    meat <- crossprod(B_train * residuals, B_train)
-    Omega <- BtB_inv %*% meat %*% BtB_inv / n
+    meat <- crossprod(B_train * residuals)
+    Omega <- BtB_inv %*% meat %*% BtB_inv
 
     # 7. Variance-covariance on the grid
     Sigma_grid <- B_grid %*% Omega %*% t(B_grid)
@@ -286,10 +343,11 @@
     BtB_inv <- .safe_solve(BtB)
     beta_hat <- as.numeric(BtB_inv %*% crossprod(B_dummy, psi))
 
-    # 4. Sandwich variance
+    # 4. HC0 sandwich variance (matching Python statsmodels)
+    #    crossprod(B*e) = B'diag(e^2)B
     residuals <- as.numeric(psi - B_dummy %*% beta_hat)
-    meat <- crossprod(B_dummy * residuals, B_dummy)
-    Omega <- BtB_inv %*% meat %*% BtB_inv / n
+    meat <- crossprod(B_dummy * residuals)
+    Omega <- BtB_inv %*% meat %*% BtB_inv
     se <- sqrt(pmax(diag(Omega), 0))
 
     # 5. Pointwise CIs
@@ -410,6 +468,33 @@
     # Ensure treatment is numeric
     data_for_dml[[D]] <- as.numeric(data_for_dml[[D]])
 
+    # 4b. Standardise covariates for models sensitive to scale (nn, hgb).
+    #     Python sklearn's MLPRegressor and HistGradientBoosting do this
+    #     internally; R's nnet and lightgbm do NOT.
+    is_scale_sensitive <- tolower(model.y) %in% c("network","neural_network","neural network","nn",
+                                                   "boosting","gradient_boosting","gradient boosting",
+                                                   "hist_gradient_boosting","hist gradient boosting",
+                                                   "boost","gradient_boost","gradient boost",
+                                                   "hist_gradient_boost","hist gradient boost",
+                                                   "b","gb","hgb") ||
+                          tolower(model.t) %in% c("network","neural_network","neural network","nn",
+                                                   "boosting","gradient_boosting","gradient boosting",
+                                                   "hist_gradient_boosting","hist gradient boosting",
+                                                   "boost","gradient_boost","gradient boost",
+                                                   "hist_gradient_boost","hist gradient boost",
+                                                   "b","gb","hgb")
+    if (is_scale_sensitive) {
+        # Standardise Y and all covariates (not D)
+        scale_info <- list()
+        for (col in c(Y, covariates)) {
+            mu <- mean(data_for_dml[[col]], na.rm = TRUE)
+            s  <- sd(data_for_dml[[col]], na.rm = TRUE)
+            if (s < 1e-12) s <- 1  # avoid division by zero for constant columns
+            scale_info[[col]] <- list(mean = mu, sd = s)
+            data_for_dml[[col]] <- (data_for_dml[[col]] - mu) / s
+        }
+    }
+
     # 5. Create DoubleMLData
     dml_data <- DoubleML::DoubleMLData$new(
         data = data.table::as.data.table(data_for_dml),
@@ -420,12 +505,16 @@
 
     # 6. Create DML model
     if (discrete_treatment) {
+        # R ranger can produce propensity scores of exactly 0 or 1 (unlike sklearn RF
+        # which outputs vote proportions that are naturally bounded away from 0/1).
+        # Trimming is essential to prevent IPW blow-up in psi_b.
         dml_model <- DoubleML::DoubleMLIRM$new(
             data = dml_data,
             ml_g = ml_y,
             ml_m = ml_t,
             n_folds = as.integer(cf.n.folds),
-            n_rep = as.integer(cf.n.rep)
+            n_rep = as.integer(cf.n.rep),
+            trimming_threshold = 0.01
         )
     } else {
         dml_model <- DoubleML::DoubleMLPLR$new(
@@ -495,7 +584,19 @@
     losses <- tryCatch(dml_model$nuisance_loss, error = function(e) NULL)
 
     # 10. Compute CATE (always)
+    #     Use ORIGINAL (unscaled) X for the BLP grid, since the plot is in original units
     cate_df <- .compute_cate_blp(dml_model, data[[X]], X)
+
+    #     If Y was scaled, rescale psi-derived quantities back to original units
+    if (is_scale_sensitive && !is.null(scale_info[[Y]])) {
+        y_sd <- scale_info[[Y]]$sd
+        cate_df[["ME"]]                    <- cate_df[["ME"]]                    * y_sd
+        cate_df[["sd"]]                    <- cate_df[["sd"]]                    * y_sd
+        cate_df[["lower CI(95%)"]]         <- cate_df[["lower CI(95%)"]]         * y_sd
+        cate_df[["upper CI(95%)"]]         <- cate_df[["upper CI(95%)"]]         * y_sd
+        cate_df[["lower uniform CI(95%)"]] <- cate_df[["lower uniform CI(95%)"]] * y_sd
+        cate_df[["upper uniform CI(95%)"]] <- cate_df[["upper uniform CI(95%)"]] * y_sd
+    }
 
     # 11. Compute GATE (conditional)
     gate_df <- data.frame()
