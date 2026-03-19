@@ -99,8 +99,9 @@
             if (is.null(mapped[["subsample"]])) mapped[["subsample"]] <- 0.8
             if (is.null(mapped[["colsample_bytree"]])) mapped[["colsample_bytree"]] <- 0.8
             if (is.null(mapped[["verbose"]])) mapped[["verbose"]] <- 0L
-            # xgboost requires grow_policy="lossguide" to enable max_leaves tuning.
+            # xgboost requires tree_method="hist" + grow_policy="lossguide" for max_leaves.
             # This matches sklearn HistGradientBoosting which is lossguide by design.
+            if (is.null(mapped[["tree_method"]])) mapped[["tree_method"]] <- "hist"
             if (is.null(mapped[["grow_policy"]])) mapped[["grow_policy"]] <- "lossguide"
             if (discrete_outcome) {
                 learner <- do.call(mlr3::lrn, c(list("classif.xgboost", predict_type = "prob"), mapped))
@@ -309,6 +310,7 @@
                             "boost", "gradient_boost", "gradient boost",
                             "hist_gradient_boost", "hist gradient boost",
                             "b", "gb", "hgb")) {
+        param_list[["tree_method"]] <- paradox::p_fct(levels = "hist")
         param_list[["grow_policy"]] <- paradox::p_fct(levels = "lossguide")
     }
 
