@@ -90,7 +90,7 @@
             } else {
                 learner <- do.call(mlr3::lrn, c(list("regr.lightgbm"), mapped))
             }
-        } else {
+        } else if (requireNamespace("xgboost", quietly = TRUE)) {
             # Fallback to xgboost
             if (is.null(mapped[["nrounds"]])) mapped[["nrounds"]] <- 100L
             if (is.null(mapped[["eta"]])) mapped[["eta"]] <- 0.1
@@ -104,6 +104,9 @@
             } else {
                 learner <- do.call(mlr3::lrn, c(list("regr.xgboost"), mapped))
             }
+        } else {
+            stop("Boosting model requires either the 'lightgbm' (with 'mlr3extralearners') or 'xgboost' package. ",
+                 "Install one with: install.packages('xgboost') or install.packages('lightgbm')")
         }
         return(learner)
     }
