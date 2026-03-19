@@ -99,6 +99,9 @@
             if (is.null(mapped[["subsample"]])) mapped[["subsample"]] <- 0.8
             if (is.null(mapped[["colsample_bytree"]])) mapped[["colsample_bytree"]] <- 0.8
             if (is.null(mapped[["verbose"]])) mapped[["verbose"]] <- 0L
+            # xgboost requires grow_policy="lossguide" to enable max_leaves tuning.
+            # This matches sklearn HistGradientBoosting which is lossguide by design.
+            if (is.null(mapped[["grow_policy"]])) mapped[["grow_policy"]] <- "lossguide"
             if (discrete_outcome) {
                 learner <- do.call(mlr3::lrn, c(list("classif.xgboost", predict_type = "prob"), mapped))
             } else {
