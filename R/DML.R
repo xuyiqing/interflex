@@ -484,9 +484,10 @@
                                                    "hist_gradient_boost","hist gradient boost",
                                                    "b","gb","hgb")
     if (is_scale_sensitive) {
-        # Standardise Y and all covariates (not D)
+        # Standardise covariates (not D); only standardise Y when it is continuous
         scale_info <- list()
-        for (col in c(Y, covariates)) {
+        cols_to_scale <- if (discrete_outcome) covariates else c(Y, covariates)
+        for (col in cols_to_scale) {
             mu <- mean(data_for_dml[[col]], na.rm = TRUE)
             s  <- sd(data_for_dml[[col]], na.rm = TRUE)
             if (s < 1e-12) s <- 1  # avoid division by zero for constant columns
