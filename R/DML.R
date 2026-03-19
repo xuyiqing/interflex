@@ -463,7 +463,11 @@
     covariates <- c(Z, X)
 
     # 3. Learners
-    ml_y <- .set_dml_learner(model.y, param.y, discrete_outcome)
+    # PLR (continuous treatment) requires ml_l to be a regressor even if Y is binary,
+    # because it models E[Y|X] (a conditional expectation). Only IRM (discrete treatment)
+    # uses a classifier for the outcome model (ml_g).
+    use_classif_y <- discrete_outcome && discrete_treatment
+    ml_y <- .set_dml_learner(model.y, param.y, use_classif_y)
     ml_t <- .set_dml_learner(model.t, param.t, discrete_treatment)
 
     # 4. B-spline expansion for linear models
@@ -500,9 +504,9 @@
                                                    "hist_gradient_boost","hist gradient boost",
                                                    "b","gb","hgb")
     if (is_scale_sensitive) {
-        # Standardise covariates (not D); only standardise Y when it is continuous
+        # Standardise covariates (not D); only standardise Y when it is modeled as continuous
         scale_info <- list()
-        cols_to_scale <- if (discrete_outcome) covariates else c(Y, covariates)
+        cols_to_scale <- if (use_classif_y) covariates else c(Y, covariates)
         for (col in cols_to_scale) {
             mu <- mean(data_for_dml[[col]], na.rm = TRUE)
             s  <- sd(data_for_dml[[col]], na.rm = TRUE)
