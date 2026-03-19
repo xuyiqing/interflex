@@ -256,11 +256,34 @@
         mapping <- character(0)
     }
 
+    # sklearn params that have no nnet/R equivalent — skip in tuning grid
+    sklearn_only_nn <- c("activation", "solver", "alpha", "learning_rate",
+                         "learning_rate_init", "batch_size", "momentum",
+                         "beta_1", "beta_2", "epsilon", "n_iter_no_change",
+                         "early_stopping", "validation_fraction", "shuffle",
+                         "power_t", "warm_start", "tol", "verbose",
+                         "random_state", "nesterovs_momentum")
+
     param_list <- list()
     for (nm in names(param_grid)) {
+        # Skip sklearn-only nn params
+        if (model_lower %in% c("network", "neural_network", "neural network", "nn") &&
+            nm %in% sklearn_only_nn) next
+
         mapped_name <- if (nm %in% names(mapping)) mapping[[nm]] else nm
         vals <- param_grid[[nm]]
-        if (is.integer(vals) || all(vals == floor(vals))) {
+
+        # For hidden_layer_sizes mapped to size: extract first element from each architecture
+        if (mapped_name == "size" && is.list(vals)) {
+            vals <- vapply(vals, function(v) {
+                if (is.list(v)) as.integer(v[[1L]]) else as.integer(v[1L])
+            }, integer(1L))
+        }
+
+        # Skip non-numeric params (e.g. character vectors)
+        if (is.character(vals)) next
+
+        if (is.integer(vals) || (is.numeric(vals) && all(vals == floor(vals)))) {
             param_list[[mapped_name]] <- paradox::p_int(
                 lower = as.integer(min(vals)),
                 upper = as.integer(max(vals))
@@ -272,6 +295,7 @@
             )
         }
     }
+    if (length(param_list) == 0L) return(NULL)
     do.call(paradox::ps, param_list)
 }
 
