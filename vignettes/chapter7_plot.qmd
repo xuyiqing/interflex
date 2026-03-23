@@ -1,0 +1,195 @@
+# Interflex Plotting Options {#sec-plotting}
+
+In previous chapter, we have explored most of the plotting options in the **interflex** package. This chapter serves as a comprehensive guide in plotting CME, using data from @huddy2015expressive and simulation data incorporated in the package.
+
+## Load Data
+
+In @huddy2015expressive, the outcome variable is level of anger, treatment variable is electoral loss threat or electoral win reassurance, and moderator $X$ is strength of partisan identity. The data is included in the **interflex** package. We also specify the treatment, outcome, moderator, and controls (covariates).
+
+```{r include=FALSE}
+source("init.R")
+```
+
+```{r}
+data(interflex)
+ls()
+
+d<-app_hma2015
+
+## Define variables 
+Y = "totangry" ## outcome: anger
+D = "threat" ## treatment: threat
+X = "pidentity" ## moderator: partisan identity 
+Z <-  c("issuestr2","knowledge", "educ","male", "age10")
+
+Ylabel = "Anger"
+Dlabel = "Threat"
+Xlabel = "Partisanship"
+```
+
+## The plot function
+
+Users have two equally flexible ways to customise figures produced by interflex:
+
+When setting the option `show.all` to TRUE in the command plot, the program will return a list in which every element is the plot of one treated group. As all of them are ggplot2 objects, users can then edit those graphs in their ways.
+
+1.  During estimation: pass any of the plotting-related arguments into `interflex()`, then retrieve the figure.
+
+```{r fig.width = 6, fig.height = 4.5}
+linear.out.1 <- interflex(estimator = "linear", data = d, 
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel, vartype = "bootstrap",
+                 theme.bw = TRUE,
+                 main = "Linear model")
+linear.out.1$figure
+```
+
+2.  After estimation: call `plot(result, …)` and supply or overwrite the same arguments.
+
+```{r fig.width = 6, fig.height = 4.5}
+linear.out.1 <- interflex(estimator = "linear", data = d, 
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel, vartype = "bootstrap",
+                 theme.bw = TRUE,
+                 main = "Linear model")
+plot(linear.out.1, theme.bw = TRUE)
+```
+
+All the options introduced in this chapter are available for both ways.
+
+### Estimates to plot
+
+`order`: For multi-treatment plots: character (discrete treatment) or numeric (continuous) vector that fixes the display order of treatment arms / reference values.
+
+`pool`: If you supply a list of **interflex** objects (x), set `pool = TRUE` to draw a single pooled plot across objects.
+
+For instance, with simulation data **s5**, by setting the option `order` and `subtitles`, users can also specify the order of plots they prefer and the subtitles they want:
+
+```{r mta1c, message = FALSE, fig.height=5, fig.width=8, cache = TRUE,results = "hide", fig.width = 6, fig.height = 4.5}
+
+s5.binning <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), 
+                        data = s5, 
+                        estimator = "binning", vartype = "bootstrap",
+                        theme.bw = TRUE)
+
+plot(s5.binning, order=c("C", "B"), 
+     subtitles = c("Group C","Group B"), 
+     theme.bw = TRUE)
+```
+
+By setting `pool = TRUE`, we can combine these plots. Users can also specify the colors they like:
+
+```{r mta1d, message = FALSE, fig.height=5, fig.width=6, cache = TRUE}
+plot(s5.binning, order=c("C", "B"), 
+     subtitles = c("Control Group","Group C","Group B"), 
+     pool = TRUE, color = c("Salmon","#7FC97F", "#BEAED4"), 
+     theme.bw = TRUE)
+```
+
+
+`diff.values`: **interflex** allows users to compare treatment effects at three specific values of the moderator using linear or kernel model. In order to do so, users need to pass three values into `diff.values` when applying *linear* or *kernel* estimator.
+
+`CI`: TRUE / FALSE (or the numeric level) to draw pointwise confidence bands. The default is estimator-dependent (e.g. the kernel estimator uses whatever was saved in the object).
+
+Using the linear estimator with simulation data **s5** as an example:
+
+```{r}
+
+s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), 
+                      data = s5, 
+                      estimator = "linear")
+
+plot(s5.linear,
+     diff.values = c (-2,0,2),
+     CI = FALSE,
+     theme.bw = TRUE)
+```
+
+### Moderator's distribution
+
+`Xdistr = "histogram"`: Adds a stacked treatment/control histogram, a shaded marginal density, or nothing beneath the effect curve(s). Options are `"histogram"`, `"density"`, and `"none"`.
+
+`hist.color`/`density.color`/`hist.color.alpha`/`density.color.alpha`: adjust color and Transparency of the histogram bars / density ribbons.
+
+Using the linear estimation plot with Huddy2015 as an example:
+
+```{r fig.width = 6, fig.height = 4.5}
+linear.out.1 <- interflex(estimator = "linear", data = d, 
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel, vartype = "bootstrap",
+                 theme.bw = TRUE,
+                 main = "Linear model")
+
+plot(linear.out.1, theme.bw = TRUE, 
+     Xdistr = "density",
+     density.color = "blue")
+```
+
+### Titles, annotations & facet subtitles
+
+`main`: Main title (top-center).
+
+`subtitles`: Vector of custom facet subtitles (length = number of non-baseline treatment arms or reference points).
+
+`show.subtitles`: Logical; force subtitles on/off irrespective of subtitles or panel count.
+
+`interval`: Numeric(s); draws light-blue vertical reference line(s) at those moderator values.
+
+`legend.title`: Title for the legend generated when `pool = TRUE`.
+
+Using the linear estimation plot with Huddy2015 as an example:
+
+```{r}
+plot(s5.linear,
+     interval = c(0),
+     show.subtitles = TRUE,
+     theme.bw = TRUE,
+     main = "Linear estimator",
+     subtitles = c("Group B","Group C"))
+```
+
+### Axis labels & limits
+
+`xlab`/`ylab`: Full axis labels (default glue: "Moderator: Xlabel", "Marginal Effect of Dlabel on Ylabel").
+
+`xlim`/`ylim`: Numeric length-2 vectors to modify the x-axis and y-axis range.
+
+Using the linear estimation plot with Huddy2015, and compare it against the plot without any modification
+
+```{r fig.width = 8, fig.height = 6}
+
+plot1<-linear.out.1$figure
+
+plot2<-plot(linear.out.1, xlab = "moderator", ylab = "CME",
+     xlim = c(0.25,1), theme.bw = TRUE)
+
+ggarrange(plot1, plot2)
+
+```
+
+### Theme and layout
+
+`theme.bw`: TRUE adds theme_bw() and a light grey zero-line; FALSE uses the default ggplot background and a white zero-line.
+
+`show.grid`: Toggles panel major/minor grid lines.
+
+`line.color`/`line.size`: Colour and thickness of the treatment-effect curve(s).
+
+`CI.color`/`CI.color.alpha`: Fill colour + alpha for the pointwise CI ribbon.
+
+`bin.labs`: If you used the binning estimator, prints "L/M/H …" labels underneath each bin centre.
+
+`cex.main (title)`/`cex.sub (subtitle)`/`cex.lab (axis titles)`/`cex.axis (tick labels)`: font size options
+
+`ncols`: Number of columns when multiple panels are arranged. Defaults to the number of panels.
+
+Using the linear estimation plot with Huddy2015 as an example:
+
+```{r fig.width = 6, fig.height = 4.5}
+plot(linear.out.1, theme.bw = FALSE,
+     show.grid = FALSE,
+     CI.color = "red")
+```
