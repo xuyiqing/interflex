@@ -668,7 +668,7 @@ plot(s9.linear)
 
 ```{r dmulti2, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
-p1 <- plot.interflex(s9.linear,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
+p1 <- plot(s9.linear,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
 TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
 p2 <- plot(s9.linear,show.all = T)$`2`+geom_line(aes(x=x,y=TE2),color='red')
 p1 + p2

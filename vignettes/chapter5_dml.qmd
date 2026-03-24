@@ -429,7 +429,6 @@ Here, we provide another example to explore how selecting different DML paramete
 ```{r app2_search, message=FALSE, warning=FALSE,cache=TRUE, fig.width = 9, fig.height = 5}
 param_rf <- list(
   n_estimators = as.integer(200),
-  min_samples_split = as.integer(5),
   min_samples_leaf = as.integer(4)
 )
 
