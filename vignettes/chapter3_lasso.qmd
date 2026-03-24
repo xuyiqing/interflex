@@ -1,0 +1,226 @@
+# Lasso Methods {#sec-lasso}
+
+In this chapter, we introduce Lasso-based approaches for estimating the conditional marginal effect (CME), addressing limitations of traditional outcome-modeling methods. When the treatment is binary, we use Lasso within an augmented inverse probability weighting (AIPW) framework. This approach integrates both the outcome model and the propensity score model, yielding a doubly robust estimator that remains consistent as long as at least one of the two models is correctly specified. When the treatment is continuous, we employ a "partial-out" (PO) estimator: Lasso is used to denoise both the outcome and treatment variables with respect to covariates (or potential fixed effects), and a kernel method is then applied to the denoised variables to estimate the conditional marginal effect.
+
+```{r include=FALSE}
+source("init.R")
+```
+
+## Binary treatment
+
+The Lasso framework for estimating CME follows a three‐step procedure: (1) model the outcome and the propensity score; (2) construct signals; and (3) smooth the signals over the moderator $X$. In the first step, one can perform a basis expansion and include interaction terms to account for potential nonlinearity and interaction effects among covariates.
+
+When the number of covariates or their expanded basis functions is large, conventional OLS or logistic regression may overfit and yield unstable estimates. In the **interflex** package, we use post‐selection Lasso for feature selection to ensure valid standard errors. In this user manual, we refer to the AIPW estimator with basis expansion and post‐Lasso selection as AIPW‐Lasso: we first use Lasso regression for feature selection, then run a post‐Lasso OLS regression to obtain the coefficients for those selected features. In the next step, we construct the AIPW signal to ensure double robustness; in the final step, we apply a kernel regression to smooth the signals over the moderator $X$.
+
+In the binary‐treatment setting, we use the @huddy2015expressive example, where the outcome variable is the level of anger, the treatment variable indicates an electoral loss threat or an electoral win reassurance, and the moderator $X$ represents the strength of partisan identity.
+
+```{r}
+library(interflex)
+data(interflex)
+ls()
+
+d<-app_hma2015
+
+## Define variables 
+Y = "totangry" ## outcome: anger
+D = "threat" ## treatment: threat
+X = "pidentity" ## moderator: partisan identity 
+Z <-  c("issuestr2", "knowledge", "educ","male", "age10")
+
+Ylabel = "Anger"
+Dlabel = "Threat"
+Xlabel = "Partisanship"
+
+```
+
+#### AIPW-Lasso estimator
+
+**Estimation.** To estimate the CME with the AIPW‐Lasso estimator, set the option `estimator = "lasso"`.
+
+**Uncertainty estimation.** The standard error of the AIPW‐Lasso estimator is calculated via nonparametric bootstrapping. The default number of bootstrap samples, `nboots`, is 200—you can increase `nboots` for more stable standard‐error estimates. Both pointwise and uniform confidence intervals are provided in the plot.
+
+**Results.** The estimation results are stored in `est.aipw`, which includes the corresponding $X$ values, point estimates, standard errors, and lower/upper bounds for both uniform and pointwise confidence intervals.
+
+```{r binary_aipw1, fig.height=4.5, fig.width=6, message=FALSE, warning=FALSE, cathe=TRUE}
+
+aipw.out.1 <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel,
+                 theme.bw = TRUE,
+                 main = "AIPW-Lasso estimation")
+
+aipw.out.1$figure
+```
+
+```{r binary_aipw2, message=FALSE, warning=FALSE, cathe = TRUE}
+
+head(aipw.out.1$est.lasso[[1]])
+```
+
+#### Advance options
+
+In AIPW-Lasso estimator, we provide several advanced options, allowing greater flexibility for user to deploy the estimator.
+
+##### Signals
+
+Signals refer to transformations of the data that are relevant for the target‐parameter estimation, as commonly used in the double‐robustness literature. We provide three options for the `signal` parameter in the AIPW‐Lasso estimator: `outcome`, `ipw`, and `aipw` (default).
+
+When the signal is set to `ipw`, we are effectively estimating the CME with an IPW estimator, which can be sensitive to extreme weights, particularly when the estimated propensity score is close to 0 or 1.
+
+```{r binary_aipw3, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
+
+aipw.out.outcome <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel, nboots = 1000,
+                 theme.bw = TRUE, signal = "outcome",
+                 main = "Signal: outcome")
+
+aipw.out.ipw <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel,
+                 theme.bw = TRUE, signal = "ipw",
+                 main = "Signal: IPW")
+
+aipw.out.aipw <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel,
+                 theme.bw = TRUE, signal = "aipw",
+                 main = "Signal: AIPW")
+
+ggarrange(aipw.out.outcome$figure, aipw.out.ipw$figure, aipw.out.aipw$figure,
+          ncol = 3)
+
+```
+
+##### ATE vs ATT
+
+With a binary treatment, we can also set the estimand to the average treatment effect on the treated (ATT) rather than the average treatment effect (ATE) (default). We can use the `estimand` option for this purpose. It also supports the `outcome`, `ipw`, and `aipw` (default) signals.
+
+```{r binary_aipw4, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
+
+
+aipw.out.ate <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel,
+                 theme.bw = TRUE,
+                 estimand = 'ATE',
+                 signal = "aipw",
+                 main = "ATE")
+
+aipw.out.att <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel,
+                 theme.bw = TRUE,
+                 estimand = 'ATT',
+                 signal = "aipw",
+                 main = "ATT")
+
+ggarrange(aipw.out.ate$figure, aipw.out.att$figure,ncol = 2)
+
+```
+
+##### Smoothing options
+
+To transform the signal—which is one value per unit—into a smooth one‐dimensional CME along the moderator $X$, the AIPW‐Lasso estimator uses dimension reduction. You can either fit a linear model of the signal on a B‐spline basis of $X$ via `reduce.dimension = bspline`, or fit a local‐kernel smoother of the signal on $X$ via `reduce.dimension = kernel` (default).
+
+```{r binary_aipw5_2, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+
+aipw.out.bs.smooth <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel,
+                 reduce.dimension = "bspline",
+                 theme.bw = TRUE,
+                 main = "Smoothing: b-spline")
+
+aipw.out.bs.kernel <- interflex(estimator = "lasso", data = d,
+                  Y = Y,D = D, X = X, Z = Z,
+                  Ylabel = Ylabel, Dlabel = Dlabel,
+                  Xlabel = Xlabel,ylim = c(-0.4, 0.6),
+                  reduce.dimension = "kernel",
+                  theme.bw = TRUE,
+                  main = "Smoothing: kernel")
+
+ggarrange(aipw.out.bs.smooth$figure,aipw.out.bs.kernel$figure,ncol = 2)
+
+```
+
+##### Basis expansions options
+
+In fitting the outcome and propensity score models, we introduce basis expansions to relax parametric assumptions and enhance estimation flexibility. The basis expansion provides several options via `basis.type`, expanding the set of regressors $V = (X, Z)$ beyond their raw forms. When `basis.type = "none"`, $V = (X, Z)$ enters the design matrix in its raw form; when `basis.type = "polynomial"`, every numeric entry in $V=(X,Z)$ is expanded to its first two global powers; and when `basis.type = "bspline"` (default), each variable is replaced with piecewise polynomials that bend only near their knots. The option `include.interactions = TRUE` (default) adds interaction terms among these expanded basis functions as additional covariates.
+
+```{r binary_aipw5_1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+aipw.out.poly.basis <- interflex(estimator = "lasso", data = d,
+                        Y = Y,D = D, X = X, Z = Z,
+                        Ylabel = Ylabel, Dlabel = Dlabel,
+                        Xlabel = Xlabel,
+                        basis.type = 'polynomial',
+                        theme.bw = TRUE, ylim = c(-0.4, 0.6),
+                        main = "Smoothing: b-spline")
+aipw.out.poly.basis$figure
+```
+
+------------------------------------------------------------------------
+
+## Continuous treatment
+
+With continuous treatment, we use the empirical example from @adiguzel2023out. The outcome is the change in vote share for the incumbent AKP party; the treatment is the change in congestion, measured by the number of patients per doctor at the nearest clinic; and the moderator is the logarithm of median property value.
+
+In settings with continuous treatment, there is no propensity score model to estimate. Instead, we adopt a partially linear regression model (PLRM), where we regress $\tilde{Y}$ on $\tilde{D}$ after "partialling out" the effect of covariates $V$ from outcome $Y$ and treatment $D$.
+
+In practice, we estimate the relationships between outcome $Y$ and covariates $V = (X, Z)$ and between treatment $D$ and covariates $V$ separately, using flexible models such as basis expansions combined with post‐selection Lasso to denoise $Y$ and $D$ into $\tilde{Y}$ and $\tilde{D}$. Hence, the estimator is named the Partial‐Out Lasso estimator.
+
+```{r}
+load("data/Adiguzel2023a.RData")
+d<-lograyic_models
+d<-remove_labels(d)
+d<-as.data.frame(d)
+main<-"Adiguzel2023a"
+D="Dwalk_3" 
+Y="Dakp_3" 
+X="lograyic09"
+
+Z=c('Duniversity_3', 'Dodr_3', 'Dydr_3', 'Dpopulation_3', 'Dhospital_pri_3', 'Dhospital_pub_3')
+
+Dlabel<-"Dwalk"
+Ylabel<-"Dakp"
+Xlabel<-"Property values (2009)"
+```
+
+#### PO-Lasso estimator
+
+**Estimation.** The syntax to deploy the PO‐Lasso estimator is the same as in the binary‐treatment setting: specify `estimator = "lasso"`. Both pointwise and uniform CIs are provided in the plot.
+
+**Results.** Similarly, estimation results and the plot can be extracted from the output object.
+
+```{r con_aipw1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+aipw.out.1 <- interflex(estimator = "lasso", data = d,
+                 Y = Y,D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel,
+                 theme.bw = TRUE,
+                 main = "AIPW estimation")
+```
+
+```{r}
+aipw.out.1$figure
+head(aipw.out.1$est.lasso[[1]])
+```
+
+### Advanced options
+
+With continuous treatment, we also provide a set of advanced options tailored to the user’s research needs. These include:
+
+**`basis.type`**: As in the binary‐treatment case, you can choose among `none`, `polynomial`, or `bspline` to control how $V=(X,Z)$ is expanded in the first‐stage regressions.
+
+**`include.interactions`**: When set to `TRUE` (the default), interaction terms among all basis‐expanded covariates are included.
+
+**`reduce.dimension`**: After partialling out, you can smooth the signal via B‐splines (`bspline`) or a local‐kernel smoother (`kernel`).
+
+The **`estimand`** and **`signal`** options are not supported.

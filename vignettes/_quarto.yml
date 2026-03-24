@@ -8,17 +8,20 @@ book:
     background: light
   chapters:
     - index.qmd
-    - 01-continuous.Rmd
-    - 02-discrete.Rmd
-    - 03-dml.Rmd
+    - intro.qmd
+    - chapter2_classic.qmd
+    - chapter3_lasso.qmd
+    - chapter5_dml.qmd
+    - chapter4_discrete_moderator.qmd
+    - chapter6_discrete_outcome.qmd
+    - chapter7_plot.qmd
     - references.qmd
 
-bibliography: ref.bib
+initial-block:
+  language: r
+  file: "init.R"
 
-nocite: |
-  @*
-
-suppress-bibliography: true
+bibliography: references.bib
 
 format:
   html:
@@ -26,7 +29,9 @@ format:
     code-fold: false
     code-tools: true
     code-link: true
+    toc: true
     toc-depth: 3
+    toc-expand: 4
 
 knitr:
   opts_chunk:

@@ -33,6 +33,12 @@ vignettes/dml_cache
 vignettes/dml_files
 vignettes/continuous_files/
 vignettes/discrete_files/
+vignettes/*_cache/
+vignettes/*_files/
+vignettes/_book/
+vignettes/_freeze/
+vignettes/site_libs/
+vignettes/*.rmarkdown
 
 # OAuth2 token
 .httr-oauth

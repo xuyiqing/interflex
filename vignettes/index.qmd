@@ -9,9 +9,12 @@ This Quarto book serves as a user manual for the **interflex** package in R, whi
 -   **Kernel**: Kernel-based local regression for smooth marginal effect curves
 -   **Linear**: Standard linear interaction models with robust diagnostics
 -   **GAM**: Generalized additive models for flexible nonlinear effects
+-   **Lasso**: AIPW-Lasso and Partial-Out Lasso estimators for doubly robust inference
 -   **DML**: Double/debiased machine learning estimators for high-dimensional settings
 
 For methodological details, see:
+
+-   Liu, Liu, and Xu (2025). [A Practical Guide to Estimating Conditional Marginal Effects: Modern Approaches](https://arxiv.org/abs/2504.01355). *arXiv preprint arXiv:2504.01355*.
 
 -   Hainmueller, Mummolo, and Xu (2019). [How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice](http://bit.ly/HMX2019). *Political Analysis*, 27(2), 163--192.
 
@@ -21,18 +24,23 @@ For methodological details, see:
 For those interested in exploring the algorithms used in **interflex**, please visit the source [GitHub Repo](https://github.com/xuyiqing/interflex) for further details.
 :::
 
-## Organization
+## Organization {.unnumbered}
 
 The user guide is structured into the following chapters:
 
--   [Chapter @sec-continuous]\
-    Interflex with continuous outcomes: raw plots, binning estimator, kernel estimator, fixed effects, multiple treatment arms, predicted outcomes, and differences in treatment effects.
+-   @sec-introduction: Installing **interflex** and configuring the Python back-end.
 
--   [Chapter @sec-discrete]\
-    Interflex with discrete outcomes: linear, binning, and kernel estimators for binary response variables using logit link functions, including multiple treatment arms.
+-   @sec-classic: Classical CME estimators (binning, linear, kernel) and advance options such as fixed effects, multiple treatment arms, prediction, and differences in treatment effects.
 
--   [Chapter @sec-dml]\
-    Interflex with DML estimators: double/debiased machine learning for conditional marginal effects, including methodology overview, model selection, cross-validation, and two empirical applications.
+-   @sec-lasso: Estimating CME with AIPW-Lasso and "Partialling out"-Lasso estimator.
+
+-   @sec-dml: Estimating CME with the Double Machine Learning framework.
+
+-   @sec-discrete-moderator: Estimate, visualize, and extract group-specific CMEs when the moderator $X$ is discrete.
+
+-   @sec-discrete-outcome: Diagnose, visualize, and estimate CME with discrete outcomes, using multiple link functions and various estimators.
+
+-   @sec-plotting: Customizing **interflex** plots.
 
 ## Contributors
 

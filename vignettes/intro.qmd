@@ -1,0 +1,131 @@
+# Get Started {#sec-introduction}
+
+## Installation
+
+To use the **interflex** package, please install directly from Github:
+
+```{r, eval=FALSE}
+
+# if not already installed
+install.packages('devtools', repos = 'http://cran.us.r-project.org') 
+devtools::install_github('xuyiqing/interflex@dml', force = TRUE)
+```
+
+### Python environment setup
+
+To use estimators in **interflex**, we rely on several Python packages. The integration between R and Python is facilitated by the **reticulate** package, which allows R to interface with Python seamlessly. The following steps set up a Python environment with all required dependencies.
+
+First, install the **reticulate** package in R. This package enables R to interface with Python.
+
+```{r, eval=FALSE}
+install.packages("reticulate", repos = 'http://cran.us.r-project.org')
+```
+
+Then, we use [Miniconda](https://docs.anaconda.com/free/miniconda/), a minimal installer for Conda. Miniconda helps manage Python environments and packages. By default, the installation process will create a virtual environment named `r-reticulate`.
+
+```{r, eval=FALSE}
+reticulate::install_miniconda(update = TRUE)
+```
+
+With Miniconda installed, we point to the platform using `use_condaenv`. This step is incorporated in the **interflex** package.
+
+```{r, eval=FALSE}
+reticulate::use_condaenv(condaenv = "r-reticulate")
+```
+
+Finally, we install the necessary Python libraries. These libraries include tools for statistical modeling and machine learning that are essential for using the **interflex** package.
+
+```{r, eval=FALSE}
+reticulate::py_install(packages = c("patsy", "numpy", "pandas",
+                                    "scikit-learn", "doubleml", "econml"))
+```
+
+Some Mac users may encounter a “\*\*\* caught segfault \*\*\*” error. In that case, we recommend setting up a virtual environment. In Terminal, type:
+
+```         
+python3 -m venv ~/.virtualenvs/myenv source ~/.virtualenvs/myenv/bin/activate
+```
+
+Then install all Python packages there:
+
+```         
+pip install numpy
+pip install patsy
+pip install pandas
+pip install scikit-learn
+pip install econml
+pip install doubleml
+```
+
+In R, point to the newly set up environment `myenv`:
+
+```{r, eval=FALSE}
+reticulate::use_virtualenv("myenv")
+```
+
+### **Load packages**
+
+**interflex** depends on the following packages, which will be installed automatically when **interflex** is being installed; if not, please install them manually:
+
+```{r eval=FALSE, message=FALSE}
+# Function to install packages
+install_all <- function(packages) {
+  installed_pkgs <- installed.packages()[, "Package"]
+  for (pkg in packages) {
+    if (!pkg %in% installed_pkgs) {
+      install.packages(pkg, repos = 'http://cran.us.r-project.org')
+    }
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# Packages to be installed
+packages <- c("Rcpp", "mgcv", "sandwich", "pcse", "fixest", "foreach",
+              "doParallel", "lfe", "lmtest", "Lmoments", "ggplot2", 
+              "plotrix", "grid", "gridExtra", "ggplotify", "ggpubr",
+              "RColorBrewer", "grDevices", "gtable", "MASS", "mvtnorm", 
+              "pROC", "ModelMetrics", "foreign","patchwork", "rmarkdown", "DT")
+
+# Install the packages
+install_all(packages)
+
+```
+
+## Datasets
+
+The **interflex** package incorporates several datasets:
+
+```{r}
+library(interflex)
+data(interflex)
+ls()
+```
+
+-   `s1-s9`: simulation data
+-   `app_hma2015`: Data from Huddy 2015, where they study the effect of expressive model of partisanship.
+
+
+## Set up, estimand, and identification assumption
+
+Understanding conditional relationships is central to social science. Researchers are particularly interested in how the effect of a treatment \( D \) on an outcome \( Y \) changes with the value of a pre-determined covariate \( X \), known as the moderator, which is unaffected by \( D \). research. To formalize this problem better, we introduce the setup and estimand using the Neyman-Rubin potential outcome framework and notation. 
+
+Consider a study with $n$ units, indexed by $i = 1, 2, \dots, n$. These units are independently and identically distributed (i.i.d.) from an infinite population denoted by $\mathcal{P}$, the super-population. 
+For each unit $i$, we observe the quadruple $(Y_i, D_{i}, X_i, Z_i)$, where $Y_i$ denotes the outcome of interest, $D_{i}$ is the treatment indicator, and $V_i = (X_i, Z_i)$ represents a set of covariates not causally affected by the treatment and comprises two components: the moderator of interest $X_i \in \mathcal{X}$, which can be either discrete or continuous, and the remaining covariates used for identification $Z_i \in \mathcal{Z}$, which can be potentially high-dimensional. 
+
+Given a sets of assumption, including random sampling, stable unit treatment value assumption (SUTVA), we define Conditional Marginal Effect (CME) with binary treatment as: 
+
+\begin{equation*}
+\theta(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x].
+\end{equation*} 
+
+And CME with continuous treatment: 
+
+\begin{equation*}  
+\theta(x)\;=\;\mathbb{E}\!\big[\,\mu_d(D,X,Z)\ \big|\ X=x\big].
+\end{equation*} 
+where the dose–response function $\mu(d,x,z) = \mathbb{E}\left[Y(d) \mid X = x, Z = z\right]$ describes how the expected potential outcome varies with the treatment level $d$, conditional on the covariates. The CME, $\theta(x)$, averages the unit-specific rates of change across units with the same value of the moderator $x$. 
+
+
+We further assume Unconfoundedness and Strict overlap as identification assumptions, which turn CME from causal estimand to statistical estimand for estimation in the coming chapters. 
+
+
