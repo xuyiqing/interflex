@@ -572,8 +572,8 @@ When fixed effects are not taken into account, the kernel estimates are also les
 ```{r fe5, results = "hide", cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
                        estimator = "kernel", FE = NULL, vartype = 'bootstrap',
-                       nboots = 1000, parallel = TRUE, 
-                       cores = 31,
+                       nboots = 200, parallel = TRUE, 
+                       cores = 10,
                        cl = "unit", weights = "wgt", theme.bw = TRUE)
 s4.kernel$figure
 ```
@@ -584,7 +584,7 @@ Controlling for fixed effects by using the `FE` option solves this problem. The 
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
                        estimator = "kernel", FE = c("unit","year"), cl = "unit"
                        ,vartype = 'bootstrap', theme.bw = TRUE,
-                       nboots = 1000, parallel = TRUE, cores = 31,weights = "wgt")
+                       nboots = 200, parallel = TRUE, cores = 10,weights = "wgt")
 s4.kernel$figure
 ```
 
@@ -594,7 +594,7 @@ With large datasets, cross-validation or bootstrapping can take a while. One way
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4, 
                        estimator = "kernel", bw = 0.62, FE = c("unit","year"), cl = "unit", 
                        vartype = 'bootstrap',
-                       nboots = 1000, parallel = TRUE, cores = 31,
+                       nboots = 200, parallel = TRUE, cores = 10,
                        CI = FALSE, 
                        ylim = c(-9, 15), theme.bw = TRUE)
 s4.kernel$figure
@@ -654,7 +654,7 @@ For dataset **s5**, because of the nonlinear interaction effects, the kernel est
 ```{r mta3, cache=TRUE, results = "hide", message=FALSE, fig.width = 6, fig.height = 4.5}
 s5.kernel <- interflex(Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), data = s5, 
                        estimator = "kernel", vartype = 'bootstrap',
-                       nboots = 1000, parallel = TRUE, cores = 31)
+                       nboots = 200, parallel = TRUE, cores = 10)
 s5.kernel$figure
 ```
 
@@ -701,7 +701,7 @@ Lastly, we can use the kernel estimator to get more consistent results.
 s9.kernel <- interflex(estimator = 'kernel', data = s9, 
                        Y ='Y', D = 'D', X = 'X', Z = c('Z1','Z2'),
                        method='logit',vartype = "bootstrap",
-                      nboots = 1000, parallel = TRUE, cores = 31)
+                      nboots = 200, parallel = TRUE, cores = 10)
 plot(s9.kernel)
 ```
 
@@ -732,7 +732,7 @@ As we have shown earlier with discrete outcome settings, **interflex** allows us
 ```{r ip3, fig.height=5, fig.width=8, cache=TRUE, results = "hide", message=FALSE}
 s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
                       data = s5, estimator = "kernel",vartype = 'bootstrap',
-                       nboots = 1000, parallel = TRUE, cores = 31)
+                       nboots = 200, parallel = TRUE, cores = 10)
 predict(s5.kernel, theme.bw = TRUE)
 ```
 
@@ -773,7 +773,7 @@ Obviously, the kernel estimator characterizes the data more better than a linear
 s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), data = s5, 
                       estimator = "kernel", diff.values = c(-2,0,2),
                       vartype = "bootstrap",
-                      nboots = 1000, parallel = TRUE, cores = 31,)
+                      nboots = 200, parallel = TRUE, cores = 10,)
 plot(s5.kernel,diff.values = c(-2,0,2), theme.bw = TRUE)
 ```
 

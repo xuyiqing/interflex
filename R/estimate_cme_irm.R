@@ -745,22 +745,22 @@ bootstrapCME <- function(
     cme_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
     idx_seq <- seq_len(n)
     
-    if (!requireNamespace("doParallel", quietly = TRUE)) {
-      stop("Package 'doParallel' not installed. Please install or remove parallel usage.")
+    if (!requireNamespace("doFuture", quietly = TRUE)) {
+      stop("Package 'doFuture' required for parallel bootstrap.")
     }
-    nCores <- cores
-    cl <- parallel::makeCluster(nCores)
-    doParallel::registerDoParallel(cl)
+    doFuture::registerDoFuture()
+    future::plan(future::multisession, workers = cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
     `%dopar%` <- foreach::`%dopar%`
-    
+
     if (verbose) message("BootstrapCME Step 3: Starting bootstrap loop...")
     res_list <- foreach::foreach(
       b = 1:B,
       .combine = "rbind",
       .export  = "estimateCME",
-      .packages = c("splines","glmnet","mgcv")
+      .packages = c("splines","glmnet","mgcv"),
+      .options.future = list(seed = TRUE)
     ) %dopar% {
-      set.seed(1000 + b)
       idx_b <- sample(idx_seq, size = n, replace = TRUE)
       data_b <- data[idx_b, , drop = FALSE]
       XZ_b <- XZ_full[idx_b, , drop = FALSE]
@@ -792,7 +792,6 @@ bootstrapCME <- function(
       )
       fit_b$cme_df$CME
     }
-    parallel::stopCluster(cl)
     if (verbose) message("BootstrapCME Step 4: Bootstrap loop complete.")
     
     cme_mat_bs[,] <- res_list

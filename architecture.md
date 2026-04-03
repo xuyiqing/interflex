@@ -1,7 +1,7 @@
 # Architecture — interflex
 
-> Updated by scribe for run `py-to-r-dml-001` on 2026-03-16.
-> Previous runs: `interflex-dml-refactor-20260315-212459` (2026-03-15 — utils.R refactoring), `merge-bs-dml-20260316-032034` (2026-03-16 — merge bs features into dml), `py-to-r-dml-001` (2026-03-16 — Python-to-R DML migration).
+> Updated by scriber for run `REQ-20260403-080941` on 2026-04-03.
+> Previous runs: `interflex-dml-refactor-20260315-212459` (2026-03-15 — utils.R refactoring), `merge-bs-dml-20260316-032034` (2026-03-16 — merge bs features into dml), `py-to-r-dml-001` (2026-03-16 — Python-to-R DML migration), `REQ-20260403-080941` (2026-04-03 — parallel RNG migration from doParallel to doFuture).
 
 ## Overview
 
@@ -105,20 +105,16 @@ graph TD
     SDL --> MNP
     DML --> UNI
 
-    style DML fill:#1e90ff,stroke:#1565c0,color:#fff
-    style SDL fill:#1e90ff,stroke:#1565c0,color:#fff
-    style MRF fill:#1e90ff,stroke:#1565c0,color:#fff
-    style MBP fill:#1e90ff,stroke:#1565c0,color:#fff
-    style MNP fill:#1e90ff,stroke:#1565c0,color:#fff
-    style BTG fill:#1e90ff,stroke:#1565c0,color:#fff
-    style CCB fill:#1e90ff,stroke:#1565c0,color:#fff
-    style CGB fill:#1e90ff,stroke:#1565c0,color:#fff
-    style EPS fill:#1e90ff,stroke:#1565c0,color:#fff
-    style SSV fill:#1e90ff,stroke:#1565c0,color:#fff
-    style RDE fill:#1e90ff,stroke:#1565c0,color:#fff
+    style LIN fill:#1e90ff,stroke:#1565c0,color:#fff
+    style BIN fill:#1e90ff,stroke:#1565c0,color:#fff
+    style KER fill:#1e90ff,stroke:#1565c0,color:#fff
+    style CME_I fill:#1e90ff,stroke:#1565c0,color:#fff
+    style CME_P fill:#1e90ff,stroke:#1565c0,color:#fff
+    style GTE_I fill:#1e90ff,stroke:#1565c0,color:#fff
+    style GTE_P fill:#1e90ff,stroke:#1565c0,color:#fff
 ```
 
-> One unified diagram. Subgraph layers group related modules. Blue fill = modified/created in this run.
+> One unified diagram. Subgraph layers group related modules. Blue fill = modified in this run (parallel RNG migration).
 
 ### Module Reference
 
@@ -129,26 +125,26 @@ graph TD
 | `R/predict.R` | API | S3 `predict.interflex()` method; computes predicted marginal effects at new X values | `predict.interflex()` | no |
 | `R/inter_test.R` | API | Post-estimation t-test for difference in marginal effects (dml style) | `inter.test()` | no |
 | `R/ttest.R` | API | Post-estimation t-test for difference in marginal effects (bs copy) | `inter.test()` | no |
-| `R/linear.R` | Estimator | Linear interaction model with delta/bootstrap/simulation variance | `interflex.linear()` | no |
-| `R/binning.R` | Estimator | Binning estimator: splits X into bins, estimates within-bin effects | `interflex.binning()` | no |
-| `R/kernel.R` | Estimator | Kernel estimator: local polynomial regression with bandwidth selection | `interflex.kernel()` | no |
+| `R/linear.R` | Estimator | Linear interaction model with delta/bootstrap/simulation variance | `interflex.linear()` | **yes** |
+| `R/binning.R` | Estimator | Binning estimator: splits X into bins, estimates within-bin effects | `interflex.binning()` | **yes** |
+| `R/kernel.R` | Estimator | Kernel estimator: local polynomial regression with bandwidth selection | `interflex.kernel()` | **yes** |
 | `R/gam.R` | Estimator | GAM estimator via `mgcv::gam()` with 3D visualization | `interflex.gam()` | no |
 | `R/raw.R` | Estimator | Raw data scatter plots with LOESS smoothing | `interflex.raw()` | no |
 | `R/grf.R` | Estimator | Generalized random forests via `grf::causal_forest()` | `interflex.grf()` | no |
-| `R/DML.R` | Estimator | **Pure R DML via DoubleML + mlr3** (formerly Python/reticulate) | `interflex.dml()` | **yes — rewritten** |
+| `R/DML.R` | Estimator | **Pure R DML via DoubleML + mlr3** (formerly Python/reticulate) | `interflex.dml()` | no |
 | `R/lasso.R` | Estimator | Lasso/ridge DML for continuous moderators; calls CME/GTE sub-estimators | `interflex.lasso()` | no |
 | `R/lasso_discrete.R` | Estimator | Lasso/ridge DML for discrete moderators (<5 unique X values) | `interflex.lasso_discrete()` | no |
-| `R/estimate_cme_irm.R` | DML Sub | CME estimation via AIPW-Lasso (binary treatment, IRM) | `estimateCME_IRM()` | no |
-| `R/estimate_cme_plr.R` | DML Sub | CME estimation via PO-Lasso (continuous treatment, PLRM) | `estimateCME_PLR()` | no |
-| `R/estimate_gte_irm.R` | DML Sub | Group treatment effects via AIPW-Lasso (binary treatment, discrete X) | `estimateGTE_IRM()` | no |
-| `R/estimate_gte_plr.R` | DML Sub | Group treatment effects via PO-Lasso (continuous treatment, discrete X) | `estimateGTE_PLR()` | no |
+| `R/estimate_cme_irm.R` | DML Sub | CME estimation via AIPW-Lasso (binary treatment, IRM) | `estimateCME_IRM()` | **yes** |
+| `R/estimate_cme_plr.R` | DML Sub | CME estimation via PO-Lasso (continuous treatment, PLRM) | `estimateCME_PLR()` | **yes** |
+| `R/estimate_gte_irm.R` | DML Sub | Group treatment effects via AIPW-Lasso (binary treatment, discrete X) | `estimateGTE_IRM()` | **yes** |
+| `R/estimate_gte_plr.R` | DML Sub | Group treatment effects via PO-Lasso (continuous treatment, discrete X) | `estimateGTE_PLR()` | **yes** |
 | `R/plot_pool.R` | Output | Pooled multi-treatment plot with overlaid CIs | `interflex.plot.pool()` | no |
 | `R/utils.R` | Utils | Shared internal helpers: treat.info extraction, density, histograms | (internal: dot-prefixed) | no |
 | `R/uniform.R` | Utils | Uniform confidence interval quantiles via bootstrap/delta method | `calculate_uniform_quantiles()`, `calculate_delta_uniformCI()` | no |
 | `R/vcluster.R` | Utils | Cluster-robust variance-covariance matrix computation | `vcovCluster()` | no |
 | `R/RcppExports.R` | Utils | Auto-generated Rcpp bindings (do not edit) | `rcpparma_hello_world()`, etc. | no |
-| `DESCRIPTION` | Config | Package metadata; Imports, Depends, LinkingTo | N/A | **yes** |
-| `NAMESPACE` | Config | Export pattern, S3 methods, importFrom declarations | N/A | **yes** |
+| `DESCRIPTION` | Config | Package metadata; Imports, Depends, LinkingTo | N/A | **yes** (doFuture, doRNG added) |
+| `NAMESPACE` | Config | Export pattern, S3 methods, importFrom declarations | N/A | no |
 | `inst/python/dml.py` | ~~Python~~ | ~~DML estimation engine~~ | ~~`marginal_effect_for_treatment()`~~ | **deleted** |
 
 ---
@@ -189,16 +185,9 @@ graph TD
     GATE --> SSV
     DML --> UNI["calculate_delta_uniformCI()"]
 
-    style DML fill:#1e90ff,stroke:#1565c0,color:#fff
-    style RDE fill:#1e90ff,stroke:#1565c0,color:#fff
-    style SDL fill:#1e90ff,stroke:#1565c0,color:#fff
-    style BTG fill:#1e90ff,stroke:#1565c0,color:#fff
-    style DMLFIT fill:#1e90ff,stroke:#1565c0,color:#fff
-    style CATE fill:#1e90ff,stroke:#1565c0,color:#fff
-    style GATE fill:#1e90ff,stroke:#1565c0,color:#fff
-    style EPS fill:#1e90ff,stroke:#1565c0,color:#fff
-    style SSV fill:#1e90ff,stroke:#1565c0,color:#fff
-    style UNI fill:#1e90ff,stroke:#1565c0,color:#fff
+    style LIN fill:#1e90ff,stroke:#1565c0,color:#fff
+    style BIN fill:#1e90ff,stroke:#1565c0,color:#fff
+    style KER fill:#1e90ff,stroke:#1565c0,color:#fff
 ```
 
 ### Output Pipeline
@@ -225,17 +214,17 @@ graph TD
 | `plot.interflex()` | `R/plot.R` | user (S3 method) | `interflex.plot.pool()` | no | Render marginal effect plots |
 | `predict.interflex()` | `R/predict.R` | user (S3 method) | ggplot2 | no | Compute and plot predicted marginal effects |
 | `inter.test()` | `R/inter_test.R` | user (exported) | mgcv::gam | no | Test differences in marginal effects |
-| `interflex.dml()` | `R/DML.R` | `interflex()` | `.run_dml_estimation`, `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `calculate_delta_uniformCI` | **yes — rewritten** | Pure R DML estimation via DoubleML + mlr3 |
-| `.run_dml_estimation()` | `R/DML.R` | `interflex.dml()` | `.set_dml_learner`, `.build_dml_tuning_grid`, `.compute_cate_blp`, `.compute_gate_blp`, `DoubleML::DoubleMLIRM`, `DoubleML::DoubleMLPLR` | **new** | Core DML worker: data setup, learners, tuning, fit, CATE/GATE |
-| `.set_dml_learner()` | `R/DML.R` | `.run_dml_estimation` | `.map_rf_params`, `.map_boosting_params`, `.map_nn_params`, `mlr3::lrn` | **new** | Map model name string to mlr3 learner object |
-| `.map_rf_params()` | `R/DML.R` | `.set_dml_learner` | — | **new** | Translate sklearn RF param names to ranger equivalents |
-| `.map_boosting_params()` | `R/DML.R` | `.set_dml_learner` | — | **new** | Translate sklearn HGB param names to lightgbm equivalents |
-| `.map_nn_params()` | `R/DML.R` | `.set_dml_learner` | — | **new** | Translate sklearn MLP param names to nnet equivalents |
-| `.build_dml_tuning_grid()` | `R/DML.R` | `.run_dml_estimation` | `paradox::ps`, `paradox::p_int`, `paradox::p_dbl` | **new** | Convert user param grids to paradox ParamSet for DoubleML tuning |
-| `.compute_cate_blp()` | `R/DML.R` | `.run_dml_estimation` | `.extract_psi`, `.safe_solve`, `splines::bs` | **new** | CATE via BLP of pseudo-outcomes onto B-spline basis |
-| `.compute_gate_blp()` | `R/DML.R` | `.run_dml_estimation` | `.extract_psi`, `.safe_solve` | **new** | GATE via BLP of pseudo-outcomes onto group dummies |
-| `.extract_psi()` | `R/DML.R` | `.compute_cate_blp`, `.compute_gate_blp` | — | **new** | Extract per-observation influence function values from DML model |
-| `.safe_solve()` | `R/DML.R` | `.compute_cate_blp`, `.compute_gate_blp` | — | **new** | Matrix inversion with ridge regularization fallback |
+| `interflex.dml()` | `R/DML.R` | `interflex()` | `.run_dml_estimation`, `.extract_treat_info`, `.compute_density`, `.compute_histograms`, `calculate_delta_uniformCI` | no | Pure R DML estimation via DoubleML + mlr3 |
+| `.run_dml_estimation()` | `R/DML.R` | `interflex.dml()` | `.set_dml_learner`, `.build_dml_tuning_grid`, `.compute_cate_blp`, `.compute_gate_blp`, `DoubleML::DoubleMLIRM`, `DoubleML::DoubleMLPLR` | no | Core DML worker: data setup, learners, tuning, fit, CATE/GATE |
+| `.set_dml_learner()` | `R/DML.R` | `.run_dml_estimation` | `.map_rf_params`, `.map_boosting_params`, `.map_nn_params`, `mlr3::lrn` | no | Map model name string to mlr3 learner object |
+| `.map_rf_params()` | `R/DML.R` | `.set_dml_learner` | — | no | Translate sklearn RF param names to ranger equivalents |
+| `.map_boosting_params()` | `R/DML.R` | `.set_dml_learner` | — | no | Translate sklearn HGB param names to lightgbm equivalents |
+| `.map_nn_params()` | `R/DML.R` | `.set_dml_learner` | — | no | Translate sklearn MLP param names to nnet equivalents |
+| `.build_dml_tuning_grid()` | `R/DML.R` | `.run_dml_estimation` | `paradox::ps`, `paradox::p_int`, `paradox::p_dbl` | no | Convert user param grids to paradox ParamSet for DoubleML tuning |
+| `.compute_cate_blp()` | `R/DML.R` | `.run_dml_estimation` | `.extract_psi`, `.safe_solve`, `splines::bs` | no | CATE via BLP of pseudo-outcomes onto B-spline basis |
+| `.compute_gate_blp()` | `R/DML.R` | `.run_dml_estimation` | `.extract_psi`, `.safe_solve` | no | GATE via BLP of pseudo-outcomes onto group dummies |
+| `.extract_psi()` | `R/DML.R` | `.compute_cate_blp`, `.compute_gate_blp` | — | no | Extract per-observation influence function values from DML model |
+| `.safe_solve()` | `R/DML.R` | `.compute_cate_blp`, `.compute_gate_blp` | — | no | Matrix inversion with ridge regularization fallback |
 | `.extract_treat_info()` | `R/utils.R` | 9 estimators | — | no | Unpack treat.info list into local variables |
 | `.compute_density()` | `R/utils.R` | 7 estimators | `stats::density` | no | Compute kernel density estimates |
 | `.compute_histograms()` | `R/utils.R` | 7 estimators | `graphics::hist` | no | Compute histogram bin counts |
@@ -272,14 +261,6 @@ graph TD
     CI --> BUILDOUT["Build output data.frames"]
     BUILDOUT --> RETURN["Return interflex object"]
 
-    style DMLENTRY fill:#1e90ff,stroke:#1565c0,color:#fff
-    style RDE fill:#1e90ff,stroke:#1565c0,color:#fff
-    style LEARNERS fill:#1e90ff,stroke:#1565c0,color:#fff
-    style DMLDATA fill:#1e90ff,stroke:#1565c0,color:#fff
-    style PSI fill:#1e90ff,stroke:#1565c0,color:#fff
-    style CATE fill:#1e90ff,stroke:#1565c0,color:#fff
-    style GATECALC fill:#1e90ff,stroke:#1565c0,color:#fff
-    style CI fill:#1e90ff,stroke:#1565c0,color:#fff
 ```
 
 ---
@@ -377,6 +358,15 @@ The DML estimator was fully rewritten from Python/reticulate to pure R:
 | `lightgbm` | Gradient boosting backend (non-default) | Suggests |
 | `nnet` | Neural network backend (non-default) | Suggests |
 
+### Parallel RNG Dependencies (New in This Run)
+
+| Package | Role | Import Type |
+| --- | --- | --- |
+| `doFuture` | Future-based foreach backend; registers via `registerDoFuture()` | Imports |
+| `doRNG` | Ensures L'Ecuyer-CMRG streams with `.options.future = list(seed = TRUE)` | Imports |
+| `future` | Plan-based parallel execution (`plan(multisession)`) | Imports (pre-existing) |
+| `parallelly` | `availableCores()` for robust core detection in legacy files | Imports (pre-existing) |
+
 ### Dependencies Removed
 
 | Package | Reason |
@@ -412,7 +402,9 @@ Three internal utility functions in `R/utils.R` consolidate previously duplicate
 
 - **Parameter compatibility layer** (new): The DML estimator accepts sklearn-style parameter names (e.g., `n_estimators`, `hidden_layer_sizes`) and maps them to R equivalents (e.g., `num.trees`, `size`) via `.map_*_params()` helpers. This preserves API compatibility for users migrating from the Python backend.
 
-- **Manual BLP for CATE/GATE** (new): Since the R DoubleML package lacks `.cate()` and `.gate()` methods available in the Python version, CATE and GATE are computed via Best Linear Projection of pseudo-outcomes onto basis functions, with HC sandwich variance estimation.
+- **Manual BLP for CATE/GATE**: Since the R DoubleML package lacks `.cate()` and `.gate()` methods available in the Python version, CATE and GATE are computed via Best Linear Projection of pseudo-outcomes onto basis functions, with HC sandwich variance estimation.
+
+- **doFuture parallel backend** (new): All parallel `foreach` loops use `doFuture::registerDoFuture()` + `future::plan(future::multisession, workers = cores)` as the backend, with `.options.future = list(seed = TRUE)` for reproducible L'Ecuyer-CMRG parallel RNG streams. Cleanup uses `on.exit(future::plan(future::sequential), add = TRUE)` for safe teardown on both normal and error paths. This replaces the previous `doParallel` backend and manual `set.seed()` calls that did not produce reproducible results under parallel execution.
 
 ---
 
@@ -420,7 +412,10 @@ Three internal utility functions in `R/utils.R` consolidate previously duplicate
 
 - **Previous run (refactor, 2026-03-15)**: -506 lines across 21 files. ~500 lines of duplicated code consolidated into `R/utils.R`. ~700 redundant boolean comparisons cleaned.
 - **Previous run (bs merge, 2026-03-16)**: 5 files created, 4 files modified. Selectively integrated bs branch features (ttest.R, B-spline expansion, parameter defaults).
-- **This run (Python-to-R DML migration, 2026-03-16)**: `R/DML.R` completely rewritten (~244 lines old to ~430 lines new). `inst/python/dml.py` deleted (298 lines). `DESCRIPTION` updated (reticulate removed, DoubleML/mlr3 ecosystem added). `NAMESPACE` updated (reticulate imports removed). Users no longer need Python, Miniconda, or any Python packages to use the DML estimator.
+- **Previous run (Python-to-R DML migration, 2026-03-16)**: `R/DML.R` completely rewritten (~244 lines old to ~430 lines new). `inst/python/dml.py` deleted (298 lines). `DESCRIPTION` updated (reticulate removed, DoubleML/mlr3 ecosystem added). `NAMESPACE` updated (reticulate imports removed). Users no longer need Python, Miniconda, or any Python packages to use the DML estimator.
+- **This run (parallel RNG migration, 2026-04-03)**: 7 R files modified (8 parallel blocks), DESCRIPTION updated. Replaced `doParallel::registerDoParallel()` with `doFuture::registerDoFuture()` + `future::plan(multisession)` across all parallel bootstrap/CV loops. Added `.options.future = list(seed = TRUE)` for reproducible L'Ecuyer-CMRG parallel RNG streams. Removed bare `set.seed()` from inside `%dopar%` bodies. Replaced `makeCluster`/`stopCluster` lifecycle with `future::plan()`/`on.exit(plan(sequential))`. Added `doFuture` and `doRNG` to DESCRIPTION Imports.
 - **Duplicate ttest files**: Both `R/ttest.R` and `R/inter_test.R` exist and both export `inter.test()`. A future cleanup should remove the duplicate.
 - **`n.jobs` parameter**: Kept in the DML function signature for API compatibility but not used internally. R DoubleML handles parallelism via the mlr3 future backend.
+- **`doRNG` in Imports but unused**: `doRNG` is listed in DESCRIPTION Imports but never called directly via `::`. R CMD check flags it as an unused import (adds to pre-existing "dependencies in R code" note). Consider moving to Suggests or adding a trivial `doRNG::` reference. Minor DESCRIPTION hygiene issue only.
+- **`doParallel` retained in Imports**: Not removed despite no longer being used for backend registration. May still be used by downstream dependencies or other code paths. Removal is a separate cleanup task.
 - **No formal test suite**: The package does not have tests under `tests/`. Validation relies on R CMD check and manual examples.

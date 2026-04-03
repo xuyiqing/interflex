@@ -771,17 +771,17 @@ interflex.kernel <- function(data,
 
         ## -----------------------------------------------------------------------------------
         if (parallel) {
-            requireNamespace("doParallel")
-            ## require(iterators)
-            maxcores <- detectCores()
+            maxcores <- parallelly::availableCores()
             cores <- min(maxcores, cores)
-            pcl <- future::makeClusterPSOCK(cores)
-            doParallel::registerDoParallel(pcl)
+            doFuture::registerDoFuture()
+            future::plan(future::multisession, workers = cores)
+            on.exit(future::plan(future::sequential), add = TRUE)
             cat("Parallel computing with", cores, "cores...\n")
             Error <- suppressWarnings(foreach(
                 bw = bw.grid, .combine = rbind,
                 .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
-                .inorder = FALSE
+                .inorder = FALSE,
+                .options.future = list(seed = TRUE)
             ) %dopar% {
                 cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
                 if ("try-error" %in% class(cv.output.sub)) {
@@ -790,8 +790,6 @@ interflex.kernel <- function(data,
                     return(cv.output.sub)
                 }
             })
-
-            suppressWarnings(stopCluster(pcl))
             # return(Error)
         } else {
             Error <- matrix(NA, length(bw.grid), 6)
@@ -2127,19 +2125,19 @@ interflex.kernel <- function(data,
             }
 
             if (parallel) {
-                requireNamespace("doParallel")
-                ## require(iterators)
-                maxcores <- detectCores()
+                maxcores <- parallelly::availableCores()
                 cores <- min(maxcores, cores)
-                pcl <- future::makeClusterPSOCK(cores)
-                doParallel::registerDoParallel(pcl)
+                doFuture::registerDoFuture()
+                future::plan(future::multisession, workers = cores)
+                on.exit(future::plan(future::sequential), add = TRUE)
                 cat("Parallel computing with", cores, "cores...\n")
 
                 suppressWarnings(
                     bootout <- foreach(
                         i = 1:nboots, .combine = cbind,
                         .export = c("one.boot"), .packages = c("MASS", "AER"),
-                        .inorder = FALSE
+                        .inorder = FALSE,
+                        .options.future = list(seed = TRUE)
                     ) %dopar% {
                         output.all <- try(one.boot(), silent = TRUE)
                         if ("try-error" %in% class(output.all)) {
@@ -2149,7 +2147,6 @@ interflex.kernel <- function(data,
                         }
                     }
                 )
-                suppressWarnings(stopCluster(pcl))
                 cat("\r")
             } else {
                 bootout <- matrix(NA, all.length, 0)

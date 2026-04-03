@@ -73,7 +73,7 @@ When the signal is set to `ipw`, we are effectively estimating the CME with an I
 aipw.out.outcome <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel, nboots = 1000,
+                 Xlabel = Xlabel, nboots = 200,
                  theme.bw = TRUE, signal = "outcome",
                  main = "Signal: outcome")
 

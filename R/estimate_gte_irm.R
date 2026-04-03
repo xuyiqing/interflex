@@ -423,8 +423,9 @@ bootstrapGTE <- function(
 
   if(isTRUE(CI)){
     if(verbose) message("2) Bootstrapping...")
-    cl <- parallel::makeCluster(cores)
-    doParallel::registerDoParallel(cl)
+    doFuture::registerDoFuture()
+    future::plan(future::multisession, workers = cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
     `%dopar%` <- foreach::`%dopar%`
     idx <- seq_len(n)
 
@@ -432,9 +433,9 @@ bootstrapGTE <- function(
       b = seq_len(B),
       .combine  = "rbind",
       .export = c("estimateGTE"),
-      .packages = c("glmnet","splines")
+      .packages = c("glmnet","splines"),
+      .options.future = list(seed = TRUE)
     ) %dopar% {
-      set.seed(1000 + b)
       ids    <- sample(idx, n, replace=TRUE)
       dat_b  <- data[ids,   , drop=FALSE]
       XZ_b   <- XZ0[ ids,   , drop=FALSE]
@@ -462,7 +463,6 @@ bootstrapGTE <- function(
       )
       fit_b$gte_df$GTE
     }
-    parallel::stopCluster(cl)
 
     if(verbose) message("3) Computing SE & CIs...")
     se   <- apply(res_mat, 2, sd, na.rm=TRUE)

@@ -610,12 +610,12 @@ bootstrapCME_PLR <- function(
     # 3. Set up parallel backend
     ###########################################################################
     if (verbose) cat("BootstrapPLR Step 3: Setting up parallel backend...\n")
-    if (!requireNamespace("doParallel", quietly = TRUE)) {
-      stop("Package 'doParallel' is required for parallel bootstrap.")
+    if (!requireNamespace("doFuture", quietly = TRUE)) {
+      stop("Package 'doFuture' required for parallel bootstrap.")
     }
-    nCores <- cores
-    cl     <- parallel::makeCluster(nCores)
-    doParallel::registerDoParallel(cl)
+    doFuture::registerDoFuture()
+    future::plan(future::multisession, workers = cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
 
     ###########################################################################
     # 4. Parallel bootstrap loop
@@ -627,9 +627,9 @@ bootstrapCME_PLR <- function(
       b = 1:B,
       .combine  = "rbind",
       .export   = "estimateCME_PLR",
-      .packages = c("splines","glmnet","interflex")
+      .packages = c("splines","glmnet","interflex"),
+      .options.future = list(seed = TRUE)
     ) %dopar% {
-      set.seed(b + 1234)
 
       # (a) Resample indices and data
       idx_b  <- sample(idx_seq, size = n, replace = TRUE)
@@ -666,8 +666,6 @@ bootstrapCME_PLR <- function(
       c(fit_b$cme_df$CME_fit)
     }
 
-    # Stop parallel cluster
-    parallel::stopCluster(cl)
     if (verbose) cat("  -> Bootstrap loop complete.\n")
 
     # Fill fit_mat_bs with bootstrap results

@@ -324,20 +324,21 @@ bootstrapGATE_PLR <- function(
   if(isTRUE(CI)){
     # 2) Parallel bootstrap ----------------------------------------------------
     if (verbose) message("BootstrapGATE_PLR: launching cluster...")
-    if (!requireNamespace("doParallel", quietly=TRUE)) {
-      stop("Package 'doParallel' required for parallel bootstrap.")
+    if (!requireNamespace("doFuture", quietly=TRUE)) {
+      stop("Package 'doFuture' required for parallel bootstrap.")
     }
-    cl <- parallel::makeCluster(cores)
-    doParallel::registerDoParallel(cl)
+    doFuture::registerDoFuture()
+    future::plan(future::multisession, workers = cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
 
     if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws...")
     res_mat <- foreach::foreach(
       b = seq_len(B),
       .combine  = "rbind",
       .export   = "estimateGATE_PLR",
-      .packages = c("glmnet","splines")
+      .packages = c("glmnet","splines"),
+      .options.future = list(seed = TRUE)
     ) %dopar% {
-      set.seed(1000 + b)
       idx <- sample(n, n, replace = TRUE)
       db  <- data[idx, , drop = FALSE]
       XZb <- XZ0[idx, , drop = FALSE]
@@ -368,7 +369,6 @@ bootstrapGATE_PLR <- function(
         if (length(pos)==1) fb$gate_df$GATE[pos] else NA_real_
       })
     }
-    parallel::stopCluster(cl)
 
     # 3) Compute SE & CIs -------------------------------------------------------
     if (verbose) message("BootstrapGATE_PLR: summarizing draws...")
