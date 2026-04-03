@@ -20,7 +20,7 @@ interflex.binning <- function(data,
 								nboots = 200,
 								nsimu = 1000,
 								parallel = TRUE,
-								cores = 4,
+								cores = NULL,
 								cl = NULL, # variable to be clustered on
 								#predict = FALSE,
 								Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value

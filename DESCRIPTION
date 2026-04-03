@@ -9,7 +9,7 @@ Authors@R: c(person("Jens Hainmueller", role=c("aut")),
 	     person("Jiehan Liu", role=c("aut")),
 	     person("Ziyi Liu", role=c("aut")),
 	     person("Yiqing Xu", role=c("aut","cre"), email = "yiqingxu@stanford.edu"))
-Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
+Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator. Optionally integrates with the 'mlr3extralearners' package for additional machine learning backends. 'mlr3extralearners' is not on CRAN but can be obtained from <https://github.com/mlr-org/mlr3extralearners>.
 URL: https://yiqingxu.org/packages/interflex/
 License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
@@ -18,7 +18,8 @@ Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         RColorBrewer, pcse, gtable, MASS, mvtnorm, pROC,
         ModelMetrics, Rcpp, lmtest, AER, future,
         splines, glmnet, grf,
-        DoubleML, mlr3, mlr3learners, data.table, paradox, ranger
+        DoubleML, mlr3, mlr3learners, data.table, paradox, ranger,
+        parallelly
 Suggests: mlr3tuning, nnet, mlr3extralearners, lightgbm
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true

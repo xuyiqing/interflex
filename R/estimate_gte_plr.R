@@ -289,6 +289,7 @@ bootstrapGATE_PLR <- function(
   spline_degree        = 2,
   lambda_seq           = NULL,
   CI = TRUE,
+  cores = 8,
   verbose              = TRUE
 ) {
   # 1) Prep & full-sample fit ------------------------------------------------
@@ -326,7 +327,7 @@ bootstrapGATE_PLR <- function(
     if (!requireNamespace("doParallel", quietly=TRUE)) {
       stop("Package 'doParallel' required for parallel bootstrap.")
     }
-    cl <- parallel::makeCluster(parallel::detectCores())
+    cl <- parallel::makeCluster(cores)
     doParallel::registerDoParallel(cl)
 
     if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws...")

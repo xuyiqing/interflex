@@ -696,6 +696,7 @@ bootstrapCME <- function(
     neval = 100, 
     x.eval             = NULL,
     CI = TRUE,
+    cores = 8,
     verbose = TRUE
 ) {
   if (verbose) message("BootstrapCME Step 1: Running baseline CME estimation on full data...")
@@ -747,7 +748,7 @@ bootstrapCME <- function(
     if (!requireNamespace("doParallel", quietly = TRUE)) {
       stop("Package 'doParallel' not installed. Please install or remove parallel usage.")
     }
-    nCores <- parallel::detectCores()
+    nCores <- cores
     cl <- parallel::makeCluster(nCores)
     doParallel::registerDoParallel(cl)
     `%dopar%` <- foreach::`%dopar%`

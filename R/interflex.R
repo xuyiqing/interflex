@@ -24,7 +24,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       nboots = 200,
                       nsimu = 1000,
                       parallel = FALSE,
-                      cores = 4,
+                      cores = NULL,
                       cl = NULL, # variable to be clustered on
                       Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
                       D.ref = NULL, # default to the mean of D when plotting marginal effects
@@ -316,14 +316,17 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     # Cores
-    if (!is.numeric(cores)) {
-        stop("\"cores\" is not a positive integer.")
+    if (is.null(cores)) {
+        cores <- max(1L, min(parallelly::availableCores(omit = 2L), 8L))
     } else {
-        cores <- cores[1]
-        if (cores %% 1 != 0 | cores <= 0) {
+        if (!is.numeric(cores) || cores[1] %% 1 != 0 || cores[1] <= 0) {
             stop("\"cores\" is not a positive integer.")
         }
+        cores <- cores[1]
     }
+    avail <- parallelly::availableCores()
+    cat(sprintf("Parallel computing: using %d of %d available cores.\n", cores, avail))
+    cat("To change: set cores = <n> in interflex().\n")
 
 
     ## check missing values
@@ -1328,6 +1331,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 spline.df = spline.df,
                 spline.degree = spline.degree,
                 lambda.seq = lambda.seq,
+                cores = cores,
                 verbose = TRUE,
                 treat.info = treat.info,
                 diff.info = diff.info,
@@ -1385,6 +1389,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 spline.degree = spline.degree,
                 lambda.seq = lambda.seq,
                 reduce.dimension = reduce.dimension,
+                cores = cores,
                 verbose = TRUE,
                 treat.info = treat.info,
                 diff.info = diff.info,

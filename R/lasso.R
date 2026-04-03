@@ -29,6 +29,7 @@ interflex.lasso <- function(data,
                          bw                 = NULL,
                          best.span          = NULL,
                          x.eval             = NULL,
+                         cores              = 8,
                          verbose            = TRUE,
                          figure             = TRUE,
                          show.uniform.CI    = TRUE,
@@ -145,9 +146,10 @@ interflex.lasso <- function(data,
         x.eval               = x.eval,
         neval = neval,
         CI = CI,
+        cores = cores,
         verbose              = verbose
       )
-      
+
       TE.output.all <- data.frame(result$results, check.names = FALSE)
       TE.output.all.list[[ other.treat.origin[char] ]] <- TE.output.all
       fit_full.list[[ other.treat.origin[char] ]] <- result$fit_full
@@ -186,6 +188,7 @@ interflex.lasso <- function(data,
       x.eval                = x.eval,
       neval = neval,
       CI = CI,
+      cores = cores,
       verbose               = verbose
     )
     TE.output.all <- data.frame(result$results, check.names = FALSE)

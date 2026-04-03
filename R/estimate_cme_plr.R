@@ -545,6 +545,7 @@ bootstrapCME_PLR <- function(
     x.eval               = NULL,     # grid of X values for final CME curve
     neval = 100,
     CI = TRUE,
+    cores = 8,
     verbose              = TRUE
 ) {
   basis_type       <- match.arg(basis_type)
@@ -612,7 +613,7 @@ bootstrapCME_PLR <- function(
     if (!requireNamespace("doParallel", quietly = TRUE)) {
       stop("Package 'doParallel' is required for parallel bootstrap.")
     }
-    nCores <- parallel::detectCores()
+    nCores <- cores
     cl     <- parallel::makeCluster(nCores)
     doParallel::registerDoParallel(cl)
 

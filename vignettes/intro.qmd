@@ -2,93 +2,58 @@
 
 ## Installation
 
-To use the **interflex** package, please install directly from Github:
+To install **interflex** from CRAN, run the code chunk below:
 
-```{r, eval=FALSE}
-
-# if not already installed
-install.packages('devtools', repos = 'http://cran.us.r-project.org') 
-devtools::install_github('xuyiqing/interflex@dml', force = TRUE)
+```{r install-cran, eval=FALSE, message=FALSE, warning=FALSE}
+install.packages("interflex")
 ```
 
-### Python environment setup
+We recommend users to install the most up-to-date, stable version of **interflex** from GitHub using:
 
-To use estimators in **interflex**, we rely on several Python packages. The integration between R and Python is facilitated by the **reticulate** package, which allows R to interface with Python seamlessly. The following steps set up a Python environment with all required dependencies.
-
-First, install the **reticulate** package in R. This package enables R to interface with Python.
-
-```{r, eval=FALSE}
-install.packages("reticulate", repos = 'http://cran.us.r-project.org')
+```{r install-github-main, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("xuyiqing/interflex")
 ```
 
-Then, we use [Miniconda](https://docs.anaconda.com/free/miniconda/), a minimal installer for Conda. Miniconda helps manage Python environments and packages. By default, the installation process will create a virtual environment named `r-reticulate`.
+We fix bugs in the `dev` branch before merging into the main branch; therefore, it is often more up to date.
 
-```{r, eval=FALSE}
-reticulate::install_miniconda(update = TRUE)
+```{r install-github-dev, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("xuyiqing/interflex@dev")
 ```
 
-With Miniconda installed, we point to the platform using `use_condaenv`. This step is incorporated in the **interflex** package.
+After installation, check **interflex** version to make sure the package is up-to-date.
 
-```{r, eval=FALSE}
-reticulate::use_condaenv(condaenv = "r-reticulate")
+```{r check-version}
+installed.packages()["interflex", "Version"]
 ```
 
-Finally, we install the necessary Python libraries. These libraries include tools for statistical modeling and machine learning that are essential for using the **interflex** package.
+### Optional GitHub-only dependencies
 
-```{r, eval=FALSE}
-reticulate::py_install(packages = c("patsy", "numpy", "pandas",
-                                    "scikit-learn", "doubleml", "econml"))
+**interflex** optionally integrates with the **mlr3extralearners** package for additional machine learning backends. **mlr3extralearners** is not on CRAN but can be installed from GitHub:
+
+```{r install-mlr3extra, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("mlr-org/mlr3extralearners")
 ```
 
-Some Mac users may encounter a “\*\*\* caught segfault \*\*\*” error. In that case, we recommend setting up a virtual environment. In Terminal, type:
+### Dependencies
 
-```         
-python3 -m venv ~/.virtualenvs/myenv source ~/.virtualenvs/myenv/bin/activate
-```
+**interflex** depends on the following packages, which should be installed automatically when **interflex** is being installed. You can also install them manually.
 
-Then install all Python packages there:
-
-```         
-pip install numpy
-pip install patsy
-pip install pandas
-pip install scikit-learn
-pip install econml
-pip install doubleml
-```
-
-In R, point to the newly set up environment `myenv`:
-
-```{r, eval=FALSE}
-reticulate::use_virtualenv("myenv")
-```
-
-### **Load packages**
-
-**interflex** depends on the following packages, which will be installed automatically when **interflex** is being installed; if not, please install them manually:
-
-```{r eval=FALSE, message=FALSE}
-# Function to install packages
+```{r install-dependencies, eval=FALSE}
 install_all <- function(packages) {
   installed_pkgs <- installed.packages()[, "Package"]
   for (pkg in packages) {
     if (!pkg %in% installed_pkgs) {
-      install.packages(pkg, repos = 'http://cran.us.r-project.org')
+      install.packages(pkg)
     }
-    library(pkg, character.only = TRUE)
   }
 }
-
-# Packages to be installed
-packages <- c("Rcpp", "mgcv", "sandwich", "pcse", "fixest", "foreach",
-              "doParallel", "lfe", "lmtest", "Lmoments", "ggplot2", 
-              "plotrix", "grid", "gridExtra", "ggplotify", "ggpubr",
-              "RColorBrewer", "grDevices", "gtable", "MASS", "mvtnorm", 
-              "pROC", "ModelMetrics", "foreign","patchwork", "rmarkdown", "DT")
-
-# Install the packages
+packages <- c("Rcpp", "RcppArmadillo", "ggplot2", "sandwich", "Lmoments",
+              "doParallel", "foreach", "mgcv", "lfe", "gridExtra", "grid",
+              "ggplotify", "fixest", "RColorBrewer", "pcse", "gtable",
+              "MASS", "mvtnorm", "pROC", "ModelMetrics", "lmtest", "AER",
+              "future", "glmnet", "grf",
+              "DoubleML", "mlr3", "mlr3learners", "data.table", "paradox", "ranger")
 install_all(packages)
-
 ```
 
 ## Datasets

@@ -9,12 +9,12 @@ book:
   chapters:
     - index.qmd
     - intro.qmd
-    - chapter2_classic.qmd
-    - chapter3_lasso.qmd
-    - chapter5_dml.qmd
-    - chapter4_discrete_moderator.qmd
-    - chapter6_discrete_outcome.qmd
-    - chapter7_plot.qmd
+    - classic.qmd
+    - lasso.qmd
+    - dml.qmd
+    - discrete_moderator.qmd
+    - discrete_outcome.qmd
+    - plot.qmd
     - references.qmd
 
 initial-block:

@@ -387,6 +387,7 @@ bootstrapGTE <- function(
   spline_degree        = 2,
   lambda_seq           = NULL,
   CI = TRUE,
+  cores = 8,
   verbose              = TRUE
 ) {
   signal     <- match.arg(signal)
@@ -422,7 +423,7 @@ bootstrapGTE <- function(
 
   if(isTRUE(CI)){
     if(verbose) message("2) Bootstrapping...")
-    cl <- parallel::makeCluster(parallel::detectCores())
+    cl <- parallel::makeCluster(cores)
     doParallel::registerDoParallel(cl)
     `%dopar%` <- foreach::`%dopar%`
     idx <- seq_len(n)

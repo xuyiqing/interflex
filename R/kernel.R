@@ -21,7 +21,7 @@ interflex.kernel <- function(data,
                              vartype = "bootstrap", ## "delta"; "bootstrap"
                              nboots = 200,
                              parallel = FALSE,
-                             cores = 4,
+                             cores = NULL,
                              cl = NULL, # variable to be clustered on
                              # predict = FALSE,
                              Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value

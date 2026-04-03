@@ -25,6 +25,7 @@ interflex.lasso_discrete <- function(
   spline.degree        = 2,
 
   lambda.seq           = NULL,
+  cores              = 8,
 
   verbose            = TRUE,
   figure             = TRUE,
@@ -124,6 +125,7 @@ interflex.lasso_discrete <- function(
         spline_degree         = spline.degree,
         lambda_seq            = lambda.seq,
         CI = CI,
+        cores = cores,
         verbose               = verbose
       )
 
@@ -162,6 +164,7 @@ interflex.lasso_discrete <- function(
       spline_degree         = spline.degree,
       lambda_seq            = lambda.seq,
       CI = CI,
+      cores = cores,
       verbose               = verbose
     )
 
