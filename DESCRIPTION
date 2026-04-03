@@ -20,7 +20,7 @@ Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         splines, glmnet, grf,
         DoubleML, mlr3, mlr3learners, data.table, paradox, ranger,
         parallelly
-Suggests: mlr3tuning, nnet, mlr3extralearners, lightgbm, testthat (>= 3.0.0)
+Suggests: mlr3tuning, nnet, mlr3extralearners, lightgbm, xgboost, testthat (>= 3.0.0)
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true
 NeedsCompilation: yes

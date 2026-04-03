@@ -94,13 +94,17 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       scale = 1.1,
                       height = 7,
                       width = 10,
-                      box.pos = "down") {
+                      box.pos = "down",
+                      verbose = TRUE) {
     ##################################################### CHECK ##############################################################
     ## in case data is in tibble format
     if (!is.data.frame(data)) {
         data <- as.data.frame(data)
     }
     n <- dim(data)[1]
+
+    # Reset per-call warning flags
+    options(interflex.uniform_ci_warned = FALSE)
 
     estimator <- tolower(estimator)
 
@@ -315,8 +319,9 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         stop("\"paralell\" is not a logical flag.")
     }
 
-    # Cores
-    if (is.null(cores)) {
+    # Cores: if not supplied, use min(available - 2, 8) to avoid hogging system resources
+    cores_auto <- is.null(cores)
+    if (cores_auto) {
         cores <- max(1L, min(parallelly::availableCores(omit = 2L), 8L))
     } else {
         if (!is.numeric(cores) || cores[1] %% 1 != 0 || cores[1] <= 0) {
@@ -324,9 +329,13 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
         cores <- cores[1]
     }
-    avail <- parallelly::availableCores()
-    cat(sprintf("Parallel computing: using %d of %d available cores.\n", cores, avail))
-    cat("To change: set cores = <n> in interflex().\n")
+    if (verbose) {
+        avail <- parallelly::availableCores()
+        cat(sprintf("Parallel computing: using %d of %d available cores.\n", cores, avail))
+        if (cores_auto) {
+            cat("To change: set cores = <n> in interflex().\n")
+        }
+    }
 
 
     ## check missing values
@@ -1144,7 +1153,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             show.all = show.all,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            verbose = verbose
         )
     }
 

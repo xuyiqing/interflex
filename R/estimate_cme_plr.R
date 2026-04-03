@@ -437,7 +437,8 @@ estimateCME_PLR <- function(
         X.eval = x.eval,
         CV     = TRUE,
         parallel = TRUE,
-        cores    = parallel::detectCores()-1
+        cores    = parallel::detectCores()-1,
+        verbose  = verbose
       )
     } else {
       sol_k <- interflex::interflex(
@@ -446,7 +447,9 @@ estimateCME_PLR <- function(
         data = data_k,
         X.eval = x.eval,
         CV     = FALSE,
-        bw     = bw
+        bw     = bw,
+        verbose  = FALSE,
+        figure   = FALSE
       )
     }
     cme_fit <- sol_k$est.kernel[[1]][, 2]  # second column is estimate for CME
@@ -546,6 +549,7 @@ bootstrapCME_PLR <- function(
     neval = 100,
     CI = TRUE,
     cores = 8,
+    parallel_ready = FALSE,
     verbose              = TRUE
 ) {
   basis_type       <- match.arg(basis_type)
@@ -610,18 +614,17 @@ bootstrapCME_PLR <- function(
     # 3. Set up parallel backend
     ###########################################################################
     if (verbose) cat("BootstrapPLR Step 3: Setting up parallel backend...\n")
-    if (!requireNamespace("doFuture", quietly = TRUE)) {
-      stop("Package 'doFuture' required for parallel bootstrap.")
+    pcfg <- .parallel_config(B, cores)
+    if (pcfg$use_parallel && !parallel_ready) {
+      .setup_parallel(cores)
+      on.exit(future::plan(future::sequential), add = TRUE)
     }
-    doFuture::registerDoFuture()
-    future::plan(future::multisession, workers = cores)
-    on.exit(future::plan(future::sequential), add = TRUE)
+    `%op%` <- pcfg$op
 
     ###########################################################################
     # 4. Parallel bootstrap loop
     ###########################################################################
     if (verbose) cat("BootstrapPLR Step 4: Running bootstrap loop...\n")
-    `%dopar%` <- foreach::`%dopar%`
 
     res_list <- foreach::foreach(
       b = 1:B,
@@ -629,7 +632,7 @@ bootstrapCME_PLR <- function(
       .export   = "estimateCME_PLR",
       .packages = c("splines","glmnet","interflex"),
       .options.future = list(seed = TRUE)
-    ) %dopar% {
+    ) %op% {
 
       # (a) Resample indices and data
       idx_b  <- sample(idx_seq, size = n, replace = TRUE)

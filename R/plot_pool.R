@@ -722,9 +722,9 @@ interflex.plot.pool <- function(
 
     ## black white theme and mark zero
     if (!theme.bw) {
-        p1 <- p1 + geom_hline(yintercept = 0, colour = "white", size = 2)
+        p1 <- p1 + geom_hline(yintercept = 0, colour = "white", linewidth = 2)
     } else {
-        p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", size = 2)
+        p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", linewidth = 2)
     }
 
     if (!show.grid) {
@@ -1104,7 +1104,7 @@ interflex.plot.pool <- function(
 
                 k <- k + 1
             }
-            p1 <- p1 + geom_line(data = dex.tr.plot, aes(x = x, y = ymin), color = "gray50", size = 0.3)
+            p1 <- p1 + geom_line(data = dex.tr.plot, aes(x = x, y = ymin), color = "gray50", linewidth = 0.3)
         }
 
         if (treat.type == "continuous") {
@@ -1187,7 +1187,7 @@ interflex.plot.pool <- function(
 
     ## mark the original interval (in replicated papers)
     if (!is.null(interval)) {
-        p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+        p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
     }
 
     ## Other universal options

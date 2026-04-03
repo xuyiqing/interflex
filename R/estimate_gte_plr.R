@@ -290,6 +290,7 @@ bootstrapGATE_PLR <- function(
   lambda_seq           = NULL,
   CI = TRUE,
   cores = 8,
+  parallel_ready = FALSE,
   verbose              = TRUE
 ) {
   # 1) Prep & full-sample fit ------------------------------------------------
@@ -324,12 +325,12 @@ bootstrapGATE_PLR <- function(
   if(isTRUE(CI)){
     # 2) Parallel bootstrap ----------------------------------------------------
     if (verbose) message("BootstrapGATE_PLR: launching cluster...")
-    if (!requireNamespace("doFuture", quietly=TRUE)) {
-      stop("Package 'doFuture' required for parallel bootstrap.")
+    pcfg <- .parallel_config(B, cores)
+    if (pcfg$use_parallel && !parallel_ready) {
+      .setup_parallel(cores)
+      on.exit(future::plan(future::sequential), add = TRUE)
     }
-    doFuture::registerDoFuture()
-    future::plan(future::multisession, workers = cores)
-    on.exit(future::plan(future::sequential), add = TRUE)
+    `%op%` <- pcfg$op
 
     if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws...")
     res_mat <- foreach::foreach(
@@ -338,7 +339,7 @@ bootstrapGATE_PLR <- function(
       .export   = "estimateGATE_PLR",
       .packages = c("glmnet","splines"),
       .options.future = list(seed = TRUE)
-    ) %dopar% {
+    ) %op% {
       idx <- sample(n, n, replace = TRUE)
       db  <- data[idx, , drop = FALSE]
       XZb <- XZ0[idx, , drop = FALSE]

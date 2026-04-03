@@ -89,3 +89,28 @@
 
   list(hist.out = hist.out, treat.hist = treat.hist)
 }
+
+# Set up parallel backend. Returns TRUE if a new plan was created (caller
+# should clean up), FALSE if one was already active.
+.setup_parallel <- function(cores) {
+  if (!requireNamespace("doFuture", quietly = TRUE)) {
+    stop("Package 'doFuture' required for parallel bootstrap.")
+  }
+  doFuture::registerDoFuture()
+  if (.Platform$OS.type == "unix") {
+    future::plan(future::multicore, workers = cores)
+  } else {
+    future::plan(future::multisession, workers = cores)
+  }
+  TRUE
+}
+
+# Decide whether to run parallel or sequential based on B and cores.
+# Returns list(use_parallel, op) where op is the foreach operator.
+.parallel_config <- function(B, cores) {
+  if (cores <= 1 || B <= cores) {
+    list(use_parallel = FALSE, op = foreach::`%do%`)
+  } else {
+    list(use_parallel = TRUE, op = foreach::`%dopar%`)
+  }
+}

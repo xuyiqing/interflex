@@ -1822,9 +1822,12 @@ interflex.linear <- function(data,
         if (parallel) {
             maxcores <- parallelly::availableCores()
             cores <- min(maxcores, cores)
-            doFuture::registerDoFuture()
-            future::plan(future::multisession, workers = cores)
-            on.exit(future::plan(future::sequential), add = TRUE)
+            pcfg <- .parallel_config(nboots, cores)
+            if (pcfg$use_parallel) {
+              .setup_parallel(cores)
+              on.exit(future::plan(future::sequential), add = TRUE)
+            }
+            `%op%` <- pcfg$op
             cat("Parallel computing with", cores, "cores...\n")
 
             suppressWarnings(
@@ -1833,7 +1836,7 @@ interflex.linear <- function(data,
                     .export = c("one.boot"), .packages = c("lfe", "AER"),
                     .inorder = FALSE,
                     .options.future = list(seed = TRUE)
-                ) %dopar% {
+                ) %op% {
                     one.boot()
                 }
             )

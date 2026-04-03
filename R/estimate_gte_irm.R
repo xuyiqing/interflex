@@ -388,6 +388,7 @@ bootstrapGTE <- function(
   lambda_seq           = NULL,
   CI = TRUE,
   cores = 8,
+  parallel_ready = FALSE,
   verbose              = TRUE
 ) {
   signal     <- match.arg(signal)
@@ -423,10 +424,12 @@ bootstrapGTE <- function(
 
   if(isTRUE(CI)){
     if(verbose) message("2) Bootstrapping...")
-    doFuture::registerDoFuture()
-    future::plan(future::multisession, workers = cores)
-    on.exit(future::plan(future::sequential), add = TRUE)
-    `%dopar%` <- foreach::`%dopar%`
+    pcfg <- .parallel_config(B, cores)
+    if (pcfg$use_parallel && !parallel_ready) {
+      .setup_parallel(cores)
+      on.exit(future::plan(future::sequential), add = TRUE)
+    }
+    `%op%` <- pcfg$op
     idx <- seq_len(n)
 
     res_mat <- foreach::foreach(
@@ -435,7 +438,7 @@ bootstrapGTE <- function(
       .export = c("estimateGTE"),
       .packages = c("glmnet","splines"),
       .options.future = list(seed = TRUE)
-    ) %dopar% {
+    ) %op% {
       ids    <- sample(idx, n, replace=TRUE)
       dat_b  <- data[ids,   , drop=FALSE]
       XZ_b   <- XZ0[ ids,   , drop=FALSE]

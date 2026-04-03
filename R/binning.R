@@ -2352,16 +2352,19 @@ interflex.binning <- function(data,
 		if(parallel){
 			maxcores <- parallelly::availableCores()
 			cores <- min(maxcores, cores)
-			doFuture::registerDoFuture()
-			future::plan(future::multisession, workers = cores)
-			on.exit(future::plan(future::sequential), add = TRUE)
+			pcfg <- .parallel_config(nboots, cores)
+			if (pcfg$use_parallel) {
+			  .setup_parallel(cores)
+			  on.exit(future::plan(future::sequential), add = TRUE)
+			}
+			`%op%` <- pcfg$op
 			cat("Parallel computing with", cores,"cores...\n")
 
 			suppressWarnings(
 				bootout <- foreach (i=1:nboots, .combine=cbind,
 									.export=c("one.boot"),.packages=c('lfe','AER'),
 									.inorder=FALSE,
-									.options.future=list(seed=TRUE)) %dopar% {one.boot()}
+									.options.future=list(seed=TRUE)) %op% {one.boot()}
 			)
 			cat("\r")
 		}	 

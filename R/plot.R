@@ -765,9 +765,9 @@ plot.interflex <- function(x,
             p1 <- ggplot()
             ## black white theme and mark zero
             if (!theme.bw) {
-                p1 <- p1 + geom_hline(yintercept = 0, colour = "white", size = 2)
+                p1 <- p1 + geom_hline(yintercept = 0, colour = "white", linewidth = 2)
             } else {
-                p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", size = 2)
+                p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", linewidth = 2)
             }
             if (!show.grid) {
                 p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
@@ -781,9 +781,9 @@ plot.interflex <- function(x,
             p1 <- ggplot()
             ## black white theme and mark zero
             if (!theme.bw) {
-                p1 <- p1 + geom_hline(yintercept = 0, colour = "white", size = 2)
+                p1 <- p1 + geom_hline(yintercept = 0, colour = "white", linewidth = 2)
             } else {
-                p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", size = 2)
+                p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", linewidth = 2)
             }
             if (!show.grid) {
                 p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
@@ -937,12 +937,7 @@ plot.interflex <- function(x,
                 }
                 tempest <- as.data.frame(tempest)
                 if (!by.group) {
-                    p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
-                } else {
-                    p1 <- p1 + geom_point(
-                        data = tempest, aes(x = X, y = TE),
-                        fill = line.color, size = 3 * line.size, alpha = 0.5
-                    )
+                    p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, linewidth = line.size)
                 }
 
                 if (isTRUE(CI)) {
@@ -971,6 +966,14 @@ plot.interflex <- function(x,
                             )
                         }
                     }
+                }
+
+                if (by.group) {
+                    p1 <- p1 + geom_point(
+                        data = tempest, aes(x = X, y = TE),
+                        shape = 21, fill = line.color, colour = "white",
+                        size = 3 * line.size, stroke = 0.8
+                    )
                 }
                 # ymin=min(yrange)-maxdiff/5
 
@@ -1037,12 +1040,7 @@ plot.interflex <- function(x,
                     tempest <- as.data.frame(tempest)
                 }
                 if (!by.group) {
-                    p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
-                } else {
-                    p1 <- p1 + geom_point(
-                        data = tempest, aes(x = X, y = ME),
-                        fill = line.color, size = 3 * line.size, alpha = 0.5
-                    )
+                    p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, linewidth = line.size)
                 }
 
                 if (isTRUE(CI)) {
@@ -1070,6 +1068,14 @@ plot.interflex <- function(x,
                             )
                         }
                     }
+                }
+
+                if (by.group) {
+                    p1 <- p1 + geom_point(
+                        data = tempest, aes(x = X, y = ME),
+                        shape = 21, fill = line.color, colour = "white",
+                        size = 3 * line.size, stroke = 0.8
+                    )
                 }
                 # ymin=min(yrange)-maxdiff/5
 
@@ -1140,7 +1146,7 @@ plot.interflex <- function(x,
                     tempest.bin2 <- as.data.frame(tempest.bin2)
                 }
 
-                p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, size = line.size)
+                p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, linewidth = line.size)
                 if (isTRUE(CI)) {
                     p1 <- p1 + geom_ribbon(
                         data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
@@ -1231,7 +1237,7 @@ plot.interflex <- function(x,
                     tempest.bin2 <- as.data.frame(tempest.bin2)
                 }
 
-                p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, size = line.size)
+                p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, linewidth = line.size)
                 if (isTRUE(CI)) {
                     p1 <- p1 + geom_ribbon(
                         data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper),
@@ -1335,7 +1341,7 @@ plot.interflex <- function(x,
             p1 <- p.group[[char]]
             ## mark the original interval (in replicated papers)
             if (!is.null(interval)) {
-                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
             }
 
             ## Other universal options
@@ -1402,7 +1408,7 @@ plot.interflex <- function(x,
             p1 <- p.group[[label]]
             ## mark the original interval (in replicated papers)
             if (!is.null(interval)) {
-                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
             }
 
             ## Other universal options

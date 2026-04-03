@@ -33,7 +33,7 @@ Xlabel<-"Income"
 **Visualization**
 
 ```{r}
-out.raw <- interflex(estimator='raw', data = d, 
+out.raw <- interflex(estimator='raw', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
                        Xlabel = Xlabel, theme.bw = TRUE)

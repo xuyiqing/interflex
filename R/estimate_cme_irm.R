@@ -697,6 +697,7 @@ bootstrapCME <- function(
     x.eval             = NULL,
     CI = TRUE,
     cores = 8,
+    parallel_ready = FALSE,
     verbose = TRUE
 ) {
   if (verbose) message("BootstrapCME Step 1: Running baseline CME estimation on full data...")
@@ -745,13 +746,12 @@ bootstrapCME <- function(
     cme_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
     idx_seq <- seq_len(n)
     
-    if (!requireNamespace("doFuture", quietly = TRUE)) {
-      stop("Package 'doFuture' required for parallel bootstrap.")
+    pcfg <- .parallel_config(B, cores)
+    if (pcfg$use_parallel && !parallel_ready) {
+      .setup_parallel(cores)
+      on.exit(future::plan(future::sequential), add = TRUE)
     }
-    doFuture::registerDoFuture()
-    future::plan(future::multisession, workers = cores)
-    on.exit(future::plan(future::sequential), add = TRUE)
-    `%dopar%` <- foreach::`%dopar%`
+    `%op%` <- pcfg$op
 
     if (verbose) message("BootstrapCME Step 3: Starting bootstrap loop...")
     res_list <- foreach::foreach(
@@ -760,7 +760,7 @@ bootstrapCME <- function(
       .export  = "estimateCME",
       .packages = c("splines","glmnet","mgcv"),
       .options.future = list(seed = TRUE)
-    ) %dopar% {
+    ) %op% {
       idx_b <- sample(idx_seq, size = n, replace = TRUE)
       data_b <- data[idx_b, , drop = FALSE]
       XZ_b <- XZ_full[idx_b, , drop = FALSE]

@@ -104,6 +104,14 @@ interflex.lasso <- function(data,
   treat.base        <- treat.info[["base"]]
   TE.output.all.list <- list()
   fit_full.list <- list()
+
+  # Set up parallel backend once for all treatment arms
+  pcfg <- .parallel_config(B, cores)
+  if (pcfg$use_parallel) {
+    .setup_parallel(cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
+  }
+
   # -------------------------------
   # Branch 1: Discrete D / Binary
   # -------------------------------
@@ -147,6 +155,7 @@ interflex.lasso <- function(data,
         neval = neval,
         CI = CI,
         cores = cores,
+        parallel_ready       = pcfg$use_parallel,
         verbose              = verbose
       )
 
@@ -189,6 +198,7 @@ interflex.lasso <- function(data,
       neval = neval,
       CI = CI,
       cores = cores,
+      parallel_ready        = pcfg$use_parallel,
       verbose               = verbose
     )
     TE.output.all <- data.frame(result$results, check.names = FALSE)

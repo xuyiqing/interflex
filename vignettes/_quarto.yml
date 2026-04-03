@@ -1,6 +1,9 @@
 project:
   type: book
 
+execute:
+  freeze: auto
+
 book:
   title: "interflex -- User Manual"
   sidebar:

@@ -54,7 +54,8 @@ interflex.kernel <- function(data,
                              show.all = FALSE,
                              scale = 1.1,
                              height = 7,
-                             width = 10) {
+                             width = 10,
+                             verbose = TRUE) {
     WEIGHTS <- NULL
     uniform.coverage <- NULL
     n <- dim(data)[1]
@@ -773,16 +774,19 @@ interflex.kernel <- function(data,
         if (parallel) {
             maxcores <- parallelly::availableCores()
             cores <- min(maxcores, cores)
-            doFuture::registerDoFuture()
-            future::plan(future::multisession, workers = cores)
-            on.exit(future::plan(future::sequential), add = TRUE)
+            pcfg <- .parallel_config(length(bw.grid), cores)
+            if (pcfg$use_parallel) {
+              .setup_parallel(cores)
+              on.exit(future::plan(future::sequential), add = TRUE)
+            }
+            `%op%` <- pcfg$op
             cat("Parallel computing with", cores, "cores...\n")
             Error <- suppressWarnings(foreach(
                 bw = bw.grid, .combine = rbind,
                 .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
                 .inorder = FALSE,
                 .options.future = list(seed = TRUE)
-            ) %dopar% {
+            ) %op% {
                 cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
                 if ("try-error" %in% class(cv.output.sub)) {
                     return(NA)
@@ -863,7 +867,7 @@ interflex.kernel <- function(data,
     X.eval <- coef.grid[, "x0"]
     neval <- length(X.eval)
 
-    cat(paste0("Number of evaluation points:", neval, "\n"))
+    if (verbose) cat(paste0("Number of evaluation points:", neval, "\n"))
 
     gen.sd <- function(result, char = NULL, D.ref = NULL, to.diff = FALSE) {
         coef.grid <- result$result
@@ -2127,9 +2131,12 @@ interflex.kernel <- function(data,
             if (parallel) {
                 maxcores <- parallelly::availableCores()
                 cores <- min(maxcores, cores)
-                doFuture::registerDoFuture()
-                future::plan(future::multisession, workers = cores)
-                on.exit(future::plan(future::sequential), add = TRUE)
+                pcfg <- .parallel_config(nboots, cores)
+                if (pcfg$use_parallel) {
+                  .setup_parallel(cores)
+                  on.exit(future::plan(future::sequential), add = TRUE)
+                }
+                `%op%` <- pcfg$op
                 cat("Parallel computing with", cores, "cores...\n")
 
                 suppressWarnings(
@@ -2138,7 +2145,7 @@ interflex.kernel <- function(data,
                         .export = c("one.boot"), .packages = c("MASS", "AER"),
                         .inorder = FALSE,
                         .options.future = list(seed = TRUE)
-                    ) %dopar% {
+                    ) %op% {
                         output.all <- try(one.boot(), silent = TRUE)
                         if ("try-error" %in% class(output.all)) {
                             return(NA)

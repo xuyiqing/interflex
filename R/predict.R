@@ -449,7 +449,7 @@ predict.interflex <- function(
             if (!show.grid) {
                 p <- p + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
             }
-            p <- p + geom_line(data = pred[[char]], aes(x = X, y = EY), size = 1, color = platte[k])
+            p <- p + geom_line(data = pred[[char]], aes(x = X, y = EY), linewidth = 1, color = platte[k])
             if (isTRUE(CI)) {
                 p <- p + geom_ribbon(
                     data = pred[[char]], aes(x = X, ymin = CI_lower, ymax = CI_upper),
@@ -570,7 +570,7 @@ predict.interflex <- function(
 
         if (treat.type == "discrete") {
             tograph$Treatment <- factor(tograph$Treatment, levels = all.treat)
-            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), size = 0.5)
+            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), linewidth = 0.5)
             if (is.null(subtitles)) {
                 p <- p + scale_color_manual(values = platte[1:ntreat])
             } else {
@@ -580,7 +580,7 @@ predict.interflex <- function(
 
         if (treat.type == "continuous") {
             tograph$Treatment <- factor(tograph$Treatment, levels = all.treat)
-            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), size = 0.5)
+            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), linewidth = 0.5)
             if (is.null(subtitles)) {
                 p <- p + scale_color_manual(values = platte[1:ntreat], labels = label.name)
             } else {
@@ -654,7 +654,7 @@ predict.interflex <- function(
 
                 k <- k + 1
             }
-            p <- p + geom_line(data = dex.tr.plot, aes(x = x, y = min(yrange) - maxdiff / 5), color = "gray50", size = 0.3)
+            p <- p + geom_line(data = dex.tr.plot, aes(x = x, y = min(yrange) - maxdiff / 5), color = "gray50", linewidth = 0.3)
         }
 
         if (Xdistr == "density" & treat.type == "continuous") {
@@ -719,7 +719,7 @@ predict.interflex <- function(
             p1 <- plot_list[[char]]
             ## mark the original interval (in replicated papers)
             if (!is.null(interval)) {
-                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
             }
             ## Other universal options
             p1 <- p1 + xlab(NULL) + ylab(NULL) +
@@ -767,7 +767,7 @@ predict.interflex <- function(
     if (pool) {
         p1 <- plot_list
         if (!is.null(interval)) {
-            p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+            p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
         }
         ## Other universal options
         p1 <- p1 + xlab(xlab) + ylab(ylab) +

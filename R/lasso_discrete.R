@@ -84,6 +84,13 @@ interflex.lasso_discrete <- function(
 
   TE.output.all.list <- list()
 
+  # Set up parallel backend once for all treatment arms
+  pcfg <- .parallel_config(B, cores)
+  if (pcfg$use_parallel) {
+    .setup_parallel(cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
+  }
+
   # 1) DISCRETE TREATMENT ---------------------------------------------------
   if (treat.type == "discrete") {
     other.treat <- ti$other.treat
@@ -126,6 +133,7 @@ interflex.lasso_discrete <- function(
         lambda_seq            = lambda.seq,
         CI = CI,
         cores = cores,
+        parallel_ready        = pcfg$use_parallel,
         verbose               = verbose
       )
 
@@ -165,6 +173,7 @@ interflex.lasso_discrete <- function(
       lambda_seq            = lambda.seq,
       CI = CI,
       cores = cores,
+      parallel_ready        = pcfg$use_parallel,
       verbose               = verbose
     )
 
@@ -187,7 +196,7 @@ interflex.lasso_discrete <- function(
     Ylabel       = Ylabel,
     de           = de,
     hist.out     = hist.out,
-    de.tr        = if (treat.type=="discrete") NULL else NULL,  # no per‐treatment density here
+    de.tr        = if (treat.type=="discrete") NULL else NULL,
     count.tr     = if (treat.type=="discrete") NULL else NULL,
     estimator    = "lasso"
   )

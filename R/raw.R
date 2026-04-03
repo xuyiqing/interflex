@@ -119,9 +119,9 @@ interflex.raw <- function(data,
 
         ## plotting
         if (is.null(weights)) {
-            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes_string(X, Y))
+            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes(.data[[X]], .data[[Y]]))
         } else {
-            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes_string(X, Y, weight = weights))
+            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes(.data[[X]], .data[[Y]], weight = .data[[weights]]))
         }
         if (theme.bw) {
             p1 <- p1 + theme_bw()
@@ -129,7 +129,7 @@ interflex.raw <- function(data,
         if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", size = 1)
+        p1 <- p1 + geom_point() + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", linewidth = 1)
 
         if (is.null(span)) {
             p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
@@ -138,9 +138,9 @@ interflex.raw <- function(data,
         }
         p1 <- p1 + xlab(Xlabel) + ylab(Ylabel)
 
-        p1 <- p1 + geom_line(aes_string(X, "qt90"), size = 1, colour = "grey50", na.rm = TRUE)
-        p1 <- p1 + geom_line(aes_string(X, "qt50"), size = 3, colour = "grey50", na.rm = TRUE)
-        p1 <- p1 + geom_point(aes_string(X, "med"), size = 3, shape = 21, fill = "white", colour = "red", na.rm = TRUE)
+        p1 <- p1 + geom_line(aes(.data[[X]], .data[["qt90"]]), linewidth = 1, colour = "grey50", na.rm = TRUE)
+        p1 <- p1 + geom_line(aes(.data[[X]], .data[["qt50"]]), linewidth = 3, colour = "grey50", na.rm = TRUE)
+        p1 <- p1 + geom_point(aes(.data[[X]], .data[["med"]]), size = 3, shape = 21, fill = "white", colour = "red", na.rm = TRUE)
         p1 <- p1 + facet_wrap(~treat, ncol = ncols)
     } else { # continuous case
         if (!is.numeric(data[, D])) {
@@ -172,9 +172,9 @@ interflex.raw <- function(data,
 
         ## plotting
         if (is.null(weights)) {
-            p1 <- ggplot(data.aug, aes_string(D, Y))
+            p1 <- ggplot(data.aug, aes(.data[[D]], .data[[Y]]))
         } else {
-            p1 <- ggplot(data.aug, aes_string(D, Y, weight = weights))
+            p1 <- ggplot(data.aug, aes(.data[[D]], .data[[Y]], weight = .data[[weights]]))
         }
         if (theme.bw) {
             p1 <- p1 + theme_bw()
@@ -182,7 +182,7 @@ interflex.raw <- function(data,
         if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", size = 1)
+        p1 <- p1 + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", linewidth = 1)
 
         if (is.null(span)) {
             p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
