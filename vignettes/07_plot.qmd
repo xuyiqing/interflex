@@ -1,4 +1,4 @@
-# Interflex Plotting Options {#sec-plotting}
+# Plot Options {#sec-plotting}
 
 In previous chapter, we have explored most of the plotting options in the **interflex** package. This chapter serves as a comprehensive guide in plotting CME, using data from @huddy2015expressive and simulation data incorporated in the package.
 

@@ -2179,7 +2179,7 @@ interflex.linear <- function(data,
 
         if (treat.type == "discrete") {
             # Binary treatment: use bootstrapGTE with linear nuisance
-            for (char in other.treat.origin) {
+            for (char in other.treat) {
                 data_part <- data[data[[D]] %in% c(treat.info[["base"]], char), ]
                 # Recode to 0/1
                 base_val <- treat.info[["base"]]
@@ -2205,7 +2205,7 @@ interflex.linear <- function(data,
                 # Rename columns to match DML gate_df format
                 res <- gate_result$results
                 colnames(res) <- .standardize_gate_columns(colnames(res), "GTE")
-                gate.list[[char]] <- res
+                gate.list[[other.treat.origin[char]]] <- res
             }
         }
 

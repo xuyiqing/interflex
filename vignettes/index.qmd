@@ -4,13 +4,13 @@ This Quarto book serves as a user manual for the **interflex** package in R, whi
 
 **interflex** implements a range of estimators for exploring treatment-moderator interactions:
 
--   **Raw**: Scatterplots with LOESS smoothing for initial visual exploration
--   **Binning**: A flexible semi-parametric approach that divides the moderator into bins
--   **Kernel**: Kernel-based local regression for smooth marginal effect curves
--   **Linear**: Standard linear interaction models with robust diagnostics
--   **GAM**: Generalized additive models for flexible nonlinear effects
--   **Lasso**: AIPW-Lasso and Partial-Out Lasso estimators for doubly robust inference
--   **DML**: Double/debiased machine learning estimators for high-dimensional settings
+-   `raw`: Scatterplots with LOESS smoothing for initial visual exploration
+-   `binning`: A dignsotic method that divides the moderator into bins
+-   `kernel`: Kernel-based local regression for smooth marginal effect curves
+-   `linear`: Standard linear interaction models with robust diagnostics
+-   `gam`: Generalized additive models for flexible nonlinear effects
+-   `lasso`: AIPW-Lasso and Partial-Out Lasso estimators for doubly robust inference
+-   `dml`: Double/debiased machine learning estimators for high-dimensional settings
 
 For methodological details, see:
 
@@ -46,12 +46,13 @@ The user guide is structured into the following chapters:
 
 The following individuals have contributed to **interflex**:
 
+-   [Yiqing Xu](https://yiqingxu.org/) (maintainer)
 -   [Jens Hainmueller](https://web.stanford.edu/~jhain/)
 -   [Jonathan Mummolo](https://www.jonathanmummolo.com/)
 -   [Tianzhu Qin](https://tianzhuqin.github.io/)
--   Jiehan Liu
--   Ziyi Liu
--   [Yiqing Xu](https://yiqingxu.org/) (maintainer)
+-   Jiehan Liu (Stanford)
+-   Ziyi Liu (UC Berkeley)
+
 
 ## Report Bugs
 

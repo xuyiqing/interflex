@@ -74,7 +74,7 @@ interflex.grf <- function(data,
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
             data_part[data_part[[D]] == treat.base, D] <- 0L
             data_part[data_part[[D]] == char, D] <- 1L
-            data_part$D <- as.numeric(data_part$D)
+            data_part[[D]] <- as.numeric(data_part[[D]])
             causal.forest <- causal_forest(data_part[covariates], data_part[[Y]], data_part[[D]], num.trees = num.trees)
             X.test <- matrix(0, 50, length.covariates)
             X.test[, 1] <- seq(min(data_part[[X]]), max(data_part[[X]]), length.out = 50)

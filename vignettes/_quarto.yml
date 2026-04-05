@@ -11,13 +11,13 @@ book:
     background: light
   chapters:
     - index.qmd
-    - intro.qmd
-    - classic.qmd
-    - lasso.qmd
-    - dml.qmd
-    - discrete_moderator.qmd
-    - discrete_outcome.qmd
-    - plot.qmd
+    - 01_intro.qmd
+    - 02_classic.qmd
+    - 03_extension.qmd
+    - 04_lasso.qmd
+    - 05_dml.qmd
+    - 06_discrete.qmd
+    - 07_plot.qmd
     - references.qmd
 
 initial-block:

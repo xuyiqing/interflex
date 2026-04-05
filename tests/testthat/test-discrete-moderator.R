@@ -21,6 +21,7 @@ test_that("DML with gate = TRUE works for binary treatment with discrete moderat
   expect_s3_class(out, "interflex")
   expect_true(!is.null(out$figure))
   expect_true(!is.null(out$g.est.dml))
+  expect_true(!is.null(out$g.est))  # new unified field
 })
 
 test_that("DML with gate = TRUE works for continuous treatment with discrete moderator", {

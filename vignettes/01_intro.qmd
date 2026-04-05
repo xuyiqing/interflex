@@ -1,0 +1,151 @@
+# Get Started {#sec-introduction}
+
+## Installation
+
+To install **interflex** from CRAN, run the code chunk below:
+
+```{r install-cran, eval=FALSE, message=FALSE, warning=FALSE}
+install.packages("interflex")
+```
+
+We recommend users to install the most up-to-date, stable version of **interflex** from GitHub using:
+
+```{r install-github-main, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("xuyiqing/interflex")
+```
+
+We fix bugs in the `dev` branch before merging into the main branch; therefore, it is often more up to date.
+
+```{r install-github-dev, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("xuyiqing/interflex@dev")
+```
+
+After installation, check **interflex** version to make sure the package is up-to-date.
+
+```{r check-version}
+installed.packages()["interflex", "Version"]
+```
+
+**interflex** depends on the following packages, which should be installed automatically when **interflex** is being installed. You can also install them manually.
+
+```{r install-dependencies, eval=FALSE}
+install_all <- function(packages) {
+  installed_pkgs <- installed.packages()[, "Package"]
+  for (pkg in packages) {
+    if (!pkg %in% installed_pkgs) {
+      install.packages(pkg)
+    }
+  }
+}
+packages <- c("Rcpp", "RcppArmadillo", "ggplot2", "sandwich", "Lmoments",
+              "doParallel", "foreach", "mgcv", "lfe", "gridExtra", "grid",
+              "ggplotify", "fixest", "RColorBrewer", "pcse", "gtable",
+              "MASS", "mvtnorm", "pROC", "ModelMetrics", "lmtest", "AER",
+              "future", "glmnet", "grf", "DoubleML", "mlr3", "mlr3learners", 
+              "data.table", "paradox", "ranger", "xgboost")
+install_all(packages)
+```
+
+::: {.callout-note}
+## xgboost and mlr3 compatibility
+
+The DML estimator's histogram-based gradient boosting option (`model.y = "hgb"`) requires **xgboost**. Starting with **xgboost** ≥ 3.0, you need **mlr3** ≥ 1.6.0 and **mlr3learners** ≥ 0.14.0. If you encounter an error like `ALTLIST classes must provide a Set_elt method`, update both:
+
+```r
+install.packages(c("mlr3", "mlr3learners"))
+```
+:::
+
+
+To use additional `dml` estimators, **interflex** suggests the additional **mlr3extralearners** package, which is not on CRAN but can be installed from GitHub:
+```{r install-mlr3extra, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("mlr-org/mlr3extralearners")
+```
+
+## Datasets
+
+The **interflex** package incorporates several datasets:
+
+```{r}
+library(interflex)
+data(interflex)
+ls()
+```
+
+- `s1-s9`: simulation data
+- `app_hma2015`: Data from @huddy2015expressive.
+- `app_vernby2013`: Data from @vernby2013inclusion.
+
+
+## Estimands
+
+Understanding conditional relationships is central to social science. Researchers are particularly interested in how the effect of a treatment \( D \) on an outcome \( Y \) changes with the value of a pre-determined covariate \( X \), known as the moderator, which is unaffected by \( D \). research. To formalize this problem better, we introduce the setup and estimand using the Neyman-Rubin potential outcome framework and notation. 
+
+Consider a study with $n$ units, indexed by $i = 1, 2, \dots, n$. These units are independently and identically distributed (i.i.d.) from an infinite population denoted by $\mathcal{P}$, the super-population. 
+For each unit $i$, we observe the quadruple $(Y_i, D_{i}, X_i, Z_i)$, where $Y_i$ denotes the outcome of interest, $D_{i}$ is the treatment indicator, and $V_i = (X_i, Z_i)$ represents a set of covariates not causally affected by the treatment and comprises two components: the moderator of interest $X_i \in \mathcal{X}$, which can be either discrete or continuous, and the remaining covariates used for identification $Z_i \in \mathcal{Z}$, which can be potentially high-dimensional. 
+
+Given a sets of assumption, including random sampling, stable unit treatment value assumption (SUTVA), we define Conditional Marginal Effect (CME) with binary treatment as: 
+
+\begin{equation*}
+\theta(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x].
+\end{equation*} 
+
+And CME with continuous treatment: 
+
+\begin{equation*}  
+\theta(x)\;=\;\mathbb{E}\!\big[\,\mu_d(D,X,Z)\ \big|\ X=x\big].
+\end{equation*} 
+where the dose–response function $\mu(d,x,z) = \mathbb{E}\left[Y(d) \mid X = x, Z = z\right]$ describes how the expected potential outcome varies with the treatment level $d$, conditional on the covariates. The CME, $\theta(x)$, averages the unit-specific rates of change across units with the same value of the moderator $x$. 
+
+
+We further assume Unconfoundedness and Strict overlap as identification assumptions, which turn CME from causal estimand to statistical estimand for estimation in the coming chapters.
+
+When the moderator $X$ is discrete, the CME reduces to the **Group Average Treatment Effect** (GATE):
+$$
+\text{GATE}(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x], \quad x \in \{x_1, x_2, \dots, x_K\}.
+$$
+GATE is simply the treatment effect averaged within each group defined by the moderator values. Conceptually, it is equivalent to a binning estimator where the bins are the moderator levels themselves. The distinction between CME and GATE is purely about the nature of $X$: when $X$ is continuous, we estimate a smooth curve $\theta(x)$; when $X$ is discrete, we estimate a finite set of group-specific effects $\{\theta(x_1), \dots, \theta(x_K)\}$.
+
+
+## Estimators: A Conceptual Overview {#sec-estimator-overview}
+
+Every estimator in **interflex** can be understood as combining two independent choices:
+
+1. **Nuisance estimation**: How do we model the relationship between outcome $Y$, treatment $D$, and covariates $(X, Z)$?
+2. **Aggregation**: How do we summarize heterogeneous effects across values of the moderator $X$?
+
+### Nuisance estimation
+
+The nuisance estimation step removes confounding variation to isolate the causal effect of $D$. **interflex** offers several approaches:
+
+- **Linear (OLS)**: A parametric model $Y \sim D \cdot X + Z$, where the CME is read directly from coefficients. Simple and interpretable, but assumes linearity.
+- **Kernel**: Local linear regression that adapts to the data nonparametrically. Flexible but computationally intensive.
+- **Lasso/Ridge**: Penalized regression that handles high-dimensional covariates through regularization and basis expansion. Balances flexibility with discipline.
+- **Double Machine Learning (DML)**: Uses machine learning models (random forests, neural networks, gradient boosting) for nuisance estimation while maintaining valid statistical inference through cross-fitting and Neyman orthogonal scores.
+- **Causal Forest (GRF)**: Estimates individual-level treatment effects $\hat\tau(X_i)$ via honest causal forests, then aggregates.
+
+### Aggregation
+
+Given estimated individual-level treatment effect signals, the aggregation step summarizes them as a function of the moderator $X$:
+
+- **Smooth curve** (kernel smoothing or spline projection): Projects effect signals onto a smooth function of $X$. Appropriate when $X$ is continuous — produces a CME curve $\hat\theta(x)$.
+- **Group average** (binning by moderator): Averages effect signals within each level of $X$. Appropriate when $X$ is discrete — produces GATE point estimates $\hat\theta(x_k)$ for each group $k$.
+
+### Correspondence to interflex estimators
+
+The table below maps these two dimensions to the estimators available in **interflex**:
+
+|  | **Smooth CME** (continuous $X$) | **GATE** (discrete $X$) |
+|---|---|---|
+| **Linear** | `estimator = 'linear'` | `estimator = 'linear', gate = TRUE` |
+| **Lasso** | `estimator = 'lasso'` | `estimator = 'lasso', gate = TRUE` |
+| **DML** | `estimator = 'dml'` | `estimator = 'dml', gate = TRUE` |
+| **GRF** | `estimator = 'grf'` | `estimator = 'grf', gate = TRUE` |
+| **Kernel** | `estimator = 'kernel'` | — |
+| **Binning** | `estimator = 'binning'` | — |
+
+Note that `kernel` and `binning` are "fused" estimators where nuisance estimation and aggregation are inseparable — they are inherently nonparametric smoothing and binning methods, respectively. The semiparametric estimators (`lasso`, `dml`, `grf`) and the `linear` estimator with `gate = TRUE` cleanly separate the two steps.
+
+The `binning` estimator deserves special mention: it is itself a form of aggregation (averaging within bins of $X$). When $X$ is continuous, binning discretizes $X$ into researcher-specified intervals. GATE with a discrete moderator is the natural limiting case where the "bins" are the moderator values themselves — no discretization is needed.
+
+

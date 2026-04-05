@@ -2,7 +2,7 @@
 
 This chapter gives a brief overview of estimating CMEs using the **interflex** pacakge, focusing on the Double/debiased Machine Learning (DML) estimator. This chapter walks through using DML estimators for different empirical setup with real-world data, including binary treatment and continuous treatment.
 
-## Overview of Methodology
+## Overview
 
 When treatment $D$, moderator $X$ and covariates$Z$ are all discrete, we can estimate the CME nonparametrically. However, when one of them is continuous or high-dimensional, CME becomes difficult to estimate without imposing functional form assumptions. These assumptions can be too restrictive and easily violated in practice.
 
@@ -56,7 +56,6 @@ Dlabel = "Threat"
 Xlabel = "Partisanship"
 ```
 
-### DML estimator
 
 **Estimation.** To implement the DML estimator, we need to set the option `estimator='DML'` and specify two machine learning models: one for the outcome model (via the option `model.y`) and one for the treatment model (via the option `model.t`). `treat.type` set the data type of treatment variable, it can be either `continuous` or `discrete`, the default is `discrete`.
 
@@ -139,7 +138,7 @@ ggarrange(binary.dml.ln.ln$figure,
 
 We find that different ML models give very similar results, which is expected since all methods can accurately partial out their impacts on the outcome and the treatment.
 
-### Specifying Model Parameters
+### Model Parameters
 
 Users can customize parameters for the machine learning model in both stages by specifying the options `param.y` and `param.t`. For the linear method, users can refer to the [LinearRgression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html) and [LogisticRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html) if outcome is discrete. For the lasso method, please refere to [LogisticRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html) with default regularization. For the whole list of parameters that are applicable to the neural network model, users can refer to the [MLPRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPRegressor.html) or the [MLPClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html). For the random forest method, users can refer to the [RandomForestRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html) or the [RandomForestClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html). For the hist gradient boosting method, users can refer to the [HistGradientBoostingRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html) or the [HistGradientBoostingClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html).
 
@@ -344,7 +343,6 @@ Ylabel<-"Dakp"
 Xlabel<-"Property values (2009)"
 ```
 
-### DML estimator
 
 With continuous treatment, we need to specify the data type in `treat.type = continuous`. The estimator automatically plots both the pointwise and uniform CI.
 

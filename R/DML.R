@@ -1,5 +1,5 @@
 # ============================================================================
-# interflex DML estimator — Pure R implementation using DoubleML + mlr3
+# interflex DML estimator -- Pure R implementation using DoubleML + mlr3
 # ============================================================================
 # Replaces the former Python/reticulate backend with R-native code.
 # Uses the R DoubleML package (R6 interface) for core DML estimation,
@@ -218,7 +218,7 @@
         max_iter           = "maxit"
     )
 
-    # sklearn MLP params that have no nnet equivalent — silently drop
+    # sklearn MLP params that have no nnet equivalent -- silently drop
     sklearn_only <- c("activation", "solver", "alpha", "learning_rate",
                       "learning_rate_init", "batch_size", "momentum",
                       "beta_1", "beta_2", "epsilon", "n_iter_no_change",
@@ -304,7 +304,7 @@
         mapping <- character(0)
     }
 
-    # sklearn params that have no nnet/R equivalent — skip in tuning grid
+    # sklearn params that have no nnet/R equivalent -- skip in tuning grid
     sklearn_only_nn <- c("activation", "solver", "alpha", "learning_rate",
                          "learning_rate_init", "batch_size", "momentum",
                          "beta_1", "beta_2", "epsilon", "n_iter_no_change",
@@ -510,7 +510,7 @@
         }
     }
 
-    # Fallback: if only psi_b available, rescale by -1/mean(psi_a) ≈ 1/mean(D_tilde^2)
+    # Fallback: if only psi_b available, rescale by -1/mean(psi_a) ~= 1/mean(D_tilde^2)
     if (!is.null(psi_b) && !is.null(psi_a) && !is.null(theta_hat)) {
         J_hat <- mean(psi_a)
         if (abs(J_hat) > 1e-12) {
