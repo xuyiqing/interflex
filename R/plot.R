@@ -104,8 +104,8 @@ plot.interflex <- function(x,
     }
 
     if (by.group) {
-        if (!"g.est.dml" %in% names(out)) {
-            stop("Group-specific Average Treatment Effects have to be estimated first.\n")
+        if (!"g.est" %in% names(out) && !"g.est.dml" %in% names(out)) {
+            stop("Group-specific Average Treatment Effects have to be estimated first. Use gate = TRUE.\n")
         }
     }
 
@@ -556,7 +556,7 @@ plot.interflex <- function(x,
         if (treat.type == "discrete") {
             est.dml <- out$est.dml
             if (by.group) {
-                est.dml <- out$g.est.dml
+                est.dml <- if (!is.null(out$g.est)) out$g.est else out$g.est.dml
             }
 
             yrange <- c(0)
@@ -575,7 +575,7 @@ plot.interflex <- function(x,
         if (treat.type == "continuous") {
             est.dml <- out$est.dml
             if (by.group) {
-                est.dml <- out$g.est.dml
+                est.dml <- if (!is.null(out$g.est)) out$g.est else out$g.est.dml
             }
             yrange <- c(0)
             for (label in label.name) {

@@ -54,7 +54,8 @@ interflex.linear <- function(data,
                              show.all = FALSE,
                              scale = 1.1,
                              height = 7,
-                             width = 10) {
+                             width = 10,
+                             gate = FALSE) {
     WEIGHTS <- NULL
     n <- dim(data)[1]
     diff.values.plot <- diff.info[["diff.values.plot"]]
@@ -2170,6 +2171,72 @@ interflex.linear <- function(data,
             model.linear = model,
             use.fe = use_fe
         )
+    }
+
+    # GATE estimation
+    if (isTRUE(gate)) {
+        gate.list <- list()
+
+        if (treat.type == "discrete") {
+            # Binary treatment: use bootstrapGTE with linear nuisance
+            for (char in other.treat.origin) {
+                data_part <- data[data[[D]] %in% c(treat.info[["base"]], char), ]
+                # Recode to 0/1
+                base_val <- treat.info[["base"]]
+                data_part[[paste0(D, "_bin")]] <- ifelse(data_part[[D]] == base_val, 0, 1)
+
+                gate_result <- bootstrapGTE(
+                    data = data_part,
+                    Y = Y,
+                    D = paste0(D, "_bin"),
+                    X = X,
+                    Z = Z,
+                    FE = FE,
+                    signal = "outcome",
+                    outcome_model_type = "linear",
+                    ps_model_type = "linear",
+                    B = nboots,
+                    alpha = 0.05,
+                    CI = CI,
+                    cores = cores,
+                    verbose = FALSE
+                )
+
+                # Rename columns to match DML gate_df format
+                res <- gate_result$results
+                colnames(res) <- .standardize_gate_columns(colnames(res), "GTE")
+                gate.list[[char]] <- res
+            }
+        }
+
+        if (treat.type == "continuous") {
+            # Continuous treatment: use bootstrapGATE_PLR with linear nuisance
+            gate_result <- bootstrapGATE_PLR(
+                data = data,
+                Y = Y,
+                D = D,
+                X = X,
+                Z = Z,
+                FE = FE,
+                outcome_model_type = "linear",
+                treatment_model_type = "linear",
+                B = nboots,
+                alpha = 0.05,
+                CI = CI,
+                cores = cores,
+                verbose = FALSE
+            )
+
+            res <- gate_result$results
+            colnames(res) <- .standardize_gate_columns(colnames(res), "GATE")
+
+            # Use label naming consistent with continuous treatment labeling
+            for (label in label.name) {
+                gate.list[[label]] <- res
+            }
+        }
+
+        final.output$g.est <- gate.list
     }
 
     # Plot

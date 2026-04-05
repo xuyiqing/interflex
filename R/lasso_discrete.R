@@ -191,6 +191,7 @@ interflex.lasso_discrete <- function(
     diff.info    = diff.info,
     treat.info   = treat.info,
     est.lasso    = TE.output.all.list,
+    g.est        = TE.output.all.list,
     Xlabel       = Xlabel,
     Dlabel       = Dlabel,
     Ylabel       = Ylabel,

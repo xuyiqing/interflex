@@ -113,6 +113,17 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf, dml or lasso.\n")
     }
 
+    ## gate validation
+    if (isTRUE(gate)) {
+        if (estimator %in% c("kernel", "binning")) {
+            stop("gate = TRUE is not supported with estimator = '", estimator, "'. Use 'linear', 'grf', 'dml', or 'lasso'.\n")
+        }
+        n_unique_X <- length(unique(data[, X]))
+        if (n_unique_X > 10) {
+            stop("gate = TRUE requires a discrete moderator X. The variable '", X, "' has ", n_unique_X, " unique values, which suggests it is continuous.\n")
+        }
+    }
+
     ## Y
     if (!is.character(Y)) {
         stop("\"Y\" is not a string.")
@@ -1029,7 +1040,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             show.all = show.all,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            gate = gate
         )
     }
     if (estimator == "binning") {
@@ -1259,7 +1271,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             show.all = show.all,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            gate = gate
         )
     }
     if (estimator == "dml") {
@@ -1319,7 +1332,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     if (estimator == "lasso") {
-        if(length(unique(data[,X]))<5){
+        if(isTRUE(gate) || length(unique(data[,X]))<5){
             output <- interflex.lasso_discrete(
                 data = data,
                 Y = Y,
