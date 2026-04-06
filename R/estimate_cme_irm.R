@@ -754,44 +754,48 @@ bootstrapCME <- function(
     `%op%` <- pcfg$op
 
     if (verbose) message("BootstrapCME Step 3: Starting bootstrap loop...")
-    res_list <- foreach::foreach(
-      b = 1:B,
-      .combine = "rbind",
-      .export  = "estimateCME",
-      .packages = c("splines","glmnet","mgcv"),
-      .options.future = list(seed = TRUE)
-    ) %op% {
-      idx_b <- sample(idx_seq, size = n, replace = TRUE)
-      data_b <- data[idx_b, , drop = FALSE]
-      XZ_b <- XZ_full[idx_b, , drop = FALSE]
-      use_out_model <- outcome_model_type
-      use_ps_model  <- ps_model_type
-      
-      fit_b <- estimateCME(
-        data               = data_b,
-        Y                  = Y,
-        D                  = D,
-        X                  = X,
-        Z                  = NULL, # design matrix already provided
-        FE                 = FE,   
-        estimand           = estimand,
-        signal             = signal,
-        XZ_design          = XZ_b,
-        outcome_model_type = use_out_model,
-        ps_model_type      = use_ps_model,
-        basis_type         = "none",  # not needed if XZ_design is given
-        include_interactions= FALSE,
-        spline_df          = spline_df,
-        spline_degree      = spline_degree,
-        lambda_seq         = lambda_seq,
-        reduce.dimension   = reduce.dimension,
-        best_span          = best_span_full,
-        x.eval             = x.eval,
-        lambda_cv = lambda_cv,
-        verbose            = FALSE
-      )
-      fit_b$cme_df$CME
-    }
+    res_list <- progressr::with_progress({
+      p <- progressr::progressor(steps = B)
+      foreach::foreach(
+        b = 1:B,
+        .combine = "rbind",
+        .export  = c("estimateCME", "p"),
+        .packages = c("splines","glmnet","mgcv"),
+        .options.future = list(seed = TRUE)
+      ) %op% {
+        idx_b <- sample(idx_seq, size = n, replace = TRUE)
+        data_b <- data[idx_b, , drop = FALSE]
+        XZ_b <- XZ_full[idx_b, , drop = FALSE]
+        use_out_model <- outcome_model_type
+        use_ps_model  <- ps_model_type
+
+        fit_b <- estimateCME(
+          data               = data_b,
+          Y                  = Y,
+          D                  = D,
+          X                  = X,
+          Z                  = NULL, # design matrix already provided
+          FE                 = FE,
+          estimand           = estimand,
+          signal             = signal,
+          XZ_design          = XZ_b,
+          outcome_model_type = use_out_model,
+          ps_model_type      = use_ps_model,
+          basis_type         = "none",  # not needed if XZ_design is given
+          include_interactions= FALSE,
+          spline_df          = spline_df,
+          spline_degree      = spline_degree,
+          lambda_seq         = lambda_seq,
+          reduce.dimension   = reduce.dimension,
+          best_span          = best_span_full,
+          x.eval             = x.eval,
+          lambda_cv = lambda_cv,
+          verbose            = FALSE
+        )
+        p()
+        fit_b$cme_df$CME
+      }
+    }, handlers = .progress_handler("Bootstrap"))
     if (verbose) message("BootstrapCME Step 4: Bootstrap loop complete.")
     
     cme_mat_bs[,] <- res_list

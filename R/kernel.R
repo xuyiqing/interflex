@@ -781,22 +781,29 @@ interflex.kernel <- function(data,
             }
             `%op%` <- pcfg$op
             ## message already printed by interflex()
-            Error <- suppressWarnings(foreach(
-                bw = bw.grid, .combine = rbind,
-                .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
-                .inorder = FALSE,
-                .options.future = list(seed = TRUE)
-            ) %op% {
-                cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
-                if ("try-error" %in% class(cv.output.sub)) {
-                    return(NA)
-                } else {
-                    return(cv.output.sub)
+            Error <- suppressWarnings(progressr::with_progress({
+                p <- progressr::progressor(steps = length(bw.grid))
+                foreach(
+                    bw = bw.grid, .combine = rbind,
+                    .export = c("p"),
+                    .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
+                    .inorder = FALSE,
+                    .options.future = list(seed = TRUE)
+                ) %op% {
+                    cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
+                    p()
+                    if ("try-error" %in% class(cv.output.sub)) {
+                        return(NA)
+                    } else {
+                        return(cv.output.sub)
+                    }
                 }
-            })
+            }, handlers = .progress_handler("Cross-validation")))
             # return(Error)
         } else {
             Error <- matrix(NA, length(bw.grid), 6)
+            cli::cli_progress_bar("Cross-validation", total = length(bw.grid),
+                                  clear = TRUE)
             for (i in 1:length(bw.grid)) {
                 suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval), silent = FALSE))
                 if ("try-error" %in% class(cv.output.sub)) {
@@ -804,8 +811,9 @@ interflex.kernel <- function(data,
                 } else {
                     Error[i, ] <- cv.output.sub
                 }
-                cat(".")
+                cli::cli_progress_update()
             }
+            cli::cli_progress_done()
         }
 
         colnames(Error) <- c("bw", "Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
@@ -2143,23 +2151,29 @@ interflex.kernel <- function(data,
                 ## message already printed by interflex()
 
                 suppressWarnings(
-                    bootout <- foreach(
-                        i = 1:nboots, .combine = cbind,
-                        .export = c("one.boot"), .packages = c("MASS", "AER"),
-                        .inorder = FALSE,
-                        .options.future = list(seed = TRUE)
-                    ) %op% {
-                        output.all <- try(one.boot(), silent = TRUE)
-                        if ("try-error" %in% class(output.all)) {
-                            return(NA)
-                        } else {
-                            return(output.all)
+                    bootout <- progressr::with_progress({
+                        p <- progressr::progressor(steps = nboots)
+                        foreach(
+                            i = 1:nboots, .combine = cbind,
+                            .export = c("one.boot", "p"),
+                            .packages = c("MASS", "AER"),
+                            .inorder = FALSE,
+                            .options.future = list(seed = TRUE)
+                        ) %op% {
+                            output.all <- try(one.boot(), silent = TRUE)
+                            p()
+                            if ("try-error" %in% class(output.all)) {
+                                return(NA)
+                            } else {
+                                return(output.all)
+                            }
                         }
-                    }
+                    }, handlers = .progress_handler("Bootstrap"))
                 )
-                cat("\r")
             } else {
                 bootout <- matrix(NA, all.length, 0)
+                cli::cli_progress_bar("Bootstrap", total = nboots,
+                                      clear = TRUE)
                 for (i in 1:nboots) {
                     suppressWarnings(tempdata <- try(one.boot(), silent = TRUE))
                     if ("try-error" %in% class(tempdata)) {
@@ -2167,12 +2181,9 @@ interflex.kernel <- function(data,
                     } else {
                         bootout <- cbind(bootout, tempdata)
                     }
-                    # if (!is.null(tempdata)) {
-                    #    bootout <- cbind(bootout, tempdata)
-                    # }
-                    if (i %% 50 == 0) cat(i) else cat(".")
+                    cli::cli_progress_update()
                 }
-                cat("\r")
+                cli::cli_progress_done()
             }
 
             if (treat.type == "discrete") {

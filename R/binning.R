@@ -2361,23 +2361,31 @@ interflex.binning <- function(data,
 			## message already printed by interflex()
 
 			suppressWarnings(
-				bootout <- foreach (i=1:nboots, .combine=cbind,
-									.export=c("one.boot"),.packages=c('lfe','AER'),
-									.inorder=FALSE,
-									.options.future=list(seed=TRUE)) %op% {one.boot()}
+				bootout <- progressr::with_progress({
+					p <- progressr::progressor(steps = nboots)
+					foreach (i=1:nboots, .combine=cbind,
+								.export=c("one.boot","p"),.packages=c('lfe','AER'),
+								.inorder=FALSE,
+								.options.future=list(seed=TRUE)) %op% {
+						result <- one.boot()
+						p()
+						result
+					}
+				}, handlers = .progress_handler("Bootstrap"))
 			)
-			cat("\r")
-		}	 
+		}
 		else{
 			bootout<-matrix(NA,all.length,0)
+			cli::cli_progress_bar("Bootstrap", total = nboots,
+			                      clear = TRUE)
 			for(i in 1:nboots){
 				tempdata <- one.boot()
 				if(!is.null(tempdata)){
 					bootout<- cbind(bootout,tempdata)
 				}
-				if (i%%50==0) cat(i) else cat(".")
+				cli::cli_progress_update()
 			}
-			cat("\r")
+			cli::cli_progress_done()
 		}
 
 		if(treat.type=='discrete'){

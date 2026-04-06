@@ -626,48 +626,52 @@ bootstrapCME_PLR <- function(
     ###########################################################################
     if (verbose) cat("BootstrapPLR Step 4: Running bootstrap loop...\n")
 
-    res_list <- foreach::foreach(
-      b = 1:B,
-      .combine  = "rbind",
-      .export   = "estimateCME_PLR",
-      .packages = c("splines","glmnet","interflex"),
-      .options.future = list(seed = TRUE)
-    ) %op% {
+    res_list <- progressr::with_progress({
+      p <- progressr::progressor(steps = B)
+      foreach::foreach(
+        b = 1:B,
+        .combine  = "rbind",
+        .export   = c("estimateCME_PLR", "p"),
+        .packages = c("splines","glmnet","interflex"),
+        .options.future = list(seed = TRUE)
+      ) %op% {
 
-      # (a) Resample indices and data
-      idx_b  <- sample(idx_seq, size = n, replace = TRUE)
-      data_b <- data[idx_b, , drop = FALSE]
+        # (a) Resample indices and data
+        idx_b  <- sample(idx_seq, size = n, replace = TRUE)
+        data_b <- data[idx_b, , drop = FALSE]
 
-      # (b) Grab the corresponding rows of XZ_design (including FE dummies)
-      XZ_b <- fit_full$XZ_design[idx_b, , drop = FALSE]
+        # (b) Grab the corresponding rows of XZ_design (including FE dummies)
+        XZ_b <- fit_full$XZ_design[idx_b, , drop = FALSE]
 
-      # (c) Re-fit PLR on bootstrap sample, passing FE and precomputed XZ_b
-      fit_b <- estimateCME_PLR(
-        data                 = data_b,
-        Y                    = Y,
-        D                    = D,
-        X                    = X,
-        Z                    = NULL,
-        FE                   = FE,
-        XZ_design            = XZ_b,
-        outcome_model_type   = outcome_model_type,
-        treatment_model_type = treatment_model_type,
-        basis_type           = basis_type,
-        include_interactions = include_interactions,
-        poly_degree          = poly_degree,
-        spline_df            = spline_df,
-        spline_degree        = spline_degree,
-        lambda_cv            = if (need_tune) lambda_cv else NULL,
-        lambda_seq           = lambda_seq,
-        reduce.dimension     = reduce.dimension,
-        bw                   = bw,
-        x.eval               = x.eval,
-        verbose              = FALSE
-      )
+        # (c) Re-fit PLR on bootstrap sample, passing FE and precomputed XZ_b
+        fit_b <- estimateCME_PLR(
+          data                 = data_b,
+          Y                    = Y,
+          D                    = D,
+          X                    = X,
+          Z                    = NULL,
+          FE                   = FE,
+          XZ_design            = XZ_b,
+          outcome_model_type   = outcome_model_type,
+          treatment_model_type = treatment_model_type,
+          basis_type           = basis_type,
+          include_interactions = include_interactions,
+          poly_degree          = poly_degree,
+          spline_df            = spline_df,
+          spline_degree        = spline_degree,
+          lambda_cv            = if (need_tune) lambda_cv else NULL,
+          lambda_seq           = lambda_seq,
+          reduce.dimension     = reduce.dimension,
+          bw                   = bw,
+          x.eval               = x.eval,
+          verbose              = FALSE
+        )
 
-      # Return the CME curve for this bootstrap as a single row
-      c(fit_b$cme_df$CME_fit)
-    }
+        p()
+        # Return the CME curve for this bootstrap as a single row
+        c(fit_b$cme_df$CME_fit)
+      }
+    }, handlers = .progress_handler("Bootstrap"))
 
     if (verbose) cat("  -> Bootstrap loop complete.\n")
 

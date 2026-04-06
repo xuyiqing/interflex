@@ -114,3 +114,14 @@
     list(use_parallel = TRUE, op = doRNG::`%dorng%`)
   }
 }
+
+# Return a cli-based progressr handler for bootstrap/CV loops.
+.progress_handler <- function(label = "Bootstrap") {
+  progressr::handler_cli(
+    format = paste0("{cli::pb_spin} ", label,
+                    " {cli::pb_current}/{cli::pb_total}",
+                    " | {cli::pb_bar} {cli::pb_percent}",
+                    " | ETA: {cli::pb_eta}"),
+    clear = TRUE
+  )
+}

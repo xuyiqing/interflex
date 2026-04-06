@@ -432,40 +432,44 @@ bootstrapGTE <- function(
     `%op%` <- pcfg$op
     idx <- seq_len(n)
 
-    res_mat <- foreach::foreach(
-      b = seq_len(B),
-      .combine  = "rbind",
-      .export = c("estimateGTE"),
-      .packages = c("glmnet","splines"),
-      .options.future = list(seed = TRUE)
-    ) %op% {
-      ids    <- sample(idx, n, replace=TRUE)
-      dat_b  <- data[ids,   , drop=FALSE]
-      XZ_b   <- XZ0[ ids,   , drop=FALSE]
+    res_mat <- progressr::with_progress({
+      p <- progressr::progressor(steps = B)
+      foreach::foreach(
+        b = seq_len(B),
+        .combine  = "rbind",
+        .export = c("estimateGTE", "p"),
+        .packages = c("glmnet","splines"),
+        .options.future = list(seed = TRUE)
+      ) %op% {
+        ids    <- sample(idx, n, replace=TRUE)
+        dat_b  <- data[ids,   , drop=FALSE]
+        XZ_b   <- XZ0[ ids,   , drop=FALSE]
 
-      fit_b <- estimateGTE(
-        data                 = dat_b,
-        Y                    = Y,
-        D                    = D,
-        X                    = X,
-        Z                    = NULL,        # design matrix already built
-        FE                   = FE,
-        estimand             = estimand,
-        signal               = signal,
-        basis_type           = "none",      # design fixed
-        include_interactions = FALSE,
-        poly_degree          = poly_degree,
-        spline_df            = spline_df,
-        spline_degree        = spline_degree,
-        XZ_design            = XZ_b,        # pass in bootstrap design
-        outcome_model_type   = outcome_model_type,
-        ps_model_type        = ps_model_type,
-        lambda_cv            = lambda_used, 
-        lambda_seq           = lambda_seq,
-        verbose              = FALSE
-      )
-      fit_b$gte_df$GTE
-    }
+        fit_b <- estimateGTE(
+          data                 = dat_b,
+          Y                    = Y,
+          D                    = D,
+          X                    = X,
+          Z                    = NULL,        # design matrix already built
+          FE                   = FE,
+          estimand             = estimand,
+          signal               = signal,
+          basis_type           = "none",      # design fixed
+          include_interactions = FALSE,
+          poly_degree          = poly_degree,
+          spline_df            = spline_df,
+          spline_degree        = spline_degree,
+          XZ_design            = XZ_b,        # pass in bootstrap design
+          outcome_model_type   = outcome_model_type,
+          ps_model_type        = ps_model_type,
+          lambda_cv            = lambda_used,
+          lambda_seq           = lambda_seq,
+          verbose              = FALSE
+        )
+        p()
+        fit_b$gte_df$GTE
+      }
+    }, handlers = .progress_handler("Bootstrap"))
 
     if(verbose) message("3) Computing SE & CIs...")
     se   <- apply(res_mat, 2, sd, na.rm=TRUE)

@@ -14,6 +14,7 @@ importFrom("ggplot2","geom_errorbar", "geom_hline", "labs" ,"geom_line", "geom_p
 			"coord_cartesian", "facet_wrap", "facet_grid","theme_bw","element_blank","ggsave","layer_scales","ylim","xlim",
 			"scale_color_manual","scale_fill_manual","ggplot_build","ggplot_gtable","geom_histogram","geom_text","last_plot")
 importFrom("future","makeClusterPSOCK")
+importFrom("cli","cli_progress_bar","cli_progress_update","cli_progress_done")
 importFrom("mgcv","vis.gam","gam","nb")
 importFrom("pcse","pcse")
 importFrom("sandwich","sandwich","estfun","bread","vcovHC")

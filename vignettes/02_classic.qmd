@@ -207,7 +207,7 @@ head(linear.out.1$est.lin$`1`)
 
 By default, **interflex** reports both pointwise and uniform confidence intervals (CIs) when `vartype = "bootstrap"`. The pointwise CI covers the true CME at each individual value of $X$ with 95% probability, but it does *not* guarantee simultaneous coverage across all values of $X$. The uniform CI, by contrast, provides a confidence band that covers the *entire* CME curve simultaneously with 95% probability. This is analogous to the distinction between individual and family-wise error rates in multiple testing.
 
-Uniform CIs are wider than pointwise CIs. They are important when making statements about the shape of the CME curve as a whole — for example, "the treatment effect is positive for all values of $X$" requires the uniform band to be above zero everywhere, not just each pointwise interval. In the plots, pointwise CIs appear as shaded ribbons and uniform CIs appear as dashed lines.
+Uniform CIs are wider than pointwise CIs. They are important when making statements about the shape of the CME curve as a whole — for example, "the treatment effect is positive for all values of $X > 0$" requires the uniform band to be above zero for the entire region of $X > 0$, not just each pointwise interval. In the plots, pointwise CIs appear as shaded ribbons and uniform CIs appear as dashed lines.
 
 ::: {.callout-note}
 ## How many bootstrap samples?
@@ -238,6 +238,13 @@ linear.uni <- interflex(estimator = "linear", data = d,
 ```{r ch2-uniform-ci-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 linear.uni$figure
 ```
+
+::: {.callout-tip}
+## Parallel computing
+
+Parallel computing will speed up both cross-validation and uncertainty estimation significantly. We recommend that users manually set the number of cores using the `cores` option. If this is not supplied or is `NULL`, **interflex** will automatically select the smaller of 8 and the number of usable system cores minus 2, to prevent excessive use of system resources.
+:::
+
 
 To turn off uniform CIs (e.g., to reduce visual clutter or when only pointwise inference is needed), set `show.uniform.CI = FALSE` in either the estimation or plotting call:
 
@@ -271,11 +278,6 @@ To relax functional form assumptions, we then explore the kernel estimator propo
 
 When the standard errors are produced bootstrapping, we can adjust the number of bootstrap iterations using the `nboots` option, with the default being 200 (set `nboots = 2000` or higher for proper uniform CIs; see the note above). The grid option can either be an integer, which specifies the number of bandwidths to be cross-validated, or a vector of candidate bandwidths -- the default is `grid = 20`. We can also specify a clustered group structure by using the `cl` option, in which case a block bootstrap procedure will be performed.
 
-::: {.callout-tip}
-## Parallel computing
-
-Parallel computing will speed up both cross-validation and uncertainty estimation significantly. We recommend that users manually set the number of cores using the `cores` option. If this is not supplied or is `NULL`, **interflex** will automatically select the smaller of 8 and the number of usable system cores minus 2, to prevent excessive use of system resources.
-:::
 
 The left panel uses the default settings for the kernel estimator; the right panel use fully interacted model, with `nboots = 400`, and we set the estimator to choose bandwidths from `c(0,1,2,3)`
 

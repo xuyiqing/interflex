@@ -103,8 +103,13 @@ plot.interflex <- function(x,
         stop("Not an \"interflex\" object.")
     }
 
-    ## Auto by.group when gate estimates are available
-    if (!by.group && ("g.est" %in% names(out) || "g.est.dml" %in% names(out))) {
+    ## Auto by.group when gate estimates are available and non-empty
+    .has_gate <- function(obj, field) {
+        if (!field %in% names(obj)) return(FALSE)
+        g <- obj[[field]]
+        is.list(g) && length(g) > 0 && any(vapply(g, NROW, 0L) > 0L)
+    }
+    if (!by.group && (.has_gate(out, "g.est") || .has_gate(out, "g.est.dml"))) {
         by.group <- TRUE
     }
     if (by.group) {
