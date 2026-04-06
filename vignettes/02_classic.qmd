@@ -1,4 +1,4 @@
-# Classic Approaches {#sec-classic}
+# Classic: Basics {#sec-classic}
 
 In this chapter, we show how to use **interflex** package to analyze and estimate CME. We begin with visual diagnostics such as subgroup scatterplots, binning plot, and Generalized Additive Models (GAM) plot. We then estimate CME with classic approaches, including linear estimator and kernel estimator; We also show how to use **interflex** package with binning, linear and kernel estimators when users are interested in extension function, such as multiple treatment arms, fixed effect, prediction, and analyzing differences in treatment effects. We illustrates the implementation details using empirical example, with binary treatment settings and continuous treatment settings.
 
@@ -16,17 +16,17 @@ The example we are using is from @huddy2015expressive, which explores the effect
 
 -   Moderator Variable: strength of partisan identity (continuous scale from 0 to 1)
 
-```{r include=FALSE}
+```{r ch2-init, include=FALSE}
 source("init.R")
 ```
 
-```{r message = FALSE, warning = FALSE}
+```{r ch2-load-data, message = FALSE, warning = FALSE}
 library(interflex)
 data(interflex)
 ls()
 ```
 
-```{r app1_data, message=FALSE, warning=FALSE, cathe = TRUE}
+```{r ch2-binary-data-setup, message=FALSE, warning=FALSE, cathe = TRUE}
 d<-app_hma2015
 
 Y = "totangry" ## outcome: anger
@@ -51,7 +51,7 @@ The first step of the diagnostics is to plot raw data. We supply the function **
 
 <!-- We use `main` to add a title to the plot, `cex.main` to adjust its size, and `ylab` to change the y-axis label. -->
 
-```{r binary_raw1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch2-binary-raw-plot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 
 interflex(estimator = "raw",data = d, Y = Y, 
                      D = D, X = X, Z = Z,
@@ -84,51 +84,63 @@ The histograms at the bottom of the plot depict the distributions of $X$ across 
 
 The `nbins` option sets the number of bins. The default number of bins is 3, and equal-sized bins are created based on the distribution of the moderator.
 
-```{r binary_bin1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
-bin.out.1 <- interflex(estimator = "binning", data = d, 
+```{r ch2-binary-bin1-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
+bin.out.1 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  theme.bw = TRUE,
                  main = "Marginal Effects")
+```
+
+```{r ch2-binary-bin1-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 bin.out.1$figure
 ```
 
 For fully moderated model, we includes interactions between each covariate $Z$ and the bin dummies and the triple interactions. It can reduce biases when the impact of some covariates to the outcome does not take a linear form of moderator $X$, but sometimes it will also render the estimates unstable when the number of covariates is large.
 
-```{r binary_bin2, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
-bin.out.2 <- interflex(estimator = "binning", data = d, 
+```{r ch2-binary-bin2-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
+bin.out.2 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  theme.bw = TRUE, full.moderate = TRUE,
                  main = "Marginal Effects")
+```
+
+```{r ch2-binary-bin2-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 bin.out.2$figure
 ```
 
 Note that we can customize the cutoff values for the bins, for example, set `cutoffs = c(0.25,0.5,0.75,0.9)` to create five bins: $[minX, 0.25], (0.25, 0.5], (0.5,0.75], (0.75, 0.9]$ and $(0.9,maxX]$ (supplying N numbers will create N+1 bins). Note that the `cutoffs` option will override the **nbins** option if they are incompatible.
 
-```{r binary_bin3, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch2-binary-bin3-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 cutoff<-c(0.25,0.5,0.75,0.9)
 
-bin.out.3 <- interflex(estimator = "binning", data = d, 
+bin.out.3 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  theme.bw = TRUE, nbins = 5,
                  main = "Marginal Effects")
+```
+
+```{r ch2-binary-bin3-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 bin.out.3$figure
 ```
 
 Next, we use `Xunif = TRUE` to transform the moderator into a uniformly distributed random variable (based on the rank order in values of the orginal moderator) before estimating the CME.
 
-```{r binary_bin4, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
-bin.out.4 <- interflex(estimator = "binning", data = d, 
+```{r ch2-binary-bin4-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
+bin.out.4 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  theme.bw = TRUE, Xunif = TRUE,
                  main = "Marginal Effects")
+```
+
+```{r ch2-binary-bin4-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 bin.out.4$figure
 ```
 
@@ -136,13 +148,13 @@ bin.out.4$figure
 
 The CME plot is stored in `object$figure` while the estimates and standard errors are stored in `object$est.bin` (binning). The tests results are stored in `object$tests` (binning).
 
-```{r binary_bin5, message=FALSE, warning=FALSE, cathe = TRUE}
+```{r ch2-binary-bin-wald-test, message=FALSE, warning=FALSE, cathe = TRUE}
 print(bin.out.1$tests$p.wald)
 ```
 
 `plot` allows users to adjust graphic options without re-estimating the model. The first entry must be a **interflex** object. Note that we use `bin.labs = FALSE` to hide the label on the top of each bin and `Xdistr = "none` to remove the distribution of the moderator (not recommended), or set `Xdistr = "density` to present the distribution of the moderator with a density plot using option. We use `cex.axis` and `cex.lab` to adjust the font sizes of axis numbers and labels. We address all the plotting options in chapter @sec-plotting.
 
-```{r binary_bin6, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch2-binary-bin-replot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 
 plot(bin.out.1, Xdistr = "density", bin.labs = FALSE, theme.bw = TRUE)
 ```
@@ -163,33 +175,93 @@ We report the uniform/simultaneous confidence interval along with pointwise conf
 
 Note that the variance-covariance matrix of coefficients used by the delta method or the simulation method by default is the robust standard error matrix estimated from the regression. Users can also choose `homoscedastic` or `cluster` standard error by specifying the option `vcov.type`. There are four options for the choice of the `vcov` estimator: `vcov.type = "homoscedastic"`, `"robust"`, `"cluster"`, and `"pcse"`. The default option is `"robust"`.
 
-```{r binary_lin1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
+```{r ch2-binary-lin-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 
-linear.out.1 <- interflex(estimator = "linear", data = d, 
+linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel, vartype = "bootstrap",
                  theme.bw = TRUE,
                  main = "Linear model")
 
-linear.out.2 <- interflex(estimator = "linear", data = d, 
+linear.out.2 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  vartype = "bootstrap",
                  theme.bw = TRUE, full.moderate = TRUE,
                  main = "Fully Moderated Linear model")
+```
 
+```{r ch2-binary-lin-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 ggarrange(linear.out.1$figure, linear.out.2$figure)
 ```
 
 **Results.** The CME plot is stored in `out$figure` while the estimates and standard errors are stored in `out$est.lin`
 
-```{r binary_lin2, message=FALSE, warning=FALSE, cathe = TRUE}
+```{r ch2-binary-lin-results, message=FALSE, warning=FALSE, cathe = TRUE}
 head(linear.out.1$est.lin$`1`)
 ```
 
-### kernel estimator
+### Uniform confidence intervals
+
+By default, **interflex** reports both pointwise and uniform confidence intervals (CIs) when `vartype = "bootstrap"`. The pointwise CI covers the true CME at each individual value of $X$ with 95% probability, but it does *not* guarantee simultaneous coverage across all values of $X$. The uniform CI, by contrast, provides a confidence band that covers the *entire* CME curve simultaneously with 95% probability. This is analogous to the distinction between individual and family-wise error rates in multiple testing.
+
+Uniform CIs are wider than pointwise CIs. They are important when making statements about the shape of the CME curve as a whole — for example, "the treatment effect is positive for all values of $X$" requires the uniform band to be above zero everywhere, not just each pointwise interval. In the plots, pointwise CIs appear as shaded ribbons and uniform CIs appear as dashed lines.
+
+::: {.callout-note}
+## How many bootstrap samples?
+
+The bootstrapped uniform CI works by finding the narrowest band that achieves simultaneous 95% coverage across all $k$ evaluation points. With $N$ bootstrap draws, the smallest resolvable tail probability is approximately $1/N$, and the algorithm improves on the Bonferroni correction only when $N > 2k/\alpha$. For the default $\alpha = 0.05$:
+
+| Evaluation points ($k$) | Minimum `nboots` |
+|---|---|
+| 10 | 400 |
+| 20 | 800 |
+| 50 (default) | 2,000 |
+| 100 | 4,000 |
+
+With the default `nboots = 200`, the algorithm falls back to the conservative Bonferroni correction for most cases. We recommend setting `nboots = 2000` or higher when uniform CIs are of interest.
+:::
+
+Here we demonstrate the linear estimator with `vartype = "bootstrap"` and `nboots = 2000` to obtain proper uniform CIs:
+
+```{r ch2-uniform-ci-fit, cache=TRUE, message=FALSE, warning=FALSE}
+linear.uni <- interflex(estimator = "linear", data = d,
+                 Y = Y, D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel, vartype = "bootstrap",
+                 nboots = 2000,
+                 theme.bw = TRUE, main = "With Uniform CI (nboots = 2000)")
+```
+
+```{r ch2-uniform-ci-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+linear.uni$figure
+```
+
+To turn off uniform CIs (e.g., to reduce visual clutter or when only pointwise inference is needed), set `show.uniform.CI = FALSE` in either the estimation or plotting call:
+
+```{r ch2-uniform-ci-off-fit, cache=TRUE, message=FALSE, warning=FALSE}
+linear.nouni <- interflex(estimator = "linear", data = d,
+                 Y = Y, D = D, X = X, Z = Z,
+                 Ylabel = Ylabel, Dlabel = Dlabel,
+                 Xlabel = Xlabel, vartype = "bootstrap",
+                 nboots = 2000,
+                 show.uniform.CI = FALSE,
+                 theme.bw = TRUE, main = "Without Uniform CI")
+```
+
+```{r ch2-uniform-ci-off-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+linear.nouni$figure
+```
+
+You can also hide uniform CIs at the plotting stage without re-estimating:
+
+```r
+plot(linear.uni, show.uniform.CI = FALSE, theme.bw = TRUE)
+```
+
+### Kernel estimator
 
 To relax functional form assumptions, we then explore the kernel estimator proposed by @hainmueller2019much.
 
@@ -197,30 +269,38 @@ To relax functional form assumptions, we then explore the kernel estimator propo
 
 **Uncertainty estimation.** Kernel estimator computes standard errors in two ways: `delta` and `bootstrap`. Uniform CI is estimated when setting `vartype = "bootstrap"`.
 
-When the standard errors are produced bootstrapping, we can adjust the number of bootstrap iterations using the `nboots` option, with the default being 200. The grid option can either be an integer, which specifies the number of bandwidths to be cross-validated, or a vector of candidate bandwidths – the default is `grid = 20`. We can also specify a clustered group structure by using the `cl` option, in which case a block bootstrap procedure will be performed.
+When the standard errors are produced bootstrapping, we can adjust the number of bootstrap iterations using the `nboots` option, with the default being 200 (set `nboots = 2000` or higher for proper uniform CIs; see the note above). The grid option can either be an integer, which specifies the number of bandwidths to be cross-validated, or a vector of candidate bandwidths -- the default is `grid = 20`. We can also specify a clustered group structure by using the `cl` option, in which case a block bootstrap procedure will be performed.
+
+::: {.callout-tip}
+## Parallel computing
+
+Parallel computing will speed up both cross-validation and uncertainty estimation significantly. We recommend that users manually set the number of cores using the `cores` option. If this is not supplied or is `NULL`, **interflex** will automatically select the smaller of 8 and the number of usable system cores minus 2, to prevent excessive use of system resources.
+:::
 
 The left panel uses the default settings for the kernel estimator; the right panel use fully interacted model, with `nboots = 400`, and we set the estimator to choose bandwidths from `c(0,1,2,3)`
 
-```{r binary_kernel1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
-kernel.out.1 <- interflex(estimator = "kernel", 
-                          data = d, 
+```{r ch2-binary-kernel-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
+kernel.out.1 <- interflex(estimator = "kernel",
+                          data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 vartype = "bootstrap", 
+                 vartype = "bootstrap",
                  theme.bw = TRUE, bw = 0.916,
                  main = "Kernel model")
 
 
-kernel.out.2 <- interflex(estimator = "kernel", 
-                          data = d, 
+kernel.out.2 <- interflex(estimator = "kernel",
+                          data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  vartype = "bootstrap", grid = c(0,1,2,3),
                  theme.bw = TRUE, full.moderate = TRUE,
                  main = "Fully Moderated Kernel model")
+```
 
+```{r ch2-binary-kernel-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 ggarrange(kernel.out.1$figure, kernel.out.2$figure)
 ```
 
@@ -230,7 +310,7 @@ Even with an optimized algorithm, the bootstrap procedure for large datasets can
 
 If you specify a bandwidth manually, for example, by setting `bw = 1`, the cross-validation step will be skipped.
 
-```{r binary_kernel2, message=FALSE, warning=FALSE, cathe = TRUE}
+```{r ch2-binary-kernel-bandwidth, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 cat("1. Runtime with parallel computing for Bandwidth selection:\n")
 runtime_parallel <- system.time({
   kernel.out.parallel <- interflex(estimator = "kernel", data = d, 
@@ -262,13 +342,13 @@ cat("Elapsed Time: ", runtime_user_bandwidth[3], " seconds\n")
 
 **Results.** The estimation results, including pointwise and uniform confidence intervals, are included in `est.kernel`.
 
-```{r binary_kernel3, message=FALSE, warning=FALSE, cathe = TRUE}
+```{r ch2-binary-kernel-results, message=FALSE, warning=FALSE, cathe = TRUE}
 head(kernel.out.1$est.kernel$`1`)
 ```
 
 The results of cross-validation are saved in `CV.output`.
 
-```{r binary_kernel4, message=FALSE, warning=FALSE, cathe = TRUE}
+```{r ch2-binary-kernel-cv, message=FALSE, warning=FALSE, cathe = TRUE}
 head(kernel.out.1$CV.output)
 ```
 
@@ -282,9 +362,9 @@ head(kernel.out.1$CV.output)
 -   Treatment: Change in congestion (continuous, $\in [-28.8, 20.8]$); congestion is measured by the number of patients per doctor at the nearest clinic, with lower congestion indicating improved service quality
 -   Moderator: Logarithm of median property value (continuous, $\in[-0.2, 7.7]$)
 
-```{r con_data, message=FALSE, warning=FALSE, cathe = TRUE}
-load("data/Adiguzel2023a.RData")
-d<-lograyic_models
+```{r ch2-con-data-setup, message=FALSE, warning=FALSE, cathe = TRUE}
+data(app_adiguzel2023)
+d<-app_adiguzel2023
 d<-remove_labels(d)
 d<-as.data.frame(d)
 main<-"Adiguzel2023a"
@@ -309,7 +389,7 @@ Xlabel<-"Property values (2009)"
 
 Similar to the binary treatment settings, we can plot the subgroup scatter plot as first step of diagnostics:
 
-```{r con_raw1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch2-con-raw1-plot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 interflex(estimator = "raw",data = d, Y = Y, 
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
@@ -319,7 +399,7 @@ interflex(estimator = "raw",data = d, Y = Y,
 
 Instead of grouping by treatment status, the scatter plot carves $X$ into 3 quantile‐based bins by default. You can supply your own number of bins by setting the `cutoff =`. Supplying $N$ numbers will create $N+1$ bins.
 
-```{r con_raw2, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch2-con-raw2-plot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 cut_bins = c(3, 4, 5)
 interflex(estimator = "raw",data = d, Y = Y, 
                      D = D, X = X, Z = Z,
@@ -332,13 +412,15 @@ interflex(estimator = "raw",data = d, Y = Y,
 
 Similar to the binary treatment case, we can also use binning plot for diagnosis.
 
-```{r con_bin1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
-bin.out.1<-interflex(estimator = "binning",data = d, Y = Y, 
+```{r ch2-con-bin-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
+bin.out.1<-interflex(estimator = "binning",data = d, Y = Y,
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
                      Xlabel = Xlabel, cutoff = cut_bins,
           main = "Binning plot", ylab = "CME", theme.bw = TRUE)
+```
 
+```{r ch2-con-bin-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 bin.out.1$figure
 ```
 
@@ -348,7 +430,7 @@ Because the treatment group is not binary, the histograms at the bottom of the p
 
 For the continuous treatment case, we can draw a Generalized Additive Model (GAM) plot.
 
-```{r con_gam1, message=FALSE, warning=FALSE, cathe = TRUE,eval=FALSE,fig.width = 6, fig.height = 4.5}
+```{r ch2-con-gam1-plot, message=FALSE, warning=FALSE, cathe = TRUE, eval=FALSE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 interflex(estimator = "gam",data = d, Y = Y, 
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
@@ -358,7 +440,7 @@ interflex(estimator = "gam",data = d, Y = Y,
 
 You can manipulate the angle of each of the four plots by setting `angle` with your own value of theta, which change the azimuth (horizontal rotation) angle in degrees. The default angle is `c(30, 100,-30,-120).`
 
-```{r con_gam2, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch2-con-gam2-plot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 interflex(estimator = "gam",data = d, Y = Y, 
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
@@ -372,21 +454,23 @@ interflex(estimator = "gam",data = d, Y = Y,
 
 We illustrate the code implementation using an empirical example with a continuous treatment. Note that the coding approach is essentially the same for both continuous and binary treatments.
 
-```{r con_lin1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
-linear.out.1 <- interflex(estimator = "linear", data = d, 
+```{r ch2-con-lin-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
+linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  theme.bw = TRUE,
                  main = "Linear model")
 
-linear.out.2 <- interflex(estimator = "linear", data = d, 
+linear.out.2 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  theme.bw = TRUE, full.moderate = TRUE,
                  main = "Fully Moderated Linear model")
+```
 
+```{r ch2-con-lin-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 ggarrange(linear.out.1$figure, linear.out.2$figure)
 ```
 
@@ -394,25 +478,27 @@ ggarrange(linear.out.1$figure, linear.out.2$figure)
 
 We can deploy kernel estimator with the same syntax.
 
-```{r con_kernel1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
-kernel.out.1 <- interflex(estimator = "kernel", 
-                          data = d, 
+```{r ch2-con-kernel-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
+kernel.out.1 <- interflex(estimator = "kernel",
+                          data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 vartype = "bootstrap", 
-                 theme.bw = TRUE, 
+                 vartype = "bootstrap",
+                 theme.bw = TRUE,
                  main = "Kernel model")
 
-kernel.out.2 <- interflex(estimator = "kernel", 
-                          data = d, 
+kernel.out.2 <- interflex(estimator = "kernel",
+                          data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  vartype = "bootstrap", grid = c(0,1,2,3),
                  theme.bw = TRUE, full.moderate = TRUE,
                  main = "Fully Moderated Kernel model")
+```
 
+```{r ch2-con-kernel-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 ggarrange(kernel.out.1$figure, kernel.out.2$figure)
 ```
 

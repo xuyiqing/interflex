@@ -1,19 +1,19 @@
-# Extensions {#sec-extensions}
+# Classic: Extensions {#sec-extensions}
 
 In this chapter, we introduce several extending functions of the binning, linear, and kernel estimator. These extending functions do not depend on the data type of treatment, hence they are applicable to almost all settings. To adopt to the flexibility of these extending function, we use simulation data to illustrate the coding implementation.
 
-```{r include=FALSE}
+```{r ch3-init, include=FALSE}
 source("init.R")
 ```
 
-```{r}
+```{r ch3-load-data}
 data(interflex)
 ls()
 ```
 
 s1 is a case of a dichotomous treatment indicator with linear conditional marginal effects (CME); s2 is a case of a continuous treatment indicator with linear CME; s3 is a case of a dichotomous treatment indicator with nonlinear CME; s4 is a case of a dichotomous treatment indicator, nonlinear CME, with additive two-way fixed effects; and s5 is a case of a discrete treatment indicator, nonlinear CME, with additive two-way fixed effects. s1-s5 are generated using the following code:
 
-```{r}
+```{r ch3-sim-dgp-linear}
 set.seed(1234)
 n<-200
 d1<-sample(c(0,1),n,replace=TRUE) # dichotomous treatment
@@ -71,7 +71,7 @@ s5 <- cbind.data.frame(D=d1, X=x, Y=y1, Z1 = z1,Z2 = z2)
 
 **s9** is a case of a discrete treatment indicator in which for the group 0, $E(Y)=logit^{-1}(-X)$, for the group 1 $E(Y)=logit^{-1}(1+X)$, and for the group 2, $E(Y)=logit^{-1}(-X^{2}-X+4)$.
 
-```{r}
+```{r ch3-sim-dgp-discrete}
 set.seed(110)
 n <- 2000
 x <- runif(n,min=-3, max = 3)
@@ -120,67 +120,81 @@ s9 <- cbind.data.frame(X=x,D=d3,Z1=Z1,Z2=Z2,Y=y4)
 
 First, let's look at the linear fixed effects models. Remember in **s4**, a large chunk of the variation in the outcome variable is driven by group fixed effects. Below is a scatterplot of the raw data (group index vs. outcome). Red and green dots represent treatment and control units, respectively. We can see that outcomes are highly correlated within a group.
 
-```{r fe1, cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-scatter-plot, cache=FALSE, message=FALSE, fig.width = 6, fig.height = 4.5}
 ggplot() +
   geom_point(data = s4,aes(x = unit, y = Y, colour = as.factor(D))) +
-  guides(colour=FALSE) + theme_bw()
+  guides(colour="none") + theme_bw()
 ```
 
 When fixed effects are present, it is possible that we cannot observe a clear pattern of CME in the raw plot as before, while binning estimates have wide confidence intervals:
 
-```{r fe2a, results = "hide", cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-raw-plot, results = "hide", cache=FALSE, message=FALSE, fig.width = 6, fig.height = 4.5}
 interflex(estimator = "raw", Y = "Y", D = "D", X = "X", data = s4,
           weights = NULL,ncols=2, theme.bw = TRUE)
 ```
 
-```{r fe3, results = "hide", cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-bin-nofe-fit, results = "hide", cache=TRUE, message=FALSE}
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                         estimator = "binning", FE = NULL, cl = "unit",
                         theme.bw = TRUE)
+```
+
+```{r ch3-fe-bin-nofe-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 s4.binning$figure
 ```
 
 The binning estimates are much more informative when fixed effects are included, by using the `FE` option. Note that the number of group indicators can exceed 2. Our algorithm is optimized for a large number of fixed effects or many group indicators. The `cl` option controls the level at which standard errors are clustered.
 
-```{r fe4, results = "hide", cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-bin-fe-fit, results = "hide", cache=TRUE, message=FALSE}
 s4$wgt <- 1
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                         estimator = "binning", FE = c("unit", "year"),
                         cl = "unit", weights = "wgt", theme.bw = TRUE)
+```
 
+```{r ch3-fe-bin-fe-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 s4.binning$figure
 ```
 
 When fixed effects are not taken into account, the kernel estimates are also less precisely estimated. Because the model is incorrectly specified, cross-validated bandwidths also tend to be bigger than optimal.
 
-```{r fe5, results = "hide", cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-kernel-nofe-fit, results = "hide", cache=TRUE, message=FALSE}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                        estimator = "kernel", FE = NULL, vartype = 'bootstrap',
                        nboots = 200, parallel = TRUE,
                        cores = 10,
                        cl = "unit", weights = "wgt", theme.bw = TRUE)
+```
+
+```{r ch3-fe-kernel-nofe-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 s4.kernel$figure
 ```
 
 Controlling for fixed effects by using the `FE` option solves this problem. The estimates are now much closer to the population truth. Note that all uncertainty estimates are produced via bootstrapping. When the `cl` option is specified, a block bootstrap procedure will be performed.
 
-```{r fe6, results = "hide", cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-kernel-fe-fit, results = "hide", cache=TRUE, message=FALSE}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                        estimator = "kernel", FE = c("unit","year"), cl = "unit"
                        ,vartype = 'bootstrap', theme.bw = TRUE,
                        nboots = 200, parallel = TRUE, cores = 10,weights = "wgt")
+```
+
+```{r ch3-fe-kernel-fe-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 s4.kernel$figure
 ```
 
 With large datasets, cross-validation or bootstrapping can take a while. One way to check the result quickly is to shut down the bootstrap procedure (using `CI = FALSE`). **interflex** will then present the point estimates only. Another way is to supply a reasonable bandwidth manually by using the `bw` option such that cross-validation will be skipped.
 
-```{r fe7, results = "hide", cache=TRUE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-kernel-noci-fit, results = "hide", cache=TRUE, message=FALSE}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                        estimator = "kernel", bw = 0.62, FE = c("unit","year"), cl = "unit",
                        vartype = 'bootstrap',
                        nboots = 200, parallel = TRUE, cores = 10,
                        CI = FALSE,
                        ylim = c(-9, 15), theme.bw = TRUE)
+```
+
+```{r ch3-fe-kernel-noci-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 s4.kernel$figure
 ```
 
@@ -192,18 +206,20 @@ Note that discrete outcome with fixed effects is not supported in the package.
 
 Next, we will show how **interflex** can be applied when there are more than two condition. First, we plot the raw data:
 
-```{r mta_raw, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=10}
+```{r ch3-mta-raw-plot, results = "hide", cache=FALSE, message=FALSE, fig.height=5, fig.width=10}
 interflex(estimator = "raw",Y = "Y", D = "D", X = "X", data = s5, ncols = 3,
           theme.bw = TRUE)
 ```
 
 By default, **interflex** will produce $(n-1)$ CME plots, taking one category as the baseline (if not specified, the base group is selected based on the numeric/character order of the treatment values). Here we also specify `vartype = "bootstrap"` in order to estimate the confidence intervals.
 
-```{r mta1a, results = "hide", cache=TRUE, message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-mta-bin-fit, results = "hide", cache=TRUE, message=FALSE}
 s5.binning <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), data = s5,
                         estimator = "binning", vartype = "bootstrap",
                         theme.bw = TRUE)
+```
 
+```{r ch3-mta-bin-plot, cache=FALSE, fig.height=5, fig.width=8}
 s5.binning$figure
 ```
 
@@ -227,30 +243,39 @@ s5.binning$figure
 
 We specify the base group using the option `base`:
 
-```{r mta2, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-mta-bin-base-fit, results = "hide", cache=TRUE, message=FALSE}
 s5.binning2 <- interflex(Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), data = s5,
                          estimator = "binning", base = "B", vartype = "bootstrap")
+```
+
+```{r ch3-mta-bin-base-plot, cache=FALSE, fig.height=5, fig.width=8}
 plot(s5.binning2, theme.bw = TRUE)
 ```
 
 For dataset **s5**, because of the nonlinear interaction effects, the kernel estimator will produce CME estimates that are much closer to the effects implied by the true DGP.
 
-```{r mta3, cache=TRUE, results = "hide", message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-mta-kernel-fit, results = "hide", cache=TRUE, message=FALSE}
 s5.kernel <- interflex(Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), data = s5,
                        estimator = "kernel", vartype = 'bootstrap',
                        nboots = 200, parallel = TRUE, cores = 10)
+```
+
+```{r ch3-mta-kernel-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 s5.kernel$figure
 ```
 
 The function can be applied to discrete outcome settings. For **s9**, the LIE assumption are violated only in group 2. The linear estimator can give a consistent estimation of treatment effects for the group 1, but not group 2.
 
-```{r dmulti1, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-linear-fit, cache=TRUE, results = "hide", message=FALSE}
 s9.linear <- interflex(estimator='linear', data=s9, method='logit',
                        Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
+```
+
+```{r ch3-dmulti-linear-plot, cache=FALSE, fig.height=5, fig.width=8}
 plot(s9.linear)
 ```
 
-```{r dmulti2, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-linear-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
 p1 <- plot(s9.linear,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
 TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
@@ -260,36 +285,42 @@ p1 + p2
 
 Then, we use the binning estimator to conduct a diagnostic analysis.
 
-```{r dmulti3, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-bin-fit, cache=TRUE, results = "hide", message=FALSE}
 s9.binning <- interflex(estimator = 'binning', data = s9, method='logit',
                         Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
+```
+
+```{r ch3-dmulti-bin-plot, cache=FALSE, fig.height=5, fig.width=8}
 plot(s9.binning)
 ```
 
 Results of the binning estimator also suggests the violation of LIE for group 2, which can be further verified by checking the test results.
 
-```{r dmulti4, cache=TRUE}
+```{r ch3-dmulti-bin-tests, cache=TRUE}
 s9.binning$tests$p.wald
 s9.binning$tests$p.lr
 ```
 
 Both of these tests suggest that LIE assumption fails in the model, but it **doesn't** tell us in which group the assumption fails. There is an extra output "sub.test" when there are more than 3 groups in the data, which includes by-group results of the Wald/Likelihood ratio test, which test the linear multiplicative interaction assumption for each group. In this case, the test results suggest that there are not enough evidences to reject the null hypothesis for group 1, but for group 2, the null hypothesis can be safely rejected.
 
-```{r dmulti5, cache=TRUE}
+```{r ch3-dmulti-bin-subtest, cache=TRUE}
 head(s9.binning$tests$sub.test[[1]])
 ```
 
 Lastly, we can use the kernel estimator to get more consistent results.
 
-```{r dmulti6, cache=TRUE, results = "hide", message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-dmulti-kernel-fit, cache=TRUE, results = "hide", message=FALSE}
 s9.kernel <- interflex(estimator = 'kernel', data = s9,
                        Y ='Y', D = 'D', X = 'X', Z = c('Z1','Z2'),
                        method='logit',vartype = "bootstrap",
                       nboots = 200, parallel = TRUE, cores = 10)
+```
+
+```{r ch3-dmulti-kernel-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 plot(s9.kernel)
 ```
 
-```{r dmulti7, cache=TRUE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-kernel-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
 p1 <- plot(s9.kernel,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
 TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
@@ -299,11 +330,11 @@ p1 + p2
 
 The estimated ATE and $E(Y|D,X,Z)$ are also grouped by treatment.
 
-```{r dmulti8, cache=TRUE}
+```{r ch3-dmulti-kernel-ate, cache=TRUE}
 s9.kernel$Avg.estimate
 ```
 
-```{r dmulti9, cache=TRUE, results = "hide", message=FALSE, fig.width = 8, fig.height = 4.5}
+```{r ch3-dmulti-kernel-predict-plot, cache=FALSE, results = "hide", message=FALSE, fig.width = 8, fig.height = 4.5}
 predict(s9.kernel)
 ```
 
@@ -313,10 +344,13 @@ predict(s9.kernel)
 
 As we have shown earlier with discrete outcome settings, **interflex** allows users to estimate and visualize predicted outcomes given fixed values of the treatment and moderator based on flexible interaction models. All predictions are made by setting covariates equal to their sample means. The same functino applies to continuous outcome as well.
 
-```{r ip3, fig.height=5, fig.width=8, cache=TRUE, results = "hide", message=FALSE}
+```{r ch3-predict-kernel-fit, cache=TRUE, results = "hide", message=FALSE}
 s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
                       data = s5, estimator = "kernel",vartype = 'bootstrap',
                        nboots = 200, parallel = TRUE, cores = 10)
+```
+
+```{r ch3-predict-kernel-plot, cache=FALSE, fig.height=5, fig.width=8}
 predict(s5.kernel, theme.bw = TRUE)
 ```
 
@@ -332,16 +366,22 @@ predict(s5.kernel, theme.bw = TRUE)
 
 We can also use the linear model or the binning model to estimate and visualize predicted outcomes. For the latter, it is expected to see some "zigzags" at the bin boundaries in a plot:
 
-```{r ip6, fig.height=5, fig.width=8, cache=TRUE, results = "hide", message=FALSE}
+```{r ch3-predict-bin-fit, cache=TRUE, results = "hide", message=FALSE}
 s5.binning <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), data = s5,
                        estimator = "binning", vartype = "bootstrap", nbins = 4)
+```
+
+```{r ch3-predict-bin-plot, cache=FALSE, fig.height=5, fig.width=8}
 predict(s5.binning, theme.bw = TRUE)
 ```
 
-```{r ip7, fig.height=5, fig.width=8, cache=TRUE, results = "hide", message=FALSE}
+```{r ch3-predict-linear-fit, cache=TRUE, results = "hide", message=FALSE}
 s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"),
                       data = s5,
                       estimator = "linear", vcov.type = "robust")
+```
+
+```{r ch3-predict-linear-plot, cache=FALSE, fig.height=5, fig.width=8}
 predict(s5.linear, theme.bw = TRUE)
 ```
 
@@ -349,48 +389,54 @@ Obviously, the kernel estimator characterizes the data more better than a linear
 
 ------------------------------------------------------------------------
 
-## Differences in treatment effects
+## Effect modification
 
-**interflex** allows users to compare treatment effects at three specific values of the moderator using linear or kernel model. In order to do so, users need to pass three values into `diff.values` when applying *linear* or *kernel* estimator. If not specified, this programm will by default choose the 25,50,75 percentile of the moderator as the `diff.values`.
+**interflex** allows users to estimate effect modification, i.e., by comparing treatment effects at three specific values of the moderator using linear or kernel model. In order to do so, users need to pass three values into `diff.values` when applying *linear* or *kernel* estimator. If not specified, this program will by default choose the 25,50,75 percentile of the moderator as the `diff.values`.
 
-```{r dbt1, fig.height=5, fig.width=10, message=FALSE,results = "hide", cache = TRUE}
+```{r ch3-effmod-kernel-fit, message=FALSE, results = "hide", cache = TRUE}
 s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), data = s5,
                       estimator = "kernel", diff.values = c(-2,0,2),
                       vartype = "bootstrap",
                       nboots = 200, parallel = TRUE, cores = 10,)
+```
+
+```{r ch3-effmod-kernel-plot, cache=FALSE, fig.height=5, fig.width=10}
 plot(s5.kernel,diff.values = c(-2,0,2), theme.bw = TRUE)
 ```
 
 The difference of marginal effects/treatment effects at different values of the moderator(by default are the 25%, 50%, 75% quantiles of the moderator) are saved in `diff.estimate`.
 
-```{r dbt2, message=FALSE}
+```{r ch3-effmod-kernel-diff, message=FALSE}
 s5.kernel$diff.estimate
 ```
 
-```{r dbt3, fig.height=5, fig.width=10, message=FALSE,results = "hide", cache = TRUE}
+```{r ch3-effmod-linear-fit, message=FALSE, results = "hide", cache = TRUE}
 s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), data = s5,
                       estimator = "linear", diff.values = c(-2,0,2),
                       vartype = "bootstrap")
+```
+
+```{r ch3-effmod-linear-plot, cache=FALSE, fig.height=5, fig.width=10}
 plot(s5.linear,diff.values = c(-2,0,2), theme.bw = TRUE)
 ```
 
-```{r dbt4, message=FALSE}
+```{r ch3-effmod-linear-diff, message=FALSE}
 s5.linear$diff.estimate
 ```
 
 **interflex** allows users to compare treatment effects at two or three specific values of the moderator using CME and vcov matrix derived from linear/kernel estimation. Based on GAM model(relies on **mgcv** package), users can approximate treatment effects and their variance using smooth functions without re-estimating the model, hence saving time. In order to do so, users need to pass the output of **interflex** into **t.test** and then specify the values of interest of the moderator. As it is an approximation, the results here are expected to have a little deviance from the output we got by directly specifying `diff.values` when applying **inter.linear** or **inter.kernel**. We also limit the elements passed in diff.values between the minimum and the maximum of the moderator to avoid potential extrapolation bias.
 
-```{r dbt5, message=FALSE, cache = TRUE}
+```{r ch3-effmod-test-kernel, message=FALSE, cache = TRUE}
 inter.test(s5.kernel,diff.values=c(-2,0,2))
 ```
 
-```{r dbt6, message=FALSE, cache = TRUE}
+```{r ch3-effmod-test-linear, message=FALSE, cache = TRUE}
 inter.test(s5.linear,diff.values=c(-2,0,2))
 ```
 
 We can also set `percentile = TRUE` to use the percentile scale rather than the real scale of the moderator.
 
-```{r dbt7, message=FALSE, cache = TRUE}
+```{r ch3-effmod-test-percentile, message=FALSE, cache = TRUE}
 inter.test(s5.kernel,diff.values=c(0.25,0.5,0.75),percentile=TRUE)
 ```
 
@@ -408,9 +454,9 @@ In the **interflex** package, we can estimate GATE with discrete moderator $X$ u
 
 We use empirical example from @beiser2024pocketbook to illustrate the implementation of **interflex** estimator with binary treatment.
 
-```{r}
-d<-load("data/BB2024c6.RData")
-d<-as.data.frame(loc_out)
+```{r ch3-gate-data-setup}
+data(app_bb2024)
+d<-app_bb2024
 d<-remove_labels(d)
 
 main<-"BB2024c6"
@@ -426,7 +472,7 @@ Xlabel<-"Income"
 
 **Visualization**
 
-```{r}
+```{r ch3-gate-raw-plot, cache=FALSE}
 out.raw <- interflex(estimator='raw', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
@@ -437,75 +483,56 @@ out.raw
 
 From the scatter plot, the treatment effect is positively correlated to moderator value $[5,8]$.
 
-**Estimation.** To estimate GATE, we specify `estimator = 'linear'` and set the option `gate = TRUE`. GATE is conceptually equivalent to binning where the bins are defined by the moderator values themselves — we compute the average treatment effect within each group.
+**Estimation with kernel (treating X as continuous).** We first estimate the CME using the kernel estimator without `gate = TRUE`, which treats the moderator as continuous and fits a smooth curve through the discrete X values:
 
-```{r}
+```{r ch3-gate-kernel-smooth-fit, cache=TRUE, message=FALSE, warning=FALSE}
+out.kernel <- interflex(estimator='kernel', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       Xlabel = Xlabel, theme.bw = TRUE,
+                       vartype = "bootstrap", nboots = 200)
+```
+
+```{r ch3-gate-kernel-smooth-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+out.kernel$figure
+```
+
+The smooth curve interpolates between discrete income levels, which may not be meaningful when the moderator is inherently categorical. A more natural approach is to evaluate the kernel regression only at the observed moderator values.
+
+**Estimation with kernel (`gate = TRUE`).** Setting `gate = TRUE` tells **interflex** to evaluate the kernel estimator only at the observed discrete X levels, producing GATE point estimates:
+
+```{r ch3-gate-kernel-fit, cache=TRUE, message=FALSE, warning=FALSE}
+out.kernel.gate <- interflex(estimator='kernel', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       Xlabel = Xlabel, theme.bw = TRUE,
+                       vartype = "bootstrap", nboots = 200,
+                       gate = TRUE)
+```
+
+```{r ch3-gate-kernel-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+out.kernel.gate$figure
+```
+
+When `gate = TRUE`, the plot automatically shows separate point estimates and confidence intervals for each discrete level of the moderator, rather than a smooth curve.
+
+**Estimation with linear (`gate = TRUE`).** Alternatively, we can use the linear estimator with `gate = TRUE`, which computes GATE via outcome regression within each group:
+
+```{r ch3-gate-linear-fit, cache=TRUE, message=FALSE, warning=FALSE}
 out.gate <- interflex(estimator='linear', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
                        Xlabel = Xlabel, theme.bw = TRUE,
                        gate = TRUE)
-out.gate$figure
 ```
 
-The default visualization gives a smooth line even though our moderator is discrete. Each position on the x-axis is just one of the discrete income categories. The black curve is the estimated average treatment effect for each "group" (each category), and the gray ribbon and dash line are the confidence interval.
-
-For a more clear and accurate visualization, we can use the `plot()` function and set `by.group = TRUE`. The figure shows a separate point estimate and confidence interval, both pointwise CI, in solid black, and uniform CI, in shallow gray, for each discrete level of the moderator. The plot show an obvious positive CME at $X = 7$, but the treatment effect is not statistically significant.
-
-```{r}
-plot(out.gate, by.group = TRUE, theme.bw = TRUE)
+```{r ch3-gate-linear-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+out.gate$figure
 ```
 
 **Results.** User can extract the estimation by group through `g.est`.
 
-```{r}
+```{r ch3-gate-results}
 out.gate$g.est[[1]]
 ```
 
-------------------------------------------------------------------------
-
-### Continuous treatment
-
-For CME with discrete moderator and continuous treatment, we are using a simulated data with treatment $D$ following the normal distribution, a discrete moderator with values ${1,2,3,4,5}$, assigned with heterogeneous effect, and two covariates $Z_1, Z_2$.
-
-```{r}
-set.seed(9999)
-n <- 2000
-
-D <- rnorm(n, mean = 3, sd = 1)
-X <- sample(1:5, size = n, replace = TRUE, prob = c(0.1, 0.3, 0.3, 0.2, 0.1))
-
-## covariates
-Z1 <- runif(n, min = -2, max = 2)
-Z2 <- rgamma(n, shape = 2, rate = 1)
-
-slopes_by_x <- c(`1`=2, `2`=4, `3`=7, `4`=3, `5`=10)
-tau_i <- slopes_by_x[as.character(X)] + rnorm(n, mean = 0, sd = 0.5)
-
-alpha <- 5
-
-beta1 <- 1.5    # coefficient on Z1^2
-beta2 <- -2.0   # coefficient on sqrt(Z2)
-
-e <- rnorm(n, mean = 0, sd = 2)
-
-## Y = alpha + tau_i * D + beta1*(Z1^2) + beta2*sqrt(Z2) + e
-Y <- alpha + tau_i*D + beta1*(Z1^2) + beta2*sqrt(Z2) + e
-s10 <- data.frame(Y, D, X, Z1, Z2)
-
-head(s10)
-```
-
-
-The syntax to estimate CME with continuous treatment and discrete moderator is as follow. User can plot the treatment effect based on individual discrete categories with separate point estimate and confidence interval.
-```{r}
-
-out.gate.con <- interflex(estimator='linear', data = s10,
-                       Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
-                       theme.bw = TRUE,
-                       gate = TRUE)
-out.gate.con$figure
-
-plot(out.gate.con, by.group = TRUE)
-
-```

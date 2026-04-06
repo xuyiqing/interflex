@@ -1,9 +1,6 @@
 project:
   type: book
 
-execute:
-  freeze: auto
-
 book:
   title: "interflex -- User Manual"
   sidebar:
@@ -18,6 +15,7 @@ book:
     - 05_dml.qmd
     - 06_discrete.qmd
     - 07_plot.qmd
+    - 08_changelog.qmd
     - references.qmd
 
 initial-block:

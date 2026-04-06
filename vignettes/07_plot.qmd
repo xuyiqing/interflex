@@ -10,7 +10,7 @@ In @huddy2015expressive, the outcome variable is level of anger, treatment varia
 source("init.R")
 ```
 
-```{r}
+```{r ch7-data-setup}
 data(interflex)
 ls()
 
@@ -95,12 +95,13 @@ plot(s5.binning, order=c("C", "B"),
 
 Using the linear estimator with simulation data **s5** as an example:
 
-```{r}
-
-s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), 
-                      data = s5, 
+```{r ch7-mta-linear-fit, cache=TRUE, message=FALSE, warning=FALSE}
+s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"),
+                      data = s5,
                       estimator = "linear")
+```
 
+```{r ch7-mta-linear-plot, cache=FALSE}
 plot(s5.linear,
      diff.values = c (-2,0,2),
      CI = FALSE,
@@ -142,7 +143,7 @@ plot(linear.out.1, theme.bw = TRUE,
 
 Using the linear estimation plot with Huddy2015 as an example:
 
-```{r}
+```{r ch7-mta-linear-subtitle-plot, cache=FALSE}
 plot(s5.linear,
      interval = c(0),
      show.subtitles = TRUE,

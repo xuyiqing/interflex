@@ -1268,6 +1268,9 @@ interflex.kernel <- function(data,
     # 1,	input: coef.grid; char/D.ref; diff.values
     # 2,	output: difference of TE/ME at different values of the moderator
     gen.kernel.difference <- function(coef.grid, diff.values, char = NULL, D.ref = NULL) {
+        if (is.null(diff.values)) {
+            return(list(difference = NULL, difference.sd = NULL))
+        }
         if (is.null(char)) {
             treat.type <- "continuous"
 
@@ -2570,10 +2573,12 @@ interflex.kernel <- function(data,
                 rownames(link.output.all) <- NULL
                 link.output.all.list[[other.treat.origin[char]]] <- link.output.all
 
-                diff.output.all <- cbind(diff.estimate.output)
-                colnames(diff.output.all) <- c("diff.estimate")
-                rownames(diff.output.all) <- difference.name
-                diff.output.all.list[[other.treat.origin[char]]] <- diff.output.all
+                if (!is.null(diff.estimate.output)) {
+                    diff.output.all <- cbind(diff.estimate.output)
+                    colnames(diff.output.all) <- c("diff.estimate")
+                    rownames(diff.output.all) <- difference.name
+                    diff.output.all.list[[other.treat.origin[char]]] <- diff.output.all
+                }
 
                 ATE.output <- c(ATE.estimate)
                 names(ATE.output) <- c("ATE")
@@ -2622,10 +2627,12 @@ interflex.kernel <- function(data,
                 rownames(link.output.all) <- NULL
                 link.output.all.list[[label]] <- link.output.all
 
-                diff.output.all <- cbind(diff.estimate.output)
-                colnames(diff.output.all) <- c("diff.estimate")
-                rownames(diff.output.all) <- difference.name
-                diff.output.all.list[[label]] <- diff.output.all
+                if (!is.null(diff.estimate.output)) {
+                    diff.output.all <- cbind(diff.estimate.output)
+                    colnames(diff.output.all) <- c("diff.estimate")
+                    rownames(diff.output.all) <- difference.name
+                    diff.output.all.list[[label]] <- diff.output.all
+                }
 
                 k <- k + 1
             }

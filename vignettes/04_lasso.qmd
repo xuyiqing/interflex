@@ -2,7 +2,7 @@
 
 In this chapter, we introduce Lasso-based approaches for estimating the conditional marginal effect (CME), addressing limitations of traditional outcome-modeling methods. When the treatment is binary, we use Lasso within an augmented inverse probability weighting (AIPW) framework. This approach integrates both the outcome model and the propensity score model, yielding a doubly robust estimator that remains consistent as long as at least one of the two models is correctly specified. When the treatment is continuous, we employ a "partial-out" (PO) estimator: Lasso is used to denoise both the outcome and treatment variables with respect to covariates (or potential fixed effects), and a kernel method is then applied to the denoised variables to estimate the conditional marginal effect.
 
-```{r include=FALSE}
+```{r ch4-init, include=FALSE}
 source("init.R")
 ```
 
@@ -14,7 +14,7 @@ When the number of covariates or their expanded basis functions is large, conven
 
 In the binary‐treatment setting, we use the @huddy2015expressive example, where the outcome variable is the level of anger, the treatment variable indicates an electoral loss threat or an electoral win reassurance, and the moderator $X$ represents the strength of partisan identity.
 
-```{r}
+```{r ch4-binary-data-setup}
 library(interflex)
 data(interflex)
 ls()
@@ -41,7 +41,7 @@ Xlabel = "Partisanship"
 
 **Results.** The estimation results are stored in `est.aipw`, which includes the corresponding $X$ values, point estimates, standard errors, and lower/upper bounds for both uniform and pointwise confidence intervals.
 
-```{r binary_aipw1, fig.height=4.5, fig.width=6, message=FALSE, warning=FALSE, cathe=TRUE}
+```{r ch4-binary-aipw-fit, message=FALSE, warning=FALSE, cathe=TRUE, cache=TRUE}
 
 aipw.out.1 <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
@@ -49,11 +49,13 @@ aipw.out.1 <- interflex(estimator = "lasso", data = d,
                  Xlabel = Xlabel,
                  theme.bw = TRUE,
                  main = "AIPW-Lasso estimation")
+```
 
+```{r ch4-binary-aipw-plot, cache=FALSE, fig.height=4.5, fig.width=6}
 aipw.out.1$figure
 ```
 
-```{r binary_aipw2, message=FALSE, warning=FALSE, cathe = TRUE}
+```{r ch4-binary-aipw-results, message=FALSE, warning=FALSE, cathe = TRUE}
 
 head(aipw.out.1$est.lasso[[1]])
 ```
@@ -68,7 +70,7 @@ Signals refer to transformations of the data that are relevant for the target‐
 
 When the signal is set to `ipw`, we are effectively estimating the CME with an IPW estimator, which can be sensitive to extreme weights, particularly when the estimated propensity score is close to 0 or 1.
 
-```{r binary_aipw3, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
+```{r ch4-binary-signal-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 
 aipw.out.outcome <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
@@ -90,17 +92,18 @@ aipw.out.aipw <- interflex(estimator = "lasso", data = d,
                  Xlabel = Xlabel,
                  theme.bw = TRUE, signal = "aipw",
                  main = "Signal: AIPW")
+```
 
+```{r ch4-binary-signal-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 ggarrange(aipw.out.outcome$figure, aipw.out.ipw$figure, aipw.out.aipw$figure,
           ncol = 3)
-
 ```
 
 ##### ATE vs ATT
 
 With a binary treatment, we can also set the estimand to the average treatment effect on the treated (ATT) rather than the average treatment effect (ATE) (default). We can use the `estimand` option for this purpose. It also supports the `outcome`, `ipw`, and `aipw` (default) signals.
 
-```{r binary_aipw4, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 9, fig.height = 5}
+```{r ch4-binary-ate-att-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 
 
 aipw.out.ate <- interflex(estimator = "lasso", data = d,
@@ -120,16 +123,17 @@ aipw.out.att <- interflex(estimator = "lasso", data = d,
                  estimand = 'ATT',
                  signal = "aipw",
                  main = "ATT")
+```
 
+```{r ch4-binary-ate-att-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 ggarrange(aipw.out.ate$figure, aipw.out.att$figure,ncol = 2)
-
 ```
 
 ##### Smoothing options
 
 To transform the signal—which is one value per unit—into a smooth one‐dimensional CME along the moderator $X$, the AIPW‐Lasso estimator uses dimension reduction. You can either fit a linear model of the signal on a B‐spline basis of $X$ via `reduce.dimension = bspline`, or fit a local‐kernel smoother of the signal on $X$ via `reduce.dimension = kernel` (default).
 
-```{r binary_aipw5_2, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch4-binary-smoothing-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 
 aipw.out.bs.smooth <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
@@ -146,16 +150,17 @@ aipw.out.bs.kernel <- interflex(estimator = "lasso", data = d,
                   reduce.dimension = "kernel",
                   theme.bw = TRUE,
                   main = "Smoothing: kernel")
+```
 
+```{r ch4-binary-smoothing-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 ggarrange(aipw.out.bs.smooth$figure,aipw.out.bs.kernel$figure,ncol = 2)
-
 ```
 
 ##### Basis expansions options
 
 In fitting the outcome and propensity score models, we introduce basis expansions to relax parametric assumptions and enhance estimation flexibility. The basis expansion provides several options via `basis.type`, expanding the set of regressors $V = (X, Z)$ beyond their raw forms. When `basis.type = "none"`, $V = (X, Z)$ enters the design matrix in its raw form; when `basis.type = "polynomial"`, every numeric entry in $V=(X,Z)$ is expanded to its first two global powers; and when `basis.type = "bspline"` (default), each variable is replaced with piecewise polynomials that bend only near their knots. The option `include.interactions = TRUE` (default) adds interaction terms among these expanded basis functions as additional covariates.
 
-```{r binary_aipw5_1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch4-binary-basis-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 aipw.out.poly.basis <- interflex(estimator = "lasso", data = d,
                         Y = Y,D = D, X = X, Z = Z,
                         Ylabel = Ylabel, Dlabel = Dlabel,
@@ -163,6 +168,9 @@ aipw.out.poly.basis <- interflex(estimator = "lasso", data = d,
                         basis.type = 'polynomial',
                         theme.bw = TRUE, ylim = c(-0.4, 0.6),
                         main = "Smoothing: b-spline")
+```
+
+```{r ch4-binary-basis-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
 aipw.out.poly.basis$figure
 ```
 
@@ -176,14 +184,14 @@ In settings with continuous treatment, there is no propensity score model to est
 
 In practice, we estimate the relationships between outcome $Y$ and covariates $V = (X, Z)$ and between treatment $D$ and covariates $V$ separately, using flexible models such as basis expansions combined with post‐selection Lasso to denoise $Y$ and $D$ into $\tilde{Y}$ and $\tilde{D}$. Hence, the estimator is named the Partial‐Out Lasso estimator.
 
-```{r}
-load("data/Adiguzel2023a.RData")
-d<-lograyic_models
+```{r ch4-con-data-setup}
+data(app_adiguzel2023)
+d<-app_adiguzel2023
 d<-remove_labels(d)
 d<-as.data.frame(d)
 main<-"Adiguzel2023a"
-D="Dwalk_3" 
-Y="Dakp_3" 
+D="Dwalk_3"
+Y="Dakp_3"
 X="lograyic09"
 
 Z=c('Duniversity_3', 'Dodr_3', 'Dydr_3', 'Dpopulation_3', 'Dhospital_pri_3', 'Dhospital_pub_3')
@@ -199,7 +207,7 @@ Xlabel<-"Property values (2009)"
 
 **Results.** Similarly, estimation results and the plot can be extracted from the output object.
 
-```{r con_aipw1, message=FALSE, warning=FALSE, cathe = TRUE, fig.width = 6, fig.height = 4.5}
+```{r ch4-con-aipw-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 aipw.out.1 <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
@@ -208,8 +216,11 @@ aipw.out.1 <- interflex(estimator = "lasso", data = d,
                  main = "AIPW estimation")
 ```
 
-```{r}
+```{r ch4-con-aipw-plot, cache=FALSE}
 aipw.out.1$figure
+```
+
+```{r ch4-con-aipw-results}
 head(aipw.out.1$est.lasso[[1]])
 ```
 
@@ -224,3 +235,30 @@ With continuous treatment, we also provide a set of advanced options tailored to
 **`reduce.dimension`**: After partialling out, you can smooth the signal via B‐splines (`bspline`) or a local‐kernel smoother (`kernel`).
 
 The **`estimand`** and **`signal`** options are not supported.
+
+## GATE with discrete moderator
+
+When the moderator $X$ is discrete, we can estimate Group Average Treatment Effects (GATE) by setting `gate = TRUE`. This computes the average treatment effect within each level of $X$ using the AIPW-Lasso framework.
+
+We use the @beiser2024pocketbook example with income as a discrete moderator:
+
+```{r ch4-gate-lasso-fit, message=FALSE, warning=FALSE, cache=TRUE}
+data(app_bb2024)
+d <- app_bb2024
+d <- remove_labels(d)
+
+out.lasso.gate <- interflex(estimator = 'lasso', data = d,
+                            Y = "sup_tax_rebate", D = "treat_type_bin",
+                            X = "income", Z = c("leftright", "clim_belief", "resp_age", "female", "employment_f", "highedu", "midedu", "pid_f"),
+                            na.rm = TRUE, gate = TRUE, theme.bw = TRUE)
+```
+
+```{r ch4-gate-lasso-plot, cache=FALSE}
+out.lasso.gate$figure
+```
+
+Use `plot(..., by.group = TRUE)` for a clearer visualization with separate point estimates and confidence intervals per group:
+
+```{r ch4-gate-lasso-bygroup-plot, cache=FALSE}
+plot(out.lasso.gate, by.group = TRUE, theme.bw = TRUE)
+```

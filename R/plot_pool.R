@@ -176,7 +176,7 @@ interflex.plot.pool <- function(
         }
     }
     if (is.null(ylab)) {
-        ylab <- c(paste("Marginal Effect of ", Dlabel, " on ", Ylabel, sep = ""))
+        ylab <- paste("CME of ", Dlabel, " on ", Ylabel, sep = "")
     } else {
         if (!is.character(ylab)) {
             stop("\"ylab\" is not a string.")

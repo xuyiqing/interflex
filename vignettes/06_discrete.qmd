@@ -10,9 +10,9 @@ source("init.R")
 
 **Example: @egerod2023extremists**
 
-```{r}
-d<-load("data/ET2023.RData")
-d<-as.data.frame(pol)
+```{r ch6-data-setup}
+data(app_et2023)
+d<-app_et2023
 d<-remove_labels(d)
 
 main<-"Egerod & Tran 2023"
@@ -132,19 +132,19 @@ head(out.linear.1$est.lin$`1`)
 
 The estimated $E[Y |X, Z,D]$ are saved in. User can specify either 1 for treatment group, or 0 for control group.
 
-```{r}
+```{r ch6-linear-pred}
 head(out.linear.1$pred.lin$`1`)
 ```
 
 The estimated average treatment effect (ATE) is saved in `Avg.estimate`. Here the program uses the coefficients from the regression and the input data to calculate the ATE/AME.
 
-```{r}
+```{r ch6-linear-ate}
 head(out.linear.1$Avg.estimate)
 ```
 
 The estimated difference of treatment effects are saved in `diff.estimate`:
 
-```{r}
+```{r ch6-linear-diff}
 head(out.linear.1$diff.estimate)
 ```
 
@@ -185,7 +185,7 @@ predict(out.kernel, theme.bw = TRUE)
 
 The estimated average treatment effect (ATE) is saved in `Avg.estimate`, and the estimated difference of treatment effects are saved in `diff.estimate`:
 
-```{r}
+```{r ch6-kernel-ate-diff}
 head(out.kernel$Avg.estimate)
 head(out.kernel$diff.estimate)
 ```
@@ -221,39 +221,15 @@ To estimate CME with discrete outcome using DML estimator, the syntax is the sam
 
 
 ```{r app_discrete, message=FALSE, warning=FALSE,cache=TRUE}
-binary.dml.nn.nn <- interflex(estimator="DML", data = d,
+binary.dml.nn.nn <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                               Ylabel = Ylabel, Dlabel = Dlabel,
                               Xlabel = Xlabel, theme.bw = TRUE,
-                              model.y = "nn",model.t = "nn",
+                              model.y = "nn", model.t = "nn",
                               main = "Neural Network")
-
-## random forest + random forest
-
-binary.dml.rf.rf <- interflex(estimator="DML", data = d,
-                              Y = Y, D = D, X = X, Z = Z,
-                              Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
-                              model.y = "rf",model.t = "rf",
-                              main = "Random Forest", na.rm = TRUE,)
-
-## hist gradient boosting + hist gradient boosting
-
-binary.dml.hgb.hgb <- interflex(estimator="DML",data = d,
-                              Y = Y, D = D, X = X, Z = Z,
-                              Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
-                              model.y = "hgb",model.t = "hgb",
-                              main = "Hist Gradient Boosting",
-                              na.rm = TRUE,)
-
 ```
 
-```{r message=FALSE, warning=FALSE,cache=TRUE, fig.width = 9, fig.height = 5}
-
-ggarrange(binary.dml.nn.nn$figure,
-          binary.dml.rf.rf$figure,
-          binary.dml.hgb.hgb$figure, ncol = 3)
-
+```{r message=FALSE, warning=FALSE}
+binary.dml.nn.nn$figure
 ```
 

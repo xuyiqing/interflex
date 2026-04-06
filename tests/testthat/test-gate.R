@@ -220,16 +220,19 @@ test_that("T9: Plot by.group=TRUE works for lasso", {
   expect_true(!is.null(p))
 })
 
-# --- E1. gate=TRUE + kernel -> error ---
-test_that("E1: gate=TRUE + kernel errors", {
+# --- E1. gate=TRUE + kernel -> works (evaluates at discrete X levels) ---
+test_that("E1: gate=TRUE + kernel produces g.est", {
   skip_on_cran()
   dat <- make_gate_data()
 
-  expect_error(
+  out <- suppressWarnings(suppressMessages(
     interflex(estimator = "kernel", data = dat,
-              Y = "Y_bin", D = "D_bin", X = "X", gate = TRUE),
-    "gate = TRUE is not supported"
-  )
+              Y = "Y_bin", D = "D_bin", X = "X", Z = c("Z1", "Z2"),
+              gate = TRUE, figure = FALSE, CI = FALSE)
+  ))
+  expect_s3_class(out, "interflex")
+  expect_true(!is.null(out$g.est))
+  expect_equal(nrow(out$g.est[[1]]), 4)
 })
 
 # --- E2. gate=TRUE + binning -> error ---

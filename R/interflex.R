@@ -115,12 +115,17 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
 
     ## gate validation
     if (isTRUE(gate)) {
-        if (estimator %in% c("kernel", "binning")) {
-            stop("gate = TRUE is not supported with estimator = '", estimator, "'. Use 'linear', 'grf', 'dml', or 'lasso'.\n")
+        if (estimator == "binning") {
+            stop("gate = TRUE is not supported with estimator = 'binning'.\n")
         }
         n_unique_X <- length(unique(data[, X]))
         if (n_unique_X > 10) {
             stop("gate = TRUE requires a discrete moderator X. The variable '", X, "' has ", n_unique_X, " unique values, which suggests it is continuous.\n")
+        }
+        ## For kernel + gate: evaluate only at observed X levels
+        if (estimator == "kernel") {
+            X.eval <- sort(unique(data[[X]]))
+            neval <- length(X.eval)
         }
     }
 
@@ -340,7 +345,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
         cores <- cores[1]
     }
-    if (verbose) {
+    # Only print parallel message for estimators that actually use it
+    uses_parallel <- estimator %in% c("lasso", "dml", "grf") ||
+        (estimator %in% c("kernel", "linear", "binning") && vartype == "bootstrap")
+    if (verbose && uses_parallel) {
         avail <- parallelly::availableCores()
         cat(sprintf("Parallel computing: using %d of %d available cores.\n", cores, avail))
         if (cores_auto) {
@@ -445,6 +453,36 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     ## xlim ylim
+    ## Auto-trim: when xlim is not specified and X is continuous,
+    ## clip tails that lack treatment variation (sparse/uninformative regions).
+    ## Uses 1st and 99th percentiles as candidates, but only clips a tail
+    ## if the observations beyond the cutoff lack treatment variation
+    ## (e.g., all treated or all control) or have fewer than 10 observations.
+    if (is.null(xlim) && !isTRUE(gate)) {
+        x_vals <- data[[X]]
+        d_vals <- data[[D]]
+        n_unique_x <- length(unique(x_vals))
+        if (n_unique_x > 10) {
+            q01 <- as.numeric(quantile(x_vals, 0.01, na.rm = TRUE))
+            q99 <- as.numeric(quantile(x_vals, 0.99, na.rm = TRUE))
+            .tail_has_variation <- function(d_sub) {
+                if (length(d_sub) < 10) return(FALSE)
+                if (is.numeric(d_sub) && length(unique(d_sub)) <= 5) {
+                    # binary/discrete D: need at least 2 distinct values
+                    return(length(unique(d_sub)) >= 2)
+                }
+                # continuous D: need nonzero variance
+                return(sd(d_sub, na.rm = TRUE) > 1e-10)
+            }
+            left_idx <- which(x_vals < q01)
+            right_idx <- which(x_vals > q99)
+            xlim_lo <- if (length(left_idx) > 0 && !.tail_has_variation(d_vals[left_idx])) q01 else min(x_vals, na.rm = TRUE)
+            xlim_hi <- if (length(right_idx) > 0 && !.tail_has_variation(d_vals[right_idx])) q99 else max(x_vals, na.rm = TRUE)
+            if (xlim_lo > min(x_vals, na.rm = TRUE) || xlim_hi < max(x_vals, na.rm = TRUE)) {
+                xlim <- c(xlim_lo, xlim_hi)
+            }
+        }
+    }
     if (!is.null(xlim)) {
         if (!is.numeric(xlim)) {
             stop("Some element in \"xlim\" is not numeric.")
@@ -1168,6 +1206,22 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             width = width,
             verbose = verbose
         )
+        ## When gate = TRUE, copy kernel estimates to g.est and re-plot with by.group
+        if (isTRUE(gate) && !is.null(output$est.kernel)) {
+            output$g.est <- output$est.kernel
+            if (figure) {
+                class(output) <- "interflex"
+                output$figure <- plot.interflex(output,
+                    by.group = TRUE, CI = CI,
+                    Xdistr = Xdistr, main = main,
+                    Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel,
+                    xlab = xlab, ylab = ylab, xlim = xlim, ylim = ylim,
+                    theme.bw = theme.bw, show.grid = show.grid,
+                    cex.main = cex.main, cex.sub = cex.sub,
+                    cex.lab = cex.lab, cex.axis = cex.axis,
+                    show.uniform.CI = show.uniform.CI)
+            }
+        }
     }
 
     if (estimator == "gam") {
@@ -1332,6 +1386,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     if (estimator == "lasso") {
+        # When gate = TRUE, basis expansion on discrete X is inappropriate
+        if (isTRUE(gate) && basis.type != "none") {
+            basis.type <- "none"
+        }
         if(isTRUE(gate) || length(unique(data[,X]))<5){
             output <- interflex.lasso_discrete(
                 data = data,

@@ -103,6 +103,10 @@ plot.interflex <- function(x,
         stop("Not an \"interflex\" object.")
     }
 
+    ## Auto by.group when gate estimates are available
+    if (!by.group && ("g.est" %in% names(out) || "g.est.dml" %in% names(out))) {
+        by.group <- TRUE
+    }
     if (by.group) {
         if (!"g.est" %in% names(out) && !"g.est.dml" %in% names(out)) {
             stop("Group-specific Average Treatment Effects have to be estimated first. Use gate = TRUE.\n")
@@ -221,7 +225,11 @@ plot.interflex <- function(x,
         }
     }
     if (is.null(ylab)) {
-        ylab <- c(paste("Marginal Effect of ", Dlabel, " on ", Ylabel, sep = ""))
+        if (by.group && (!is.null(out$g.est) || !is.null(out$g.est.dml))) {
+            ylab <- paste("GATE of ", Dlabel, " on ", Ylabel, sep = "")
+        } else {
+            ylab <- paste("CME of ", Dlabel, " on ", Ylabel, sep = "")
+        }
     } else {
         if (!is.character(ylab)) {
             stop("\"ylab\" is not a string.")
@@ -758,6 +766,9 @@ plot.interflex <- function(x,
         pos <- max(yrange) - maxdiff / 20
     }
 
+    # Histogram height fraction: smaller for GATE plots to avoid overlap
+    hist_frac <- if (by.group) 8 else 5
+
     # plot initialization
     p.group <- list()
     if (treat.type == "discrete") {
@@ -795,10 +806,10 @@ plot.interflex <- function(x,
     # density
     if (Xdistr == "density") {
         if (treat.type == "discrete") {
-            deX.ymin <- min(yrange) - maxdiff / 5
+            deX.ymin <- min(yrange) - maxdiff / hist_frac
             deX.co <- data.frame(
                 x = de.tr[[base]]$x,
-                y = de.tr[[base]]$y / max(de.tr[[base]]$y) * maxdiff / 5 + min(yrange) - maxdiff / 5
+                y = de.tr[[base]]$y / max(de.tr[[base]]$y) * maxdiff / hist_frac + min(yrange) - maxdiff / hist_frac
             )
 
             ## color
@@ -811,7 +822,7 @@ plot.interflex <- function(x,
             for (char in other.treat) {
                 deX.tr <- data.frame(
                     x = de.tr[[char]]$x,
-                    y = de.tr[[char]]$y / max(de.tr[[char]]$y) * maxdiff / 5 + min(yrange) - maxdiff / 5
+                    y = de.tr[[char]]$y / max(de.tr[[char]]$y) * maxdiff / hist_frac + min(yrange) - maxdiff / hist_frac
                 )
 
                 p1 <- p.group[[char]] + geom_ribbon(
@@ -827,10 +838,10 @@ plot.interflex <- function(x,
         }
 
         if (treat.type == "continuous") {
-            deX.ymin <- min(yrange) - maxdiff / 5
+            deX.ymin <- min(yrange) - maxdiff / hist_frac
             deX <- data.frame(
                 x = de$x,
-                y = de$y / max(de$y) * maxdiff / 5 + min(yrange) - maxdiff / 5
+                y = de$y / max(de$y) * maxdiff / hist_frac + min(yrange) - maxdiff / hist_frac
             )
 
             for (label in label.name) {
@@ -852,11 +863,11 @@ plot.interflex <- function(x,
             dist <- hist.out$mids[2] - hist.out$mids[1]
             hist.max <- max(hist.out$counts)
             hist.col <- data.frame(
-                ymin = rep(min(yrange) - maxdiff / 5, n.hist),
+                ymin = rep(min(yrange) - maxdiff / hist_frac, n.hist),
                 # ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
                 xmin = hist.out$mids - dist / 2,
                 xmax = hist.out$mids + dist / 2,
-                count1 = count.tr[[base]] / hist.max * maxdiff / 5 + min(yrange) - maxdiff / 5
+                count1 = count.tr[[base]] / hist.max * maxdiff / hist_frac + min(yrange) - maxdiff / hist_frac
             )
 
             for (char in other.treat) {
@@ -865,7 +876,7 @@ plot.interflex <- function(x,
                     # ymax=hist.out$counts/hist.max*maxdiff/5+min(yrange)-maxdiff/5,
                     xmin = hist.out$mids - dist / 2,
                     xmax = hist.out$mids + dist / 2,
-                    count1 = count.tr[[char]] / hist.max * maxdiff / 5 + hist.col[, "count1"]
+                    count1 = count.tr[[char]] / hist.max * maxdiff / hist_frac + hist.col[, "count1"]
                 )
 
                 fill1 <- hist.color[1]
@@ -890,8 +901,8 @@ plot.interflex <- function(x,
             dist <- hist.out$mids[2] - hist.out$mids[1]
             hist.max <- max(hist.out$counts)
             histX <- data.frame(
-                ymin = rep(min(yrange) - maxdiff / 5, n.hist),
-                ymax = hist.out$counts / hist.max * maxdiff / 5 + min(yrange) - maxdiff / 5,
+                ymin = rep(min(yrange) - maxdiff / hist_frac, n.hist),
+                ymax = hist.out$counts / hist.max * maxdiff / hist_frac + min(yrange) - maxdiff / hist_frac,
                 xmin = hist.out$mids - dist / 2,
                 xmax = hist.out$mids + dist / 2
             )
@@ -918,6 +929,14 @@ plot.interflex <- function(x,
             est <- est.lasso
         } else {
             est <- est.lin
+        }
+
+        # When by.group = TRUE and g.est is available, use GATE values
+        # instead of the smooth curve -- GATE only has actual moderator values
+        if (by.group && !is.null(out$g.est)) {
+            est <- out$g.est
+        } else if (by.group && !is.null(out$g.est.dml)) {
+            est <- out$g.est.dml
         }
 
         if (treat.type == "discrete") {

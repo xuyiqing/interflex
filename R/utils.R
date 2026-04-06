@@ -111,6 +111,6 @@
   if (cores <= 1 || B <= cores) {
     list(use_parallel = FALSE, op = foreach::`%do%`)
   } else {
-    list(use_parallel = TRUE, op = foreach::`%dopar%`)
+    list(use_parallel = TRUE, op = doRNG::`%dorng%`)
   }
 }

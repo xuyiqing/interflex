@@ -22,7 +22,7 @@ devtools::install_github("xuyiqing/interflex@dev")
 
 After installation, check **interflex** version to make sure the package is up-to-date.
 
-```{r check-version}
+```{r ch1-check-version}
 installed.packages()["interflex", "Version"]
 ```
 
@@ -64,88 +64,30 @@ devtools::install_github("mlr-org/mlr3extralearners")
 
 ## Datasets
 
-The **interflex** package incorporates several datasets:
+The **interflex** package incorporates several datasets, all accessible via `data()`:
 
-```{r}
+```{r ch1-load-data}
 library(interflex)
 data(interflex)
 ls()
 ```
 
-- `s1-s9`: simulation data
-- `app_hma2015`: Data from @huddy2015expressive.
-- `app_vernby2013`: Data from @vernby2013inclusion.
+### Simulation datasets
 
+- **`s1`**: Dichotomous treatment, linear CME. Used in @sec-extensions (fixed effects, multiple arms, predictions, treatment effect differences).
+- **`s2`**: Continuous treatment, linear CME. Used in @sec-extensions.
+- **`s3`**: Dichotomous treatment, nonlinear (quadratic) CME. Used in @sec-extensions.
+- **`s4`**: Dichotomous treatment, nonlinear CME with two-way fixed effects. Used in @sec-extensions (fixed effects demos).
+- **`s5`**: Discrete treatment (3 arms: A, B, C), nonlinear CME. Used in @sec-extensions (multiple treatment arms, predictions, treatment effect differences).
+- **`s6`–`s9`**: Discrete outcome (binary $Y$) simulation datasets with various DGPs. Used in @sec-discrete-outcome.
 
-## Estimands
+### Empirical datasets
 
-Understanding conditional relationships is central to social science. Researchers are particularly interested in how the effect of a treatment \( D \) on an outcome \( Y \) changes with the value of a pre-determined covariate \( X \), known as the moderator, which is unaffected by \( D \). research. To formalize this problem better, we introduce the setup and estimand using the Neyman-Rubin potential outcome framework and notation. 
+- **`app_hma2015`**: Data from @huddy2015expressive. Binary treatment, continuous moderator. Used in @sec-classic (binary treatment demos).
+- **`app_vernby2013`**: Data from @vernby2013inclusion. Continuous treatment, continuous moderator. Used in @sec-classic (continuous treatment demos).
+- **`app_adiguzel2023`**: Data from @adiguzel2023out. Continuous treatment (change in clinic congestion), continuous moderator (log property value). Used in @sec-classic, @sec-lasso, and @sec-dml (continuous treatment demos).
+- **`app_bb2024`**: Data from @beiser2024pocketbook. Binary treatment, discrete moderator (income categories). Used in @sec-extensions (GATE with discrete moderator).
+- **`app_et2023`**: Data from @egerod2023extremists. Binary treatment, continuous moderator. Used in @sec-discrete-outcome.
 
-Consider a study with $n$ units, indexed by $i = 1, 2, \dots, n$. These units are independently and identically distributed (i.i.d.) from an infinite population denoted by $\mathcal{P}$, the super-population. 
-For each unit $i$, we observe the quadruple $(Y_i, D_{i}, X_i, Z_i)$, where $Y_i$ denotes the outcome of interest, $D_{i}$ is the treatment indicator, and $V_i = (X_i, Z_i)$ represents a set of covariates not causally affected by the treatment and comprises two components: the moderator of interest $X_i \in \mathcal{X}$, which can be either discrete or continuous, and the remaining covariates used for identification $Z_i \in \mathcal{Z}$, which can be potentially high-dimensional. 
-
-Given a sets of assumption, including random sampling, stable unit treatment value assumption (SUTVA), we define Conditional Marginal Effect (CME) with binary treatment as: 
-
-\begin{equation*}
-\theta(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x].
-\end{equation*} 
-
-And CME with continuous treatment: 
-
-\begin{equation*}  
-\theta(x)\;=\;\mathbb{E}\!\big[\,\mu_d(D,X,Z)\ \big|\ X=x\big].
-\end{equation*} 
-where the dose–response function $\mu(d,x,z) = \mathbb{E}\left[Y(d) \mid X = x, Z = z\right]$ describes how the expected potential outcome varies with the treatment level $d$, conditional on the covariates. The CME, $\theta(x)$, averages the unit-specific rates of change across units with the same value of the moderator $x$. 
-
-
-We further assume Unconfoundedness and Strict overlap as identification assumptions, which turn CME from causal estimand to statistical estimand for estimation in the coming chapters.
-
-When the moderator $X$ is discrete, the CME reduces to the **Group Average Treatment Effect** (GATE):
-$$
-\text{GATE}(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x], \quad x \in \{x_1, x_2, \dots, x_K\}.
-$$
-GATE is simply the treatment effect averaged within each group defined by the moderator values. Conceptually, it is equivalent to a binning estimator where the bins are the moderator levels themselves. The distinction between CME and GATE is purely about the nature of $X$: when $X$ is continuous, we estimate a smooth curve $\theta(x)$; when $X$ is discrete, we estimate a finite set of group-specific effects $\{\theta(x_1), \dots, \theta(x_K)\}$.
-
-
-## Estimators: A Conceptual Overview {#sec-estimator-overview}
-
-Every estimator in **interflex** can be understood as combining two independent choices:
-
-1. **Nuisance estimation**: How do we model the relationship between outcome $Y$, treatment $D$, and covariates $(X, Z)$?
-2. **Aggregation**: How do we summarize heterogeneous effects across values of the moderator $X$?
-
-### Nuisance estimation
-
-The nuisance estimation step removes confounding variation to isolate the causal effect of $D$. **interflex** offers several approaches:
-
-- **Linear (OLS)**: A parametric model $Y \sim D \cdot X + Z$, where the CME is read directly from coefficients. Simple and interpretable, but assumes linearity.
-- **Kernel**: Local linear regression that adapts to the data nonparametrically. Flexible but computationally intensive.
-- **Lasso/Ridge**: Penalized regression that handles high-dimensional covariates through regularization and basis expansion. Balances flexibility with discipline.
-- **Double Machine Learning (DML)**: Uses machine learning models (random forests, neural networks, gradient boosting) for nuisance estimation while maintaining valid statistical inference through cross-fitting and Neyman orthogonal scores.
-- **Causal Forest (GRF)**: Estimates individual-level treatment effects $\hat\tau(X_i)$ via honest causal forests, then aggregates.
-
-### Aggregation
-
-Given estimated individual-level treatment effect signals, the aggregation step summarizes them as a function of the moderator $X$:
-
-- **Smooth curve** (kernel smoothing or spline projection): Projects effect signals onto a smooth function of $X$. Appropriate when $X$ is continuous — produces a CME curve $\hat\theta(x)$.
-- **Group average** (binning by moderator): Averages effect signals within each level of $X$. Appropriate when $X$ is discrete — produces GATE point estimates $\hat\theta(x_k)$ for each group $k$.
-
-### Correspondence to interflex estimators
-
-The table below maps these two dimensions to the estimators available in **interflex**:
-
-|  | **Smooth CME** (continuous $X$) | **GATE** (discrete $X$) |
-|---|---|---|
-| **Linear** | `estimator = 'linear'` | `estimator = 'linear', gate = TRUE` |
-| **Lasso** | `estimator = 'lasso'` | `estimator = 'lasso', gate = TRUE` |
-| **DML** | `estimator = 'dml'` | `estimator = 'dml', gate = TRUE` |
-| **GRF** | `estimator = 'grf'` | `estimator = 'grf', gate = TRUE` |
-| **Kernel** | `estimator = 'kernel'` | — |
-| **Binning** | `estimator = 'binning'` | — |
-
-Note that `kernel` and `binning` are "fused" estimators where nuisance estimation and aggregation are inseparable — they are inherently nonparametric smoothing and binning methods, respectively. The semiparametric estimators (`lasso`, `dml`, `grf`) and the `linear` estimator with `gate = TRUE` cleanly separate the two steps.
-
-The `binning` estimator deserves special mention: it is itself a form of aggregation (averaging within bins of $X$). When $X$ is continuous, binning discretizes $X$ into researcher-specified intervals. GATE with a discrete moderator is the natural limiting case where the "bins" are the moderator values themselves — no discretization is needed.
 
 
