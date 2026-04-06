@@ -23,7 +23,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       pairwise = TRUE,
                       nboots = 200,
                       nsimu = 1000,
-                      parallel = FALSE,
+                      parallel = TRUE,
                       cores = NULL,
                       cl = NULL, # variable to be clustered on
                       Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
@@ -345,9 +345,9 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
         cores <- cores[1]
     }
-    # Only print parallel message for estimators that actually use it
+    # Only print parallel message when parallel computing will actually be used
     uses_parallel <- estimator %in% c("lasso", "dml", "grf") ||
-        (estimator %in% c("kernel", "linear", "binning") && vartype == "bootstrap")
+        (estimator %in% c("kernel", "linear", "binning") && vartype == "bootstrap" && parallel)
     if (verbose && uses_parallel) {
         avail <- parallelly::availableCores()
         cat(sprintf("Parallel computing: using %d of %d available cores.\n", cores, avail))

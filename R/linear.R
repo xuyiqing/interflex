@@ -1829,7 +1829,7 @@ interflex.linear <- function(data,
               on.exit(future::plan(future::sequential), add = TRUE)
             }
             `%op%` <- pcfg$op
-            cat("Parallel computing with", cores, "cores...\n")
+            ## message already printed by interflex()
 
             suppressWarnings(
                 bootout <- foreach(

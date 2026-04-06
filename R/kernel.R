@@ -780,7 +780,7 @@ interflex.kernel <- function(data,
               on.exit(future::plan(future::sequential), add = TRUE)
             }
             `%op%` <- pcfg$op
-            cat("Parallel computing with", cores, "cores...\n")
+            ## message already printed by interflex()
             Error <- suppressWarnings(foreach(
                 bw = bw.grid, .combine = rbind,
                 .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
@@ -2140,7 +2140,7 @@ interflex.kernel <- function(data,
                   on.exit(future::plan(future::sequential), add = TRUE)
                 }
                 `%op%` <- pcfg$op
-                cat("Parallel computing with", cores, "cores...\n")
+                ## message already printed by interflex()
 
                 suppressWarnings(
                     bootout <- foreach(
