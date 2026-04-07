@@ -452,6 +452,22 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
     }
 
+    ## Snapshot whether the user explicitly supplied xlim/ylim BEFORE the
+    ## auto-trim block below mutates `xlim`. plot.interflex consumes these
+    ## flags to distinguish user-supplied limits (which must be honored on
+    ## coord_cartesian) from auto-trimmed defaults (which should not pin the
+    ## inner ggplot's coord limits). Stored on the output object via the
+    ## estimator-level wrappers; see also R/plot.R recovery logic.
+    .user_xlim_explicit <- !is.null(xlim)
+    .user_ylim_explicit <- !is.null(ylim)
+    ## Communicate explicit-vs-default to the downstream plot.interflex call
+    ## via package-internal options. plot.interflex reads + clears these.
+    .old_opts <- options(
+        interflex.user_xlim_explicit = .user_xlim_explicit,
+        interflex.user_ylim_explicit = .user_ylim_explicit
+    )
+    on.exit(options(.old_opts), add = TRUE)
+
     ## xlim ylim
     ## Auto-trim: when xlim is not specified and X is continuous,
     ## clip tails that lack treatment variation (sparse/uninformative regions).

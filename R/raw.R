@@ -216,12 +216,11 @@ interflex.raw <- function(data,
             theme(plot.title = element_text(hjust = 0.5, size = cex.main, lineheight = .8, face = "bold"))
     }
 
-    if (!is.null(xlim)) {
-        p1 <- p1 + xlim(xlim[1], xlim[2])
-    }
-
-    if (!is.null(ylim)) {
-        p1 <- p1 + ylim(ylim[1], ylim[2])
+    if (!is.null(xlim) || !is.null(ylim)) {
+        p1 <- p1 + coord_cartesian(
+            xlim = if (!is.null(xlim)) .pad_xlim(xlim) else NULL,
+            ylim = ylim
+        )
     }
 
     ## save to file

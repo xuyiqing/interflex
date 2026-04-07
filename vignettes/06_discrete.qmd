@@ -39,11 +39,14 @@ The binning estimator is a diagnostic tool, it will discretizes the moderator $X
 
 **Estimation.**
 
-```{r dis_out_bin, warning=FALSE,cache=TRUE, fig.width = 6, fig.height = 4.5}
-out.binning <- interflex(estimator='binning', method='logit', data = d, 
+```{r ch6-binning-fit, warning=FALSE, cache=TRUE}
+out.binning <- interflex(estimator='binning', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
                        Xlabel = Xlabel)
+```
+
+```{r ch6-binning-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 out.binning$figure
 ```
 
@@ -59,7 +62,7 @@ head(out.binning$est.bin[[1]])
 
 One can visualize $E(Y|X,D,Z)$ estimated using the binning model. It is expected to see some "zigzags" at the bin boundaries in the plot.
 
-```{r dis_out_predict, warning=FALSE,cache=TRUE, fig.width = 9, fig.height = 4.5}
+```{r ch6-binning-predict-plot, warning=FALSE, cache=FALSE, fig.width = 9, fig.height = 4.5}
 predict(out.binning)
 ```
 
@@ -67,11 +70,14 @@ predict(out.binning)
 
 **Estimations.** When setting the option estimator to `linear`, the program will conduct the classic glm regression and estimate the CME using the coefficients from the regression. In the following command, the outcome variable is $Y$, the moderator is $X$, the covariates is $Z$, and here it uses `logit` link function.
 
-```{r dis_out_linear, warning=FALSE,cache=TRUE, fig.width = 6, fig.height = 4.5}
-out.linear.1 <- interflex(estimator='linear', method='logit', data = d, 
+```{r ch6-linear-fit, warning=FALSE, cache=TRUE}
+out.linear.1 <- interflex(estimator='linear', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
                        Xlabel = Xlabel)
+```
+
+```{r ch6-linear-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 out.linear.1$figure
 ```
 
@@ -79,24 +85,26 @@ For the linear estimator, when the option `full.moderate` is set to `TRUE`, inte
 
 User can also specify different link function by changing the `method` option.
 
-```{r dis_out_linear_method, warning=FALSE,cache=TRUE, fig.height=4, fig.width=10}
-out.linear.2 <- interflex(estimator='linear', method='logit', data = d, 
+```{r ch6-linear-method-fit, warning=FALSE, cache=TRUE}
+out.linear.2 <- interflex(estimator='linear', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
                        Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
-out.linear.3 <- interflex(estimator='linear', method='probit', data = d, 
+out.linear.3 <- interflex(estimator='linear', method='probit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
                        Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
-out.linear.4 <- interflex(estimator='linear', method='logit', data = d, 
+out.linear.4 <- interflex(estimator='linear', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
-                       Ylabel = Ylabel, Dlabel = Dlabel, 
+                       Ylabel = Ylabel, Dlabel = Dlabel,
                        full.moderate = TRUE,
                        Xlabel = Xlabel, ylim = c(-0.4,0.6))
+```
 
-ggarrange(out.linear.2$figure, out.linear.3$figure,out.linear.4$figure,
+```{r ch6-linear-method-plot, cache=FALSE, fig.height=4, fig.width=10}
+ggarrange(out.linear.2$figure, out.linear.3$figure, out.linear.4$figure,
           ncol = 3)
 ```
 
@@ -104,23 +112,25 @@ ggarrange(out.linear.2$figure, out.linear.3$figure,out.linear.4$figure,
 
 **Uncertainty estimation.** In the default setting, confidence intervals of CME are estimated using the `delta` method. The program also supports the `bootstrap` method and the simulation methods `simu`. Noted that uniform CI is not available for `vartype = simu`.
 
-```{r dis_out_linear_var, warning=FALSE,cache=TRUE, fig.height=4, fig.width=10}
-out.linear.2 <- interflex(estimator='linear', method='logit', data = d, 
+```{r ch6-linear-var-fit, warning=FALSE, cache=TRUE}
+out.linear.2 <- interflex(estimator='linear', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, vartype = "delta",
                        Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
-out.linear.3 <- interflex(estimator='linear', method='probit', data = d, 
+out.linear.3 <- interflex(estimator='linear', method='probit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, vartype = "bootstrap",
                        Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
-out.linear.4 <- interflex(estimator='linear', method='logit', data = d, 
+out.linear.4 <- interflex(estimator='linear', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, vartype = "simu",
                        Xlabel = Xlabel, ylim = c(-0.4,0.6))
+```
 
-ggarrange(out.linear.2$figure, out.linear.3$figure,out.linear.4$figure,
+```{r ch6-linear-var-plot, cache=FALSE, fig.height=4, fig.width=10}
+ggarrange(out.linear.2$figure, out.linear.3$figure, out.linear.4$figure,
           ncol = 3)
 ```
 
@@ -152,12 +162,15 @@ head(out.linear.1$diff.estimate)
 
 **Estimation.**
 
-```{r dis_out_kernel, warning=FALSE,cache=TRUE, fig.width = 6, fig.height = 4.5}
-out.kernel<- interflex(estimator='kernel', method='logit', data = d, 
+```{r ch6-kernel-fit, warning=FALSE, cache=TRUE}
+out.kernel <- interflex(estimator='kernel', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
-                       Ylabel = Ylabel, Dlabel = Dlabel, 
+                       Ylabel = Ylabel, Dlabel = Dlabel,
                        vartype = "bootstrap", ylim = c(-0.4, 0.6),
                        Xlabel = Xlabel)
+```
+
+```{r ch6-kernel-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 out.kernel$figure
 ```
 
@@ -177,7 +190,7 @@ head(out.kernel$CV.output)
 
 Like the linear estimator, the estimated conditional effects $E[Y | X, D, Z]$ is saved in "pred.kernel". Users can visualize it using the command "predict".
 
-```{r dis_out_kernel_predict, warning=FALSE,cache=TRUE, fig.width = 9, fig.height = 4.5}
+```{r ch6-kernel-predict-plot, warning=FALSE, cache=FALSE, fig.width = 9, fig.height = 4.5}
 head(out.kernel$pred.kernel$`1`)
 predict(out.kernel)
 ```
@@ -199,12 +212,15 @@ When the treatment is binary, the link function can be naturally incorporated in
 
 To estimate CME with discrete outcome using Lasso-based estimator, the syntax is exactly the same with continuous treatment settings, so we don't need to spcify the link function.
 
-```{r dis_out_aipw, warning=FALSE, message = FALSE, cache=TRUE, fig.width = 6, fig.height = 4.5}
-out.lasso<- interflex(estimator='lasso', data = d, 
+```{r ch6-lasso-fit, warning=FALSE, message=FALSE, cache=TRUE}
+out.lasso <- interflex(estimator='lasso', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
-                       Ylabel = Ylabel, Dlabel = Dlabel, 
-                       vartype = "bootstrap",ylim = c(-0.4, 0.6),
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       vartype = "bootstrap", ylim = c(-0.4, 0.6),
                        Xlabel = Xlabel)
+```
+
+```{r ch6-lasso-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 out.lasso$figure
 ```
 
@@ -219,7 +235,7 @@ Similar to the Lasso estimator, when treatment is binary the link function can b
 To estimate CME with discrete outcome using DML estimator, the syntax is the same with both binary and continuous treatment settings:
 
 
-```{r app_discrete, message=FALSE, warning=FALSE,cache=TRUE}
+```{r ch6-dml-fit, message=FALSE, warning=FALSE, cache=TRUE}
 binary.dml.nn.nn <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                               Ylabel = Ylabel, Dlabel = Dlabel,
@@ -228,7 +244,7 @@ binary.dml.nn.nn <- interflex(estimator="dml", data = d,
                               main = "Neural Network")
 ```
 
-```{r message=FALSE, warning=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch6-dml-plot, message=FALSE, warning=FALSE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 binary.dml.nn.nn$figure
 ```
 

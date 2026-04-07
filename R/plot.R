@@ -1,3 +1,62 @@
+# Internal: add a small symmetric pad to a user-supplied xlim so curves do not
+# clip exactly at the panel edge. Returns `xlim` unchanged when NULL or when
+# the range is degenerate (non-finite or zero-width).
+.pad_xlim <- function(xlim, mult = 0.02) {
+    if (is.null(xlim)) return(NULL)
+    if (length(xlim) != 2L) return(xlim)
+    if (any(!is.finite(xlim))) return(xlim)
+    span <- xlim[2] - xlim[1]
+    if (!is.finite(span) || span <= 0) return(xlim)
+    pad <- span * mult
+    c(xlim[1] - pad, xlim[2] + pad)
+}
+
+# Internal: defensively append CI columns from an estimator output table to a
+# running yrange vector. Mirrors the existing `ncol(...) > 5` guard pattern but
+# also guards the pointwise CI cols (4, 5). When the table is too narrow to
+# carry CIs, falls back to the point-estimate column (col 2), matching what the
+# CI=FALSE branch already does upstream.
+.append_yrange_ci <- function(yrange, tab) {
+    if (is.null(tab)) return(yrange)
+    nc <- ncol(tab)
+    if (is.null(nc) || nc < 2L) return(yrange)
+    if (nc >= 5L) {
+        yrange <- c(yrange, na.omit(unlist(c(tab[, c(4, 5)]))))
+        if (nc >= 7L) {
+            yrange <- c(yrange, na.omit(unlist(c(tab[, c(6, 7)]))))
+        }
+    } else {
+        yrange <- c(yrange, na.omit(unlist(c(tab[, 2]))))
+    }
+    yrange
+}
+
+# Internal: defensively rename the columns of an estimator output table to the
+# canonical (X, <point>, sd, CI_lower, CI_upper, [CI_uniform_lower, CI_uniform_upper])
+# schema. Tolerates narrow tables (2-4 cols, e.g. a DML output that carries only
+# X / point / sd with no CI columns) by assigning only the names that exist.
+# Mirrors the .append_yrange_ci guard so that the colnames-rename site does not
+# crash on the same narrow tables that helper was added to handle.
+# `point` is the label for column 2 ("TE" or "ME").
+.rename_est_ci <- function(tab, point = "TE") {
+    if (is.null(tab)) return(tab)
+    nc <- ncol(tab)
+    if (is.null(nc) || nc < 1L) return(tab)
+    full <- c("X", point, "sd", "CI_lower", "CI_upper", "CI_uniform_lower", "CI_uniform_upper")
+    if (nc >= 7L) {
+        colnames(tab) <- full[1:7]
+    } else if (nc >= 5L) {
+        colnames(tab) <- full[1:5]
+    } else {
+        # Narrow table (2-4 cols): assign only the names that exist. No CI ribbon
+        # columns are created -- downstream CI/ribbon code is gated on
+        # `"CI_lower" %in% colnames(tab)` so a narrow table degrades gracefully
+        # to a curve-only plot.
+        colnames(tab) <- full[seq_len(nc)]
+    }
+    tab
+}
+
 plot.interflex <- function(x,
                            order = NULL,
                            subtitles = NULL,
@@ -101,6 +160,40 @@ plot.interflex <- function(x,
     out <- x
     if (!inherits(out, "interflex")) {
         stop("Not an \"interflex\" object.")
+    }
+
+    ## Snapshot user-supplied limits before any downstream code mutates them
+    ## (e.g. defaults derived from the data range). These snapshots are stamped
+    ## onto the returned graph as attributes so a downstream re-plot can recover
+    ## the original window the user requested.
+    ## Distinguish user-supplied limits from auto-trim defaults applied
+    ## upstream by interflex(). When the option flags are unset (e.g. when
+    ## plot.interflex is invoked directly on an existing object), treat any
+    ## non-NULL limit as user-supplied (backward compatible).
+    .xlim_explicit <- getOption("interflex.user_xlim_explicit", default = NA)
+    .ylim_explicit <- getOption("interflex.user_ylim_explicit", default = NA)
+    .user_xlim_in <- if (isTRUE(.xlim_explicit) || is.na(.xlim_explicit)) xlim else NULL
+    .user_ylim_in <- if (isTRUE(.ylim_explicit) || is.na(.ylim_explicit)) ylim else NULL
+
+    ## Recover user-supplied limits from a previously-built figure when the
+    ## caller re-plots an existing interflex object without re-passing them.
+    ## plot.interflex stamps the original xlim/ylim onto the returned graph as
+    ## attributes (see end of function), so a downstream re-plot via
+    ## plot.interflex(out, show.all = TRUE) honors the same window the user
+    ## originally requested.
+    if (is.null(xlim) && !is.null(out$figure)) {
+        prior_xlim <- attr(out$figure, "interflex_xlim")
+        if (!is.null(prior_xlim)) {
+            xlim <- prior_xlim
+            .user_xlim_in <- prior_xlim
+        }
+    }
+    if (is.null(ylim) && !is.null(out$figure)) {
+        prior_ylim <- attr(out$figure, "interflex_ylim")
+        if (!is.null(prior_ylim)) {
+            ylim <- prior_ylim
+            .user_ylim_in <- prior_ylim
+        }
     }
 
     ## Auto by.group when gate estimates are available and non-empty
@@ -518,7 +611,8 @@ plot.interflex <- function(x,
                 }
 
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)], est.bin[[char]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.lin[[char]])
+                    yrange <- .append_yrange_ci(yrange, est.bin[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2], est.bin[[char]][, 2]))))
                 }
@@ -549,7 +643,8 @@ plot.interflex <- function(x,
                     est.bin3[[label]] <- t(est.bin3[[label]])
                 }
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)], est.bin[[label]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.lin[[label]])
+                    yrange <- .append_yrange_ci(yrange, est.bin[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2], est.bin[[label]][, 2]))))
                 }
@@ -575,10 +670,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(4, 5)]))))
-                    if (ncol(est.dml[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.dml[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, 2]))))
                 }
@@ -593,10 +685,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (label in label.name) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(4, 5)]))))
-                    if (ncol(est.dml[[label]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.dml[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, 2]))))
                 }
@@ -617,10 +706,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)]))))
-                    if (ncol(est.lin[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.lin[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2]))))
                 }
@@ -633,10 +719,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (label in label.name) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)]))))
-                    if (ncol(est.lin[[label]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.lin[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2]))))
                 }
@@ -674,20 +757,14 @@ plot.interflex <- function(x,
         if (isTRUE(CI)) {
             if (treat.type == "discrete") {
                 for (char in other.treat) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.kernel[[char]][, c(4, 5)]))))
-                    if (ncol(est.kernel[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.kernel[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.kernel[[char]])
                 }
                 X.lvls <- est.kernel[[other.treat[1]]][, 1]
             }
 
             if (treat.type == "continuous") {
                 for (label in label.name) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.kernel[[label]][, c(4, 5)]))))
-                    if (ncol(est.kernel[[label]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.kernel[[label]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.kernel[[label]])
                 }
                 X.lvls <- est.kernel[[label.name[1]]][, 1]
             }
@@ -710,10 +787,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(4, 5)]))))
-                    if (ncol(est.grf[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.grf[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, 2]))))
                 }
@@ -735,10 +809,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lasso[[char]][, c(4, 5)]))))
-                    if (ncol(est.lasso[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.lasso[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.lasso[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lasso[[char]][, 2]))))
                 }
@@ -753,10 +824,7 @@ plot.interflex <- function(x,
             yrange <- c(0)
             for (label in label.name) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lasso[[label]][, c(4, 5)]))))
-                    if (ncol(est.lasso[[label]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.lasso[[label]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.lasso[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lasso[[label]][, 2]))))
                 }
@@ -949,11 +1017,7 @@ plot.interflex <- function(x,
                 p1 <- p.group[[char]]
                 tempest <- est[[char]]
                 if (isTRUE(CI)) {
-                    if (ncol(tempest) == 5) {
-                        colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
-                    } else {
-                        colnames(tempest) <- c("X", "TE", "sd", "CI_lower", "CI_upper", "CI_uniform_lower", "CI_uniform_upper")
-                    }
+                    tempest <- .rename_est_ci(tempest, point = "TE")
                 }
                 if (isFALSE(CI)) {
                     tempest <- tempest[, c(1, 2)]
@@ -964,7 +1028,7 @@ plot.interflex <- function(x,
                     p1 <- p1 + geom_line(data = tempest, aes(X, TE), color = line.color, linewidth = line.size)
                 }
 
-                if (isTRUE(CI)) {
+                if (isTRUE(CI) && "CI_lower" %in% colnames(tempest)) {
                     if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "lasso") {
                         if (!by.group) {
                             p1 <- p1 + geom_ribbon(
@@ -1050,12 +1114,7 @@ plot.interflex <- function(x,
                 p1 <- p.group[[label]]
                 tempest <- est[[label]]
                 if (isTRUE(CI)) {
-                    if (ncol(tempest) == 5) {
-                        colnames(tempest) <- c("X", "ME", "sd", "CI_lower", "CI_upper")
-                    } else {
-                        colnames(tempest) <- c("X", "ME", "sd", "CI_lower", "CI_upper", "CI_uniform_lower", "CI_uniform_upper")
-                    }
-
+                    tempest <- .rename_est_ci(tempest, point = "ME")
                     tempest <- as.data.frame(tempest)
                 }
                 if (isFALSE(CI)) {
@@ -1067,7 +1126,7 @@ plot.interflex <- function(x,
                     p1 <- p1 + geom_line(data = tempest, aes(X, ME), color = line.color, linewidth = line.size)
                 }
 
-                if (isTRUE(CI)) {
+                if (isTRUE(CI) && "CI_lower" %in% colnames(tempest)) {
                     if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "lasso") {
                         if (!by.group) {
                             p1 <- p1 + geom_ribbon(
@@ -1384,16 +1443,6 @@ plot.interflex <- function(x,
                 }
             }
 
-            if (!is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
-            }
-            if (is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(ylim = ylim2)
-            }
-            if (!is.null(xlim) & is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim)
-            }
-
             p.group[[char]] <- p1
             k <- k + 1
         }
@@ -1410,7 +1459,10 @@ plot.interflex <- function(x,
             }
         }
         for (char in other.treat) {
-            p.group[[char]] <- p.group[[char]] + ylim(c(yminmin, ymaxmax))
+            final_ylim <- if (!is.null(.user_ylim_in)) .user_ylim_in else c(yminmin, ymaxmax)
+            final_xlim <- if (!is.null(.user_xlim_in)) .pad_xlim(.user_xlim_in) else NULL
+            p.group[[char]] <- p.group[[char]] +
+                coord_cartesian(xlim = final_xlim, ylim = final_ylim)
         }
 
         requireNamespace("gridExtra")
@@ -1451,16 +1503,6 @@ plot.interflex <- function(x,
                 }
             }
 
-            if (!is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
-            }
-            if (is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(ylim = ylim2)
-            }
-            if (!is.null(xlim) & is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim)
-            }
-
             p.group[[label]] <- p1
             k <- k + 1
         }
@@ -1477,7 +1519,10 @@ plot.interflex <- function(x,
             }
         }
         for (label in label.name) {
-            p.group[[label]] <- p.group[[label]] + ylim(c(yminmin, ymaxmax))
+            final_ylim <- if (!is.null(.user_ylim_in)) .user_ylim_in else c(yminmin, ymaxmax)
+            final_xlim <- if (!is.null(.user_xlim_in)) .pad_xlim(.user_xlim_in) else NULL
+            p.group[[label]] <- p.group[[label]] +
+                coord_cartesian(xlim = final_xlim, ylim = final_ylim)
         }
 
         requireNamespace("gridExtra")
@@ -1503,6 +1548,8 @@ plot.interflex <- function(x,
 
     if (!show.all) {
         graph <- as.ggplot(graph)
+        attr(graph, "interflex_xlim") <- .user_xlim_in
+        attr(graph, "interflex_ylim") <- .user_ylim_in
         return(graph)
     } else {
         cex.axis <- cex.axis

@@ -454,7 +454,8 @@ interflex.plot.pool <- function(
                     est.bin3[[char]] <- t(est.bin3[[char]])
                 }
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)], est.bin[[char]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.lin[[char]])
+                    yrange <- .append_yrange_ci(yrange, est.bin[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2], est.bin[[char]][, 2]))))
                 }
@@ -485,7 +486,8 @@ interflex.plot.pool <- function(
                     est.bin3[[label]] <- t(est.bin3[[label]])
                 }
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)], est.bin[[label]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.lin[[label]])
+                    yrange <- .append_yrange_ci(yrange, est.bin[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2], est.bin[[label]][, 2]))))
                 }
@@ -508,10 +510,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(4, 5)]))))
-                    if (ncol(est.dml[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.dml[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, 2]))))
                 }
@@ -523,10 +522,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (label in label.name) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(4, 5)]))))
-                    if (ncol(est.dml[[label]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.dml[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, 2]))))
                 }
@@ -547,10 +543,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(4, 5)]))))
-                    if (ncol(est.grf[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.grf[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, 2]))))
                 }
@@ -571,10 +564,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[char]][, c(4, 5)]))))
-                    if (ncol(est.aipw[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.aipw[[char]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.aipw[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.aipw[[char]][, 2]))))
                 }
@@ -586,10 +576,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (label in label.name) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[label]][, c(4, 5)]))))
-                    if (ncol(est.aipw[[label]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.aipw[[label]][, c(6, 7)]))))
-                    }
+                    yrange <- .append_yrange_ci(yrange, est.aipw[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.aipw[[label]][, 2]))))
                 }
@@ -610,7 +597,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (char in other.treat) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.lin[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2]))))
                 }
@@ -623,7 +610,7 @@ interflex.plot.pool <- function(
             yrange <- c(0)
             for (label in label.name) {
                 if (isTRUE(CI)) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.lin[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2]))))
                 }
@@ -662,14 +649,14 @@ interflex.plot.pool <- function(
         if (isTRUE(CI)) {
             if (treat.type == "discrete") {
                 for (char in other.treat) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.kernel[[char]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.kernel[[char]])
                 }
                 X.lvls <- est.kernel[[other.treat[1]]][, 1]
             }
 
             if (treat.type == "continuous") {
                 for (label in label.name) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.kernel[[label]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.kernel[[label]])
                 }
                 X.lvls <- est.kernel[[label.name[1]]][, 1]
             }
@@ -1231,13 +1218,13 @@ interflex.plot.pool <- function(
         ylim2 <- c(ylim[1] - (ylim[2] - ylim[1]) * 0.25 / 6, ylim[2] + (ylim[2] - ylim[1]) * 0.4 / 6)
     }
     if (!is.null(xlim) & !is.null(ylim)) {
-        p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
+        p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
     }
     if (is.null(xlim) & !is.null(ylim)) {
         p1 <- p1 + coord_cartesian(ylim = ylim2)
     }
     if (!is.null(xlim) & is.null(ylim)) {
-        p1 <- p1 + coord_cartesian(xlim = xlim)
+        p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim))
     }
 
     # legend
@@ -1279,13 +1266,13 @@ interflex.plot.pool <- function(
                 ylim2 <- c(ylim[1] - (ylim[2] - ylim[1]) * 0.25 / 6, ylim[2] + (ylim[2] - ylim[1]) * 0.4 / 6)
             }
             if (!is.null(xlim) & !is.null(ylim)) {
-                p0 <- p0 + coord_cartesian(xlim = xlim, ylim = ylim2)
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
             }
             if (is.null(xlim) & !is.null(ylim)) {
                 p0 <- p0 + coord_cartesian(ylim = ylim2)
             }
             if (!is.null(xlim) & is.null(ylim)) {
-                p0 <- p0 + coord_cartesian(xlim = xlim)
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim))
             }
             y.limits <- layer_scales(p1)$y$range$range
             x.limits <- layer_scales(p1)$x$range$range
@@ -1295,7 +1282,10 @@ interflex.plot.pool <- function(
             xminmin <- x.limits[1]
 
             suppressWarnings(
-                p0 <- p0 + ylim(c(yminmin, ymaxmax)) + xlim(c(xminmin, xmaxmax))
+                p0 <- p0 + coord_cartesian(
+                    xlim = c(xminmin, xmaxmax),
+                    ylim = c(yminmin, ymaxmax)
+                )
             )
             suppressWarnings(
                 p0 <- ggplot_gtable(ggplot_build(p0))
@@ -1352,13 +1342,13 @@ interflex.plot.pool <- function(
                 ylim2 <- c(ylim[1] - (ylim[2] - ylim[1]) * 0.25 / 6, ylim[2] + (ylim[2] - ylim[1]) * 0.4 / 6)
             }
             if (!is.null(xlim) & !is.null(ylim)) {
-                p0 <- p0 + coord_cartesian(xlim = xlim, ylim = ylim2)
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
             }
             if (is.null(xlim) & !is.null(ylim)) {
                 p0 <- p0 + coord_cartesian(ylim = ylim2)
             }
             if (!is.null(xlim) & is.null(ylim)) {
-                p0 <- p0 + coord_cartesian(xlim = xlim)
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim))
             }
             y.limits <- layer_scales(p1)$y$range$range
             x.limits <- layer_scales(p1)$x$range$range
@@ -1367,7 +1357,10 @@ interflex.plot.pool <- function(
             xmaxmax <- x.limits[2]
             xminmin <- x.limits[1]
             suppressWarnings(
-                p0 <- p0 + ylim(c(yminmin, ymaxmax)) + xlim(c(xminmin, xmaxmax))
+                p0 <- p0 + coord_cartesian(
+                    xlim = c(xminmin, xmaxmax),
+                    ylim = c(yminmin, ymaxmax)
+                )
             )
             suppressWarnings(
                 p0 <- ggplot_gtable(ggplot_build(p0))

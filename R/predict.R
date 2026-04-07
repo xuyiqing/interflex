@@ -725,15 +725,6 @@ predict.interflex <- function(
             p1 <- p1 + xlab(NULL) + ylab(NULL) +
                 theme(axis.text = element_text(size = cex.axis))
 
-            if (!is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
-            }
-            if (is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(ylim = ylim2)
-            }
-            if (!is.null(xlim) & is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim)
-            }
             plot_list[[char]] <- p1
         }
 
@@ -749,7 +740,10 @@ predict.interflex <- function(
             }
         }
         for (char in all.treat) {
-            plot_list[[char]] <- plot_list[[char]] + ylim(c(yminmin, ymaxmax))
+            final_ylim <- if (!is.null(ylim)) ylim2 else c(yminmin, ymaxmax)
+            final_xlim <- if (!is.null(xlim)) .pad_xlim(xlim) else NULL
+            plot_list[[char]] <- plot_list[[char]] +
+                coord_cartesian(xlim = final_xlim, ylim = final_ylim)
         }
 
         requireNamespace("gridExtra")
@@ -777,13 +771,13 @@ predict.interflex <- function(
             p1 <- p1 + ggtitle(main) + theme(plot.title = element_text(hjust = 0.5, size = cex.main, lineheight = .8, face = "bold"))
         }
         if (!is.null(xlim) & !is.null(ylim)) {
-            p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
+            p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
         }
         if (is.null(xlim) & !is.null(ylim)) {
             p1 <- p1 + coord_cartesian(ylim = ylim2)
         }
         if (!is.null(xlim) & is.null(ylim)) {
-            p1 <- p1 + coord_cartesian(xlim = xlim)
+            p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim))
         }
 
         p1 <- p1 + theme(
