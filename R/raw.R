@@ -14,7 +14,7 @@ interflex.raw <- function(data,
                           Ylabel = NULL,
                           Dlabel = NULL,
                           Xlabel = NULL,
-                          theme.bw = FALSE,
+                          theme.bw = TRUE,
                           show.grid = TRUE,
                           cex.main = NULL,
                           cex.lab = NULL,
@@ -129,12 +129,12 @@ interflex.raw <- function(data,
         if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", linewidth = 1)
+        p1 <- p1 + geom_point(na.rm = TRUE) + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", linewidth = 1, na.rm = TRUE)
 
         if (is.null(span)) {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", na.rm = TRUE)
         } else {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span)
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span, na.rm = TRUE)
         }
         p1 <- p1 + xlab(Xlabel) + ylab(Ylabel)
 
@@ -182,12 +182,12 @@ interflex.raw <- function(data,
         if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", linewidth = 1)
+        p1 <- p1 + geom_point(na.rm = TRUE) + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", linewidth = 1, na.rm = TRUE)
 
         if (is.null(span)) {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", na.rm = TRUE)
         } else {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span)
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span, na.rm = TRUE)
         }
         p1 <- p1 + xlab(Dlabel) + ylab(Ylabel) + facet_wrap(. ~ groupID, ncol = ncols)
     }

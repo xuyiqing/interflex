@@ -40,7 +40,6 @@ linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel, vartype = "bootstrap",
-                 theme.bw = TRUE,
                  main = "Linear model")
 linear.out.1$figure
 ```
@@ -52,9 +51,8 @@ linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel, vartype = "bootstrap",
-                 theme.bw = TRUE,
                  main = "Linear model")
-plot(linear.out.1, theme.bw = TRUE)
+plot(linear.out.1)
 ```
 
 All the options introduced in this chapter are available for both ways.
@@ -71,12 +69,10 @@ For instance, with simulation data **s5**, by setting the option `order` and `su
 
 s5.binning <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), 
                         data = s5, 
-                        estimator = "binning", vartype = "bootstrap",
-                        theme.bw = TRUE)
+                        estimator = "binning", vartype = "bootstrap")
 
 plot(s5.binning, order=c("C", "B"), 
-     subtitles = c("Group C","Group B"), 
-     theme.bw = TRUE)
+     subtitles = c("Group C","Group B"))
 ```
 
 By setting `pool = TRUE`, we can combine these plots. Users can also specify the colors they like:
@@ -84,8 +80,7 @@ By setting `pool = TRUE`, we can combine these plots. Users can also specify the
 ```{r mta1d, message = FALSE, fig.height=5, fig.width=6, cache = TRUE}
 plot(s5.binning, order=c("C", "B"), 
      subtitles = c("Control Group","Group C","Group B"), 
-     pool = TRUE, color = c("Salmon","#7FC97F", "#BEAED4"), 
-     theme.bw = TRUE)
+     pool = TRUE, color = c("Salmon","#7FC97F", "#BEAED4"))
 ```
 
 
@@ -104,8 +99,7 @@ s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"),
 ```{r ch7-mta-linear-plot, cache=FALSE}
 plot(s5.linear,
      diff.values = c (-2,0,2),
-     CI = FALSE,
-     theme.bw = TRUE)
+     CI = FALSE)
 ```
 
 ### Moderator's distribution
@@ -121,10 +115,9 @@ linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel, vartype = "bootstrap",
-                 theme.bw = TRUE,
                  main = "Linear model")
 
-plot(linear.out.1, theme.bw = TRUE, 
+plot(linear.out.1, 
      Xdistr = "density",
      density.color = "blue")
 ```
@@ -147,7 +140,6 @@ Using the linear estimation plot with Huddy2015 as an example:
 plot(s5.linear,
      interval = c(0),
      show.subtitles = TRUE,
-     theme.bw = TRUE,
      main = "Linear estimator",
      subtitles = c("Group B","Group C"))
 ```
@@ -165,7 +157,7 @@ Using the linear estimation plot with Huddy2015, and compare it against the plot
 plot1<-linear.out.1$figure
 
 plot2<-plot(linear.out.1, xlab = "moderator", ylab = "CME",
-     xlim = c(0.25,1), theme.bw = TRUE)
+     xlim = c(0.25,1))
 
 ggarrange(plot1, plot2)
 

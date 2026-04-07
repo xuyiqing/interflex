@@ -37,7 +37,7 @@ source("init.R")
 
 <!-- ``` -->
 
-When setting the option `estimator` to `DML`, the function will conduct the two-stage DML estimator to compute the marginal effects. In the following command, the outcome variable is $Y$, the moderator is $X$, the covariates are $Z$.
+When setting the option `estimator` to `dml`, the function will conduct the two-stage DML estimator to compute the marginal effects. In the following command, the outcome variable is $Y$, the moderator is $X$, the covariates are $Z$.
 
 ## Binary treatment
 
@@ -70,7 +70,7 @@ binary.dml.nn.rf <- interflex(estimator="dml", data = d,
 ```
 
 ```{r ch5-binary-dml-nn-rf-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
-plot(binary.dml.nn.rf, theme.bw = TRUE)
+plot(binary.dml.nn.rf)
 ```
 
 **Results.** The estimated treatment effects of $D$ on $Y$ across the support of $X$ are saved in:
@@ -82,51 +82,45 @@ lapply(binary.dml.nn.rf$est.dml, head, 10)
 
 ### First Stage DML Model Selections
 
-The `DML` estimator supports five different machine learning algorithms: `linear` (Linear model), `regularization` (Lasso or Ridge model),`rf` (Random Forest), `nn` (Neural Network), and `hgb` (Histogram-based Gradient Boosting). Users can change the `model.y` and `model.t` option to calculate the nuisance parameter using a different ML method.
+The `dml` estimator supports five different machine learning algorithms: `linear` (Linear model), `regularization` (Lasso or Ridge model),`rf` (Random Forest), `nn` (Neural Network), and `hgb` (Histogram-based Gradient Boosting). Users can change the `model.y` and `model.t` option to calculate the nuisance parameter using a different ML method.
 
 ```{r ch5-binary-dml-models-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 
 ## linear + linear
-binary.dml.ln.ln <- interflex(estimator="DML", data = d,
+binary.dml.ln.ln <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
+                              Xlabel = Xlabel,
                               model.y = "linear",model.t = "linear",
+                              ylim = c(-3, 1.5), xlim = c(0, 1),
                               main = "Linear Model")
 
-# # lass + lasso
-# binary.dml.ls.ls <- interflex(estimator="DML", data = d,
-#                               Y = Y, D = D, X = X, Z = Z,
-#                               Ylabel = Ylabel, Dlabel = Dlabel,
-#                               Xlabel = Xlabel, theme.bw = TRUE,
-#                               model.y = "regularization",
-#                               model.t = "regularization",
-#                               main = "Lasso Model")
-
-
 ## neural network + neural network
-binary.dml.nn.nn <- interflex(estimator="DML", data = d,
+binary.dml.nn.nn <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
+                              Xlabel = Xlabel,
                               model.y = "nn",model.t = "nn",
+                              ylim = c(-3, 1.5), xlim = c(0, 1),
                               main = "Neural Network")
 
 
 ## random forest + random forest
-binary.dml.rf.rf <- interflex(estimator="DML", data = d,
+binary.dml.rf.rf <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
+                              Xlabel = Xlabel,
                               model.y = "rf",model.t = "rf",
+                              ylim = c(-3, 1.5), xlim = c(0, 1),
                               main = "Random Forest")
 
 ## hist gradient boosting + hist gradient boosting
-binary.dml.hgb.hgb <- interflex(estimator="DML",data = d,
+binary.dml.hgb.hgb <- interflex(estimator="dml",data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
+                              Xlabel = Xlabel,
                               model.y = "hgb",model.t = "hgb",
+                              ylim = c(-3, 1.5), xlim = c(0, 1),
                               main = "Hist Gradient Boosting")
 ```
 
@@ -156,13 +150,14 @@ param_nn <- list(
   learning_rate = c("adaptive")
 )
 
-binary.DML.nn.linear.para <- interflex(estimator="DML", data = d,
+binary.DML.nn.linear.para <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
+                              Xlabel = Xlabel,
                               model.y = "nn", param.y = param_nn,
                               model.t = "nn", param.t = param_nn,
-                              main = "Specified parameters")
+                              ylim = c(-3, 1.5), xlim = c(0, 1),
+                              main = "Fine-tuned parameters")
 ```
 
 ```{r ch5-binary-dml-params-plot, cache=FALSE, fig.width=9, fig.height=5}
@@ -236,36 +231,40 @@ param_grid_hgb <- list(
 
 
 # nn (cv) + rf (cv) + linear
-binary.cvnn.cvrf <- interflex(estimator="DML", data = d,
+binary.cvnn.cvrf <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,CV = TRUE,
+                              Xlabel = Xlabel,CV = TRUE,
                               model.y = "nn",param.grid.y = param_grid_nn,
-                              model.t = "rf",param.grid.t = param_grid_rf)
+                              model.t = "rf",param.grid.t = param_grid_rf,
+                              ylim = c(-3, 1.5), xlim = c(0, 1))
 
 # nn (cv) + hgb (cv) + regularization (cv)
-binary.cvnn.cvhgb <- interflex(estimator="DML", data = d,
+binary.cvnn.cvhgb <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,CV = TRUE,
+                              Xlabel = Xlabel,CV = TRUE,
                               model.y = "nn",param.grid.y = param_grid_nn,
-                              model.t = "hgb",param.grid.t = param_grid_hgb)
+                              model.t = "hgb",param.grid.t = param_grid_hgb,
+                              ylim = c(-3, 1.5), xlim = c(0, 1))
 
 # rf (cv) + rf (cv) + rf (cv)
-binary.cvrf.cvrf <- interflex(estimator="DML", data = d,
+binary.cvrf.cvrf <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,CV = TRUE,
+                              Xlabel = Xlabel,CV = TRUE,
                               model.y = "rf",param.grid.y = param_grid_rf,
-                              model.t = "rf",param.grid.t = param_grid_rf)
+                              model.t = "rf",param.grid.t = param_grid_rf,
+                              ylim = c(-3, 1.5), xlim = c(0, 1))
 
 # hgb (cv) + hgb (cv) + hgb (cv)
-binary.cvhgb.cvhgb <- interflex(estimator="DML",  data = d,
+binary.cvhgb.cvhgb <- interflex(estimator="dml",  data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,CV = TRUE,
+                              Xlabel = Xlabel,CV = TRUE,
                               model.y = "hgb",param.grid.y = param_grid_hgb,
-                              model.t = "hgb",param.grid.t = param_grid_hgb)
+                              model.t = "hgb",param.grid.t = param_grid_hgb,
+                              ylim = c(-3, 1.5), xlim = c(0, 1))
 ```
 
 ```{r ch5-binary-dml-cv-plot, message=FALSE, warning=FALSE, cache=FALSE, fig.width=9, fig.height=9}
@@ -281,49 +280,29 @@ ggarrange(binary.cvnn.cvrf$figure,
 In this section, we compare the performance of DML estimator with previously introduced estimators.
 
 ```{r application1, message=FALSE, warning=FALSE,cache=TRUE}
-
-out.dml.nn<-interflex(estimator='DML', data = d,
-                      model.y = 'nn', model.t = 'nn',
-                      Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
-                      Xlabel=Xlabel, theme.bw = TRUE,
-                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.4,1))
-
-out.dml.rf<-interflex(estimator='DML', data = d, 
-                      model.y = 'rf', model.t = 'rf', 
-                      Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
-                      Xlabel=Xlabel, theme.bw = TRUE,
-                      Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.4,1))
-
-out.dml.hgb<-interflex(estimator='DML', data = d, 
-                       model.y = 'hgb', model.t = 'hgb', 
-                       Y=Y,D=D,X=X, Z = Z, treat.type = "discrete",
-                       Xlabel=Xlabel, theme.bw = TRUE,
-                       Ylabel=Ylabel, Dlabel=Dlabel,ylim=c(-0.4,1))
-
-out.aipw <- interflex(estimator = "lasso", Y=Y,D=D,X=X,data=d, 
-                     Xlabel=Xlabel,Ylabel=Ylabel,ylim=c(-0.4,1), 
-                     Dlabel=Dlabel, theme.bw = TRUE)
-
 out.linear<-interflex(estimator = "binning",Y=Y,D=D,
                     X=X,Z=Z,data=d, Xlabel=Xlabel, 
                     Ylabel=Ylabel, Dlabel=Dlabel,
-                    ylim=c(-0.4,1), theme.bw = TRUE)
+                    ylim = c(-3, 1.5), xlim = c(0, 1))
 
 out.kernel<-interflex(estimator = "kernel", data=d, Y=Y,D=D,X=X,Z=Z,
-                      vartype = 'bootstrap', parallel = T,
-                      Dlabel=Dlabel, Xlabel=Xlabel, theme.bw = TRUE,
-                      Ylabel=Ylabel,ylim=c(-0.4,1))
+                      vartype = 'bootstrap', parallel = TRUE,
+                      Dlabel=Dlabel, Xlabel=Xlabel, Ylabel=Ylabel,
+                      ylim = c(-3, 1.5), xlim = c(0, 1))
+
+out.aipw <- interflex(estimator = "lasso", Y=Y,D=D,X=X,data=d, 
+                     Xlabel=Xlabel, Ylabel=Ylabel, Dlabel=Dlabel,
+                     ylim = c(-3, 1.5), xlim = c(0, 1))
 ```
 
-```{r message=FALSE, warning=FALSE,cache=TRUE, fig.width=10,fig.height=10}
-ggarrange(out.linear$figure, out.kernel$figure, out.aipw$figure,
-          out.dml.nn$figure, out.dml.rf$figure, out.dml.hgb$figure, 
+```{r message=FALSE, warning=FALSE,cache=TRUE, fig.width=9, fig.height=8}
+ggarrange(out.linear$figure, out.kernel$figure, 
+          out.aipw$figure, binary.cvnn.cvrf$figure, 
           common.legend = TRUE, legend = "none",
-          labels = c("Binning", "Kernel", "AIPW-Lasso",
-                     "DML: nn","DML: rf", "DML: hgb"))
+          labels = c("Binning", "Kernel", "AIPW-Lasso", "DML: NN-RF"))
 ```
 
-The three DML estimator plots consistently show that the marginal effect of the threat on anger escalates with increasing partisan identity across all machine learning methods employed. However, these DML estimators appear to overfit when partisan identity is below 0.25, a region with sparse data representation. The widen confidence intervals in areas where partisan identity is lower (e.g., below 0.25) further indicate uncertainty in the model's estimations in these areas.
+These plots consistently show that the CME of the threat on anger escalates with increasing partisan identity across all machine learning methods employed. 
 
 ------------------------------------------------------------------------
 
@@ -355,7 +334,7 @@ With continuous treatment, we need to specify the data type in `treat.type = con
 con.dml<- interflex(estimator="dml", data = d,
                     Y = Y, D = D, X = X, Z = Z,
                     Ylabel = Ylabel, Dlabel = Dlabel,
-                    Xlabel = Xlabel, theme.bw = TRUE,
+                    Xlabel = Xlabel,
                     treat.type = "continuous",
                     ylim = c(-15, 10))
 con.dml$figure
@@ -376,40 +355,40 @@ In this section, we compare the performance of DML estimator with previously int
 out.dml.nn<-interflex(estimator='DML', data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
-                      Xlabel = Xlabel, theme.bw = TRUE,
+                      Xlabel = Xlabel,
                       model.y = 'nn', model.t = 'nn', 
                       ylim = c(-2,4), treat.type = "continuous")
 
 out.dml.rf<-interflex(estimator='DML', data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
-                      Xlabel = Xlabel, theme.bw = TRUE,
+                      Xlabel = Xlabel,
                       model.y = 'rf', model.t = 'rf', 
                       ylim = c(-2,4), treat.type = "continuous")
 
 out.dml.hgb<-interflex(estimator='DML', data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
-                      Xlabel = Xlabel, theme.bw = TRUE,
+                      Xlabel = Xlabel,
                       model.y = 'hgb', model.t = 'hgb', 
                       ylim = c(-2,4), treat.type = "continuous")
 
 out.aipw <- interflex(estimator = "lasso", data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
-                      Xlabel = Xlabel, theme.bw = TRUE,
+                      Xlabel = Xlabel,
                       ylim = c(-2,4), treat.type = "continuous")
 
 out.est1<-interflex(estimator = "binning",data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
-                      Xlabel = Xlabel, theme.bw = TRUE,
+                      Xlabel = Xlabel,
                       ylim = c(-2,4), treat.type = "continuous")
 
 out.kernel<-interflex(estimator = "kernel", data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
-                      Xlabel = Xlabel, theme.bw = TRUE,
+                      Xlabel = Xlabel,
                       ylim = c(-2,4), vartype = "bootstrap", 
                       treat.type = "continuous")
 
@@ -438,10 +417,10 @@ param_rf <- list(
 )
 
 
-con.DML.rf.linear.para <- interflex(estimator="DML", data = d,
+con.DML.rf.linear.para <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
+                              Xlabel = Xlabel,
                               model.y = "rf", param.y = param_rf,
                               model.t = "rf", param.t = param_rf,
                               main = "Specified parameters",
@@ -450,7 +429,7 @@ con.DML.rf.linear.para <- interflex(estimator="DML", data = d,
 out.dml.rf<-interflex(estimator='DML', data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
-                      Xlabel = Xlabel, theme.bw = TRUE,
+                      Xlabel = Xlabel,
                       model.y = 'rf', model.t = 'rf', 
                       ylim = c(-2,4),
                       main = "Random forests")
@@ -474,7 +453,7 @@ d <- remove_labels(d)
 out.dml.gate <- interflex(estimator = 'dml', data = d,
                           Y = "sup_tax_rebate", D = "treat_type_bin",
                           X = "income", Z = c("leftright", "clim_belief", "resp_age", "female", "employment_f", "highedu", "midedu", "pid_f"),
-                          na.rm = TRUE, gate = TRUE, theme.bw = TRUE,
+                          na.rm = TRUE, gate = TRUE,
                           model.y = "linear", model.t = "linear")
 ```
 
@@ -485,7 +464,7 @@ out.dml.gate$figure
 Use `plot(..., by.group = TRUE)` for separate point estimates and confidence intervals per group:
 
 ```{r ch5-gate-bygroup-plot, cache=FALSE}
-plot(out.dml.gate, by.group = TRUE, theme.bw = TRUE)
+plot(out.dml.gate, by.group = TRUE)
 ```
 
 The `g.est` field contains the GATE estimates:

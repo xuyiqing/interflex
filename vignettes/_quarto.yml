@@ -15,7 +15,7 @@ book:
     - 05_dml.qmd
     - 06_discrete.qmd
     - 07_plot.qmd
-    - 08_changelog.qmd
+    - changelog.qmd
     - references.qmd
 
 initial-block:

@@ -16,7 +16,7 @@ interflex.plot.pool <- function(
     ylab = NULL,
     xlim = NULL,
     ylim = NULL,
-    theme.bw = FALSE,
+    theme.bw = TRUE,
     show.grid = TRUE,
     show.uniform.CI = TRUE,
     cex.main = NULL,

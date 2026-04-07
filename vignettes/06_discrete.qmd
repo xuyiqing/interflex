@@ -43,7 +43,7 @@ The binning estimator is a diagnostic tool, it will discretizes the moderator $X
 out.binning <- interflex(estimator='binning', method='logit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE)
+                       Xlabel = Xlabel)
 out.binning$figure
 ```
 
@@ -59,8 +59,8 @@ head(out.binning$est.bin[[1]])
 
 One can visualize $E(Y|X,D,Z)$ estimated using the binning model. It is expected to see some "zigzags" at the bin boundaries in the plot.
 
-```{r dis_out_predict, warning=FALSE,cache=TRUE, fig.width = 6, fig.height = 4.5}
-predict(out.binning, theme.bw = TRUE)
+```{r dis_out_predict, warning=FALSE,cache=TRUE, fig.width = 9, fig.height = 4.5}
+predict(out.binning)
 ```
 
 #### Linear estimator
@@ -71,7 +71,7 @@ predict(out.binning, theme.bw = TRUE)
 out.linear.1 <- interflex(estimator='linear', method='logit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE)
+                       Xlabel = Xlabel)
 out.linear.1$figure
 ```
 
@@ -79,22 +79,22 @@ For the linear estimator, when the option `full.moderate` is set to `TRUE`, inte
 
 User can also specify different link function by changing the `method` option.
 
-```{r dis_out_linear_method, warning=FALSE,cache=TRUE, fig.height=5, fig.width=9}
+```{r dis_out_linear_method, warning=FALSE,cache=TRUE, fig.height=4, fig.width=10}
 out.linear.2 <- interflex(estimator='linear', method='logit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE, ylim = c(-0.4,0.6))
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
 out.linear.3 <- interflex(estimator='linear', method='probit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE, ylim = c(-0.4,0.6))
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
 out.linear.4 <- interflex(estimator='linear', method='logit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, 
                        full.moderate = TRUE,
-                       Xlabel = Xlabel, theme.bw = TRUE, ylim = c(-0.4,0.6))
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
 ggarrange(out.linear.2$figure, out.linear.3$figure,out.linear.4$figure,
           ncol = 3)
@@ -104,21 +104,21 @@ ggarrange(out.linear.2$figure, out.linear.3$figure,out.linear.4$figure,
 
 **Uncertainty estimation.** In the default setting, confidence intervals of CME are estimated using the `delta` method. The program also supports the `bootstrap` method and the simulation methods `simu`. Noted that uniform CI is not available for `vartype = simu`.
 
-```{r dis_out_linear_var, warning=FALSE,cache=TRUE, fig.height=5, fig.width=9}
+```{r dis_out_linear_var, warning=FALSE,cache=TRUE, fig.height=4, fig.width=10}
 out.linear.2 <- interflex(estimator='linear', method='logit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, vartype = "delta",
-                       Xlabel = Xlabel, theme.bw = TRUE, ylim = c(-0.4,0.6))
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
 out.linear.3 <- interflex(estimator='linear', method='probit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, vartype = "bootstrap",
-                       Xlabel = Xlabel, theme.bw = TRUE, ylim = c(-0.4,0.6))
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
 out.linear.4 <- interflex(estimator='linear', method='logit', data = d, 
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, vartype = "simu",
-                       Xlabel = Xlabel, theme.bw = TRUE, ylim = c(-0.4,0.6))
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
 
 ggarrange(out.linear.2$figure, out.linear.3$figure,out.linear.4$figure,
           ncol = 3)
@@ -157,7 +157,7 @@ out.kernel<- interflex(estimator='kernel', method='logit', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, 
                        vartype = "bootstrap", ylim = c(-0.4, 0.6),
-                       Xlabel = Xlabel, theme.bw = TRUE)
+                       Xlabel = Xlabel)
 out.kernel$figure
 ```
 
@@ -177,10 +177,9 @@ head(out.kernel$CV.output)
 
 Like the linear estimator, the estimated conditional effects $E[Y | X, D, Z]$ is saved in "pred.kernel". Users can visualize it using the command "predict".
 
-```{r dis_out_kernel_predict, warning=FALSE,cache=TRUE, fig.width = 6, fig.height = 4.5}
-
+```{r dis_out_kernel_predict, warning=FALSE,cache=TRUE, fig.width = 9, fig.height = 4.5}
 head(out.kernel$pred.kernel$`1`)
-predict(out.kernel, theme.bw = TRUE)
+predict(out.kernel)
 ```
 
 The estimated average treatment effect (ATE) is saved in `Avg.estimate`, and the estimated difference of treatment effects are saved in `diff.estimate`:
@@ -205,7 +204,7 @@ out.lasso<- interflex(estimator='lasso', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel, 
                        vartype = "bootstrap",ylim = c(-0.4, 0.6),
-                       Xlabel = Xlabel, theme.bw = TRUE)
+                       Xlabel = Xlabel)
 out.lasso$figure
 ```
 
@@ -224,12 +223,12 @@ To estimate CME with discrete outcome using DML estimator, the syntax is the sam
 binary.dml.nn.nn <- interflex(estimator="dml", data = d,
                               Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                               Ylabel = Ylabel, Dlabel = Dlabel,
-                              Xlabel = Xlabel, theme.bw = TRUE,
+                              Xlabel = Xlabel,
                               model.y = "nn", model.t = "nn",
                               main = "Neural Network")
 ```
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, fig.width = 6, fig.height = 4.5}
 binary.dml.nn.nn$figure
 ```
 

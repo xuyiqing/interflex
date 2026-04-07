@@ -42,7 +42,7 @@ interflex.lasso_discrete <- function(
   ylab               = NULL,
   xlim               = NULL,
   ylim               = NULL,
-  theme.bw           = FALSE,
+  theme.bw           = TRUE,
   show.grid          = TRUE,
   cex.main           = NULL,
   cex.sub            = NULL,

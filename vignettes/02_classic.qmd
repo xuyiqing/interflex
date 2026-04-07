@@ -56,7 +56,7 @@ The first step of the diagnostics is to plot raw data. We supply the function **
 interflex(estimator = "raw",data = d, Y = Y, 
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
-                     Xlabel = Xlabel, theme.bw = TRUE,
+                     Xlabel = Xlabel,
           main = "Raw plot", ylab = "CME of Threat on Anger")
 ```
 
@@ -72,7 +72,7 @@ interflex(estimator = "raw",data = d, Y = Y,
 
 <!--                      Xlabel = "Partisanship", -->
 
-<!--           theme.bw = TRUE, show.grid = FALSE) -->
+<!--           show.grid = FALSE) -->
 
 <!-- ``` -->
 
@@ -89,7 +89,6 @@ bin.out.1 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 theme.bw = TRUE,
                  main = "Marginal Effects")
 ```
 
@@ -103,8 +102,7 @@ For fully moderated model, we includes interactions between each covariate $Z$ a
 bin.out.2 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel,
-                 theme.bw = TRUE, full.moderate = TRUE,
+                 Xlabel = Xlabel, full.moderate = TRUE,
                  main = "Marginal Effects")
 ```
 
@@ -120,8 +118,7 @@ cutoff<-c(0.25,0.5,0.75,0.9)
 bin.out.3 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel,
-                 theme.bw = TRUE, nbins = 5,
+                 Xlabel = Xlabel, nbins = 5,
                  main = "Marginal Effects")
 ```
 
@@ -135,8 +132,7 @@ Next, we use `Xunif = TRUE` to transform the moderator into a uniformly distribu
 bin.out.4 <- interflex(estimator = "binning", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel,
-                 theme.bw = TRUE, Xunif = TRUE,
+                 Xlabel = Xlabel, Xunif = TRUE,
                  main = "Marginal Effects")
 ```
 
@@ -156,7 +152,7 @@ print(bin.out.1$tests$p.wald)
 
 ```{r ch2-binary-bin-replot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 
-plot(bin.out.1, Xdistr = "density", bin.labs = FALSE, theme.bw = TRUE)
+plot(bin.out.1, Xdistr = "density", bin.labs = FALSE)
 ```
 
 ------------------------------------------------------------------------
@@ -181,21 +177,25 @@ linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel, vartype = "bootstrap",
-                 theme.bw = TRUE,
                  main = "Linear model")
 
 linear.out.2 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 vartype = "bootstrap",
-                 theme.bw = TRUE, full.moderate = TRUE,
+                 vartype = "bootstrap", full.moderate = TRUE,
                  main = "Fully Moderated Linear model")
 ```
 
 ```{r ch2-binary-lin-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 ggarrange(linear.out.1$figure, linear.out.2$figure)
 ```
+
+::: {.callout-tip}
+## Parallel computing
+
+Parallel computing will speed up both cross-validation and uncertainty estimation significantly. We recommend that users manually set the number of cores using the `cores` option. If this is not supplied or is `NULL`, **interflex** will automatically select the smaller of 8 and the number of usable system cores minus 2, to prevent excessive use of system resources.
+:::
 
 **Results.** The CME plot is stored in `out$figure` while the estimates and standard errors are stored in `out$est.lin`
 
@@ -231,20 +231,12 @@ linear.uni <- interflex(estimator = "linear", data = d,
                  Y = Y, D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel, vartype = "bootstrap",
-                 nboots = 2000,
-                 theme.bw = TRUE, main = "With Uniform CI (nboots = 2000)")
+                 nboots = 2000, main = "With Uniform CI (nboots = 2000)")
 ```
 
 ```{r ch2-uniform-ci-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
 linear.uni$figure
 ```
-
-::: {.callout-tip}
-## Parallel computing
-
-Parallel computing will speed up both cross-validation and uncertainty estimation significantly. We recommend that users manually set the number of cores using the `cores` option. If this is not supplied or is `NULL`, **interflex** will automatically select the smaller of 8 and the number of usable system cores minus 2, to prevent excessive use of system resources.
-:::
-
 
 To turn off uniform CIs (e.g., to reduce visual clutter or when only pointwise inference is needed), set `show.uniform.CI = FALSE` in either the estimation or plotting call:
 
@@ -254,8 +246,7 @@ linear.nouni <- interflex(estimator = "linear", data = d,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel, vartype = "bootstrap",
                  nboots = 2000,
-                 show.uniform.CI = FALSE,
-                 theme.bw = TRUE, main = "Without Uniform CI")
+                 show.uniform.CI = FALSE, main = "Without Uniform CI")
 ```
 
 ```{r ch2-uniform-ci-off-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
@@ -265,7 +256,7 @@ linear.nouni$figure
 You can also hide uniform CIs at the plotting stage without re-estimating:
 
 ```r
-plot(linear.uni, show.uniform.CI = FALSE, theme.bw = TRUE)
+plot(linear.uni, show.uniform.CI = FALSE)
 ```
 
 ### Kernel estimator
@@ -287,8 +278,7 @@ kernel.out.1 <- interflex(estimator = "kernel",
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 vartype = "bootstrap",
-                 theme.bw = TRUE, bw = 0.916,
+                 vartype = "bootstrap", bw = 0.916,
                  main = "Kernel model")
 
 
@@ -297,8 +287,7 @@ kernel.out.2 <- interflex(estimator = "kernel",
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 vartype = "bootstrap", grid = c(0,1,2,3),
-                 theme.bw = TRUE, full.moderate = TRUE,
+                 vartype = "bootstrap", grid = c(0,1,2,3), full.moderate = TRUE,
                  main = "Fully Moderated Kernel model")
 ```
 
@@ -319,8 +308,7 @@ runtime_parallel <- system.time({
                                    Y = Y, D = D, X = X, Z = Z,
                                    Ylabel = Ylabel, Dlabel = Dlabel,
                                    Xlabel = Xlabel,
-                                   vartype = "bootstrap", 
-                                   theme.bw = TRUE, parallel = TRUE,
+                                   vartype = "bootstrap", parallel = TRUE,
                                    main = "Linear model")
 })
 cat("User Time: ", runtime_parallel[1], " seconds\n")
@@ -334,7 +322,6 @@ runtime_user_bandwidth <- system.time({
                                          Ylabel = Ylabel, Dlabel = Dlabel,
                                          Xlabel = Xlabel,
                                          bw = 0.9,
-                                         theme.bw = TRUE, 
                                          main = "Linear model")
 })
 cat("User Time: ", runtime_user_bandwidth[1], " seconds\n")
@@ -396,7 +383,7 @@ interflex(estimator = "raw",data = d, Y = Y,
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
                      Xlabel = Xlabel,
-          main = "Raw plot", ylab = "CME", theme.bw = TRUE)
+          main = "Raw plot", ylab = "CME")
 ```
 
 Instead of grouping by treatment status, the scatter plot carves $X$ into 3 quantile‐based bins by default. You can supply your own number of bins by setting the `cutoff =`. Supplying $N$ numbers will create $N+1$ bins.
@@ -407,7 +394,7 @@ interflex(estimator = "raw",data = d, Y = Y,
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
                      Xlabel = Xlabel, cutoff = cut_bins,
-          main = "Raw plot", ylab = "CME", theme.bw = TRUE)
+          main = "Raw plot", ylab = "CME")
 ```
 
 #### Binning plots
@@ -419,7 +406,7 @@ bin.out.1<-interflex(estimator = "binning",data = d, Y = Y,
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
                      Xlabel = Xlabel, cutoff = cut_bins,
-          main = "Binning plot", ylab = "CME", theme.bw = TRUE)
+          main = "Binning plot", ylab = "CME")
 ```
 
 ```{r ch2-con-bin-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
@@ -437,7 +424,7 @@ interflex(estimator = "gam",data = d, Y = Y,
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
                      Xlabel = Xlabel, show.uniform.CI = FALSE,
-          main = "GAM plot", ylab = "CME", theme.bw = TRUE)
+          main = "GAM plot", ylab = "CME")
 ```
 
 You can manipulate the angle of each of the four plots by setting `angle` with your own value of theta, which change the azimuth (horizontal rotation) angle in degrees. The default angle is `c(30, 100,-30,-120).`
@@ -447,7 +434,7 @@ interflex(estimator = "gam",data = d, Y = Y,
                      D = D, X = X, Z = Z,
                      Ylabel = Ylabel, Dlabel = Dlabel,
                      Xlabel = Xlabel, angle = c(40, 50, 100, 120),
-          main = "Raw plot", ylab = "CME", theme.bw = TRUE)
+          main = "Raw plot", ylab = "CME")
 ```
 
 ------------------------------------------------------------------------
@@ -461,14 +448,12 @@ linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 theme.bw = TRUE,
                  main = "Linear model")
 
 linear.out.2 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel,
-                 theme.bw = TRUE, full.moderate = TRUE,
+                 Xlabel = Xlabel, full.moderate = TRUE,
                  main = "Fully Moderated Linear model")
 ```
 
@@ -487,7 +472,6 @@ kernel.out.1 <- interflex(estimator = "kernel",
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  vartype = "bootstrap",
-                 theme.bw = TRUE,
                  main = "Kernel model")
 
 kernel.out.2 <- interflex(estimator = "kernel",
@@ -495,8 +479,7 @@ kernel.out.2 <- interflex(estimator = "kernel",
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 vartype = "bootstrap", grid = c(0,1,2,3),
-                 theme.bw = TRUE, full.moderate = TRUE,
+                 vartype = "bootstrap", grid = c(0,1,2,3), full.moderate = TRUE,
                  main = "Fully Moderated Kernel model")
 ```
 

@@ -47,7 +47,6 @@ aipw.out.1 <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 theme.bw = TRUE,
                  main = "AIPW-Lasso estimation")
 ```
 
@@ -75,26 +74,23 @@ When the signal is set to `ipw`, we are effectively estimating the CME with an I
 aipw.out.outcome <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel, nboots = 200,
-                 theme.bw = TRUE, signal = "outcome",
+                 Xlabel = Xlabel, nboots = 200, signal = "outcome",
                  main = "Signal: outcome")
 
 aipw.out.ipw <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel,
-                 theme.bw = TRUE, signal = "ipw",
+                 Xlabel = Xlabel, signal = "ipw",
                  main = "Signal: IPW")
 
 aipw.out.aipw <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
-                 Xlabel = Xlabel,
-                 theme.bw = TRUE, signal = "aipw",
+                 Xlabel = Xlabel, signal = "aipw",
                  main = "Signal: AIPW")
 ```
 
-```{r ch4-binary-signal-plot, cache=FALSE, fig.width = 9, fig.height = 5}
+```{r ch4-binary-signal-plot, cache=FALSE, fig.width = 10, fig.height = 4}
 ggarrange(aipw.out.outcome$figure, aipw.out.ipw$figure, aipw.out.aipw$figure,
           ncol = 3)
 ```
@@ -110,7 +106,6 @@ aipw.out.ate <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 theme.bw = TRUE,
                  estimand = 'ATE',
                  signal = "aipw",
                  main = "ATE")
@@ -119,13 +114,12 @@ aipw.out.att <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 theme.bw = TRUE,
                  estimand = 'ATT',
                  signal = "aipw",
                  main = "ATT")
 ```
 
-```{r ch4-binary-ate-att-plot, cache=FALSE, fig.width = 9, fig.height = 5}
+```{r ch4-binary-ate-att-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
 ggarrange(aipw.out.ate$figure, aipw.out.att$figure,ncol = 2)
 ```
 
@@ -140,7 +134,6 @@ aipw.out.bs.smooth <- interflex(estimator = "lasso", data = d,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
                  reduce.dimension = "bspline",
-                 theme.bw = TRUE,
                  main = "Smoothing: b-spline")
 
 aipw.out.bs.kernel <- interflex(estimator = "lasso", data = d,
@@ -148,11 +141,10 @@ aipw.out.bs.kernel <- interflex(estimator = "lasso", data = d,
                   Ylabel = Ylabel, Dlabel = Dlabel,
                   Xlabel = Xlabel,ylim = c(-0.4, 0.6),
                   reduce.dimension = "kernel",
-                  theme.bw = TRUE,
                   main = "Smoothing: kernel")
 ```
 
-```{r ch4-binary-smoothing-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch4-binary-smoothing-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
 ggarrange(aipw.out.bs.smooth$figure,aipw.out.bs.kernel$figure,ncol = 2)
 ```
 
@@ -165,12 +157,11 @@ aipw.out.poly.basis <- interflex(estimator = "lasso", data = d,
                         Y = Y,D = D, X = X, Z = Z,
                         Ylabel = Ylabel, Dlabel = Dlabel,
                         Xlabel = Xlabel,
-                        basis.type = 'polynomial',
-                        theme.bw = TRUE, ylim = c(-0.4, 0.6),
+                        basis.type = 'polynomial', ylim = c(-0.4, 0.6),
                         main = "Smoothing: b-spline")
 ```
 
-```{r ch4-binary-basis-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
+```{r ch4-binary-basis-plot, cache=FALSE}
 aipw.out.poly.basis$figure
 ```
 
@@ -212,12 +203,11 @@ aipw.out.1 <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
-                 theme.bw = TRUE,
                  main = "AIPW estimation")
 ```
 
 ```{r ch4-con-aipw-plot, cache=FALSE}
-aipw.out.1$figure
+plot(aipw.out.1, ylim = c(-1.5, 0.5))
 ```
 
 ```{r ch4-con-aipw-results}
@@ -250,7 +240,7 @@ d <- remove_labels(d)
 out.lasso.gate <- interflex(estimator = 'lasso', data = d,
                             Y = "sup_tax_rebate", D = "treat_type_bin",
                             X = "income", Z = c("leftright", "clim_belief", "resp_age", "female", "employment_f", "highedu", "midedu", "pid_f"),
-                            na.rm = TRUE, gate = TRUE, theme.bw = TRUE)
+                            na.rm = TRUE, gate = TRUE)
 ```
 
 ```{r ch4-gate-lasso-plot, cache=FALSE}
@@ -260,5 +250,5 @@ out.lasso.gate$figure
 Use `plot(..., by.group = TRUE)` for a clearer visualization with separate point estimates and confidence intervals per group:
 
 ```{r ch4-gate-lasso-bygroup-plot, cache=FALSE}
-plot(out.lasso.gate, by.group = TRUE, theme.bw = TRUE)
+plot(out.lasso.gate, by.group = TRUE)
 ```

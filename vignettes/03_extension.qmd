@@ -128,15 +128,14 @@ ggplot() +
 
 When fixed effects are present, it is possible that we cannot observe a clear pattern of CME in the raw plot as before, while binning estimates have wide confidence intervals:
 
-```{r ch3-fe-raw-plot, results = "hide", cache=FALSE, message=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-fe-raw-plot, results = "hide", cache=FALSE, message=FALSE, fig.width = 9, fig.height = 4.5}
 interflex(estimator = "raw", Y = "Y", D = "D", X = "X", data = s4,
-          weights = NULL,ncols=2, theme.bw = TRUE)
+          weights = NULL, ncols=2)
 ```
 
 ```{r ch3-fe-bin-nofe-fit, results = "hide", cache=TRUE, message=FALSE}
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
-                        estimator = "binning", FE = NULL, cl = "unit",
-                        theme.bw = TRUE)
+                        estimator = "binning", FE = NULL, cl = "unit")
 ```
 
 ```{r ch3-fe-bin-nofe-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
@@ -149,7 +148,7 @@ The binning estimates are much more informative when fixed effects are included,
 s4$wgt <- 1
 s4.binning <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                         estimator = "binning", FE = c("unit", "year"),
-                        cl = "unit", weights = "wgt", theme.bw = TRUE)
+                        cl = "unit", weights = "wgt")
 ```
 
 ```{r ch3-fe-bin-fe-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
@@ -163,7 +162,7 @@ s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                        estimator = "kernel", FE = NULL, vartype = 'bootstrap',
                        nboots = 200, parallel = TRUE,
                        cores = 10,
-                       cl = "unit", weights = "wgt", theme.bw = TRUE)
+                       cl = "unit", weights = "wgt")
 ```
 
 ```{r ch3-fe-kernel-nofe-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
@@ -175,7 +174,7 @@ Controlling for fixed effects by using the `FE` option solves this problem. The 
 ```{r ch3-fe-kernel-fe-fit, results = "hide", cache=TRUE, message=FALSE}
 s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                        estimator = "kernel", FE = c("unit","year"), cl = "unit"
-                       ,vartype = 'bootstrap', theme.bw = TRUE,
+                       ,vartype = 'bootstrap',
                        nboots = 200, parallel = TRUE, cores = 10,weights = "wgt")
 ```
 
@@ -191,7 +190,7 @@ s4.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = "Z1", data = s4,
                        vartype = 'bootstrap',
                        nboots = 200, parallel = TRUE, cores = 10,
                        CI = FALSE,
-                       ylim = c(-9, 15), theme.bw = TRUE)
+                       ylim = c(-9, 15))
 ```
 
 ```{r ch3-fe-kernel-noci-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
@@ -206,40 +205,22 @@ Note that discrete outcome with fixed effects is not supported in the package.
 
 Next, we will show how **interflex** can be applied when there are more than two condition. First, we plot the raw data:
 
-```{r ch3-mta-raw-plot, results = "hide", cache=FALSE, message=FALSE, fig.height=5, fig.width=10}
-interflex(estimator = "raw",Y = "Y", D = "D", X = "X", data = s5, ncols = 3,
-          theme.bw = TRUE)
+```{r ch3-mta-raw-plot, results = "hide", cache=FALSE, message=FALSE, fig.height=4, fig.width=10}
+interflex(estimator = "raw",Y = "Y", D = "D", X = "X", data = s5, ncols = 3)
 ```
 
 By default, **interflex** will produce $(n-1)$ CME plots, taking one category as the baseline (if not specified, the base group is selected based on the numeric/character order of the treatment values). Here we also specify `vartype = "bootstrap"` in order to estimate the confidence intervals.
 
 ```{r ch3-mta-bin-fit, results = "hide", cache=TRUE, message=FALSE}
 s5.binning <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), data = s5,
-                        estimator = "binning", vartype = "bootstrap",
-                        theme.bw = TRUE)
+                        estimator = "binning", vartype = "bootstrap")
 ```
 
-```{r ch3-mta-bin-plot, cache=FALSE, fig.height=5, fig.width=8}
+```{r ch3-mta-bin-plot, cache=FALSE, fig.height=5, fig.width=9}
 s5.binning$figure
 ```
 
-<!-- By setting the option `order` and `subtitles` (in either **interflex** or **plot**), users can also specify the order of plots they prefer and the subtitles they want:   -->
 
-<!-- ```{r mta1c, message = FALSE, fig.height=5, fig.width=8, cache = TRUE,results = "hide"} -->
-
-<!-- plot(s5.binning, order=c("C", "B"), subtitles = c("Group C","Group B"), theme.bw = TRUE) -->
-
-<!-- ``` -->
-
-<!-- By setting `pool = TRUE` (in either **interflex** or **plot**), we can combine these plots. Users can also specify the colors they like, :  -->
-
-<!-- ```{r mta1d, message = FALSE, fig.height=5, fig.width=6, cache = TRUE} -->
-
-<!-- plot(s5.binning, order=c("C", "B"), subtitles = c("Control Group","Group C","Group B"),  -->
-
-<!--      pool = TRUE, color = c("Salmon","#7FC97F", "#BEAED4"), theme.bw = TRUE) -->
-
-<!-- ``` -->
 
 We specify the base group using the option `base`:
 
@@ -248,8 +229,8 @@ s5.binning2 <- interflex(Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), data = s5,
                          estimator = "binning", base = "B", vartype = "bootstrap")
 ```
 
-```{r ch3-mta-bin-base-plot, cache=FALSE, fig.height=5, fig.width=8}
-plot(s5.binning2, theme.bw = TRUE)
+```{r ch3-mta-bin-base-plot, cache=FALSE, fig.height=5, fig.width=9}
+plot(s5.binning2)
 ```
 
 For dataset **s5**, because of the nonlinear interaction effects, the kernel estimator will produce CME estimates that are much closer to the effects implied by the true DGP.
@@ -260,7 +241,7 @@ s5.kernel <- interflex(Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), data = s5,
                        nboots = 200, parallel = TRUE, cores = 10)
 ```
 
-```{r ch3-mta-kernel-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-mta-kernel-plot, cache=FALSE, fig.width = 9, fig.height = 5}
 s5.kernel$figure
 ```
 
@@ -271,11 +252,11 @@ s9.linear <- interflex(estimator='linear', data=s9, method='logit',
                        Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
 ```
 
-```{r ch3-dmulti-linear-plot, cache=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-linear-plot, cache=FALSE, fig.height=5, fig.width=9}
 plot(s9.linear)
 ```
 
-```{r ch3-dmulti-linear-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-linear-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=5, fig.width=9}
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
 p1 <- plot(s9.linear,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
 TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
@@ -290,7 +271,7 @@ s9.binning <- interflex(estimator = 'binning', data = s9, method='logit',
                         Y = 'Y', D = 'D', X = 'X', Z = c('Z1','Z2'))
 ```
 
-```{r ch3-dmulti-bin-plot, cache=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-bin-plot, cache=FALSE, fig.height=5, fig.width=9}
 plot(s9.binning)
 ```
 
@@ -316,11 +297,11 @@ s9.kernel <- interflex(estimator = 'kernel', data = s9,
                       nboots = 200, parallel = TRUE, cores = 10)
 ```
 
-```{r ch3-dmulti-kernel-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+```{r ch3-dmulti-kernel-plot, cache=FALSE, fig.width = 10, fig.height = 4}
 plot(s9.kernel)
 ```
 
-```{r ch3-dmulti-kernel-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=5, fig.width=8}
+```{r ch3-dmulti-kernel-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=5, fig.width=9}
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
 p1 <- plot(s9.kernel,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
 TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
@@ -334,7 +315,7 @@ The estimated ATE and $E(Y|D,X,Z)$ are also grouped by treatment.
 s9.kernel$Avg.estimate
 ```
 
-```{r ch3-dmulti-kernel-predict-plot, cache=FALSE, results = "hide", message=FALSE, fig.width = 8, fig.height = 4.5}
+```{r ch3-dmulti-kernel-predict-plot, cache=FALSE, results = "hide", message=FALSE, fig.width = 10, fig.height = 4}
 predict(s9.kernel)
 ```
 
@@ -350,19 +331,9 @@ s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
                        nboots = 200, parallel = TRUE, cores = 10)
 ```
 
-```{r ch3-predict-kernel-plot, cache=FALSE, fig.height=5, fig.width=8}
-predict(s5.kernel, theme.bw = TRUE)
+```{r ch3-predict-kernel-plot, cache=FALSE, fig.height=4, fig.width=10}
+predict(s5.kernel)
 ```
-
-<!-- We can also set `pool = TRUE` to combine them. -->
-
-<!-- ```{r ip5, fig.height=5, fig.width=8, cache=TRUE, results = "hide", message=FALSE} -->
-
-<!-- predict(s5.kernel,order = c('A','B','C'),subtitle = c("Group A", "Group B", "Group C"),  -->
-
-<!--         pool = TRUE, legend.title = "Three Different Groups") -->
-
-<!-- ``` -->
 
 We can also use the linear model or the binning model to estimate and visualize predicted outcomes. For the latter, it is expected to see some "zigzags" at the bin boundaries in a plot:
 
@@ -371,8 +342,8 @@ s5.binning <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), data = s5,
                        estimator = "binning", vartype = "bootstrap", nbins = 4)
 ```
 
-```{r ch3-predict-bin-plot, cache=FALSE, fig.height=5, fig.width=8}
-predict(s5.binning, theme.bw = TRUE)
+```{r ch3-predict-bin-plot, cache=FALSE, fig.height=4, fig.width=10}
+predict(s5.binning)
 ```
 
 ```{r ch3-predict-linear-fit, cache=TRUE, results = "hide", message=FALSE}
@@ -381,8 +352,8 @@ s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"),
                       estimator = "linear", vcov.type = "robust")
 ```
 
-```{r ch3-predict-linear-plot, cache=FALSE, fig.height=5, fig.width=8}
-predict(s5.linear, theme.bw = TRUE)
+```{r ch3-predict-linear-plot, cache=FALSE, fig.height=4, fig.width=10}
+predict(s5.linear)
 ```
 
 Obviously, the kernel estimator characterizes the data more better than a linear or binning estimator.
@@ -400,8 +371,8 @@ s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), data = s5,
                       nboots = 200, parallel = TRUE, cores = 10,)
 ```
 
-```{r ch3-effmod-kernel-plot, cache=FALSE, fig.height=5, fig.width=10}
-plot(s5.kernel,diff.values = c(-2,0,2), theme.bw = TRUE)
+```{r ch3-effmod-kernel-plot, cache=FALSE, fig.height=4.5, fig.width=9}
+plot(s5.kernel,diff.values = c(-2,0,2))
 ```
 
 The difference of marginal effects/treatment effects at different values of the moderator(by default are the 25%, 50%, 75% quantiles of the moderator) are saved in `diff.estimate`.
@@ -416,8 +387,8 @@ s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"), data = s5,
                       vartype = "bootstrap")
 ```
 
-```{r ch3-effmod-linear-plot, cache=FALSE, fig.height=5, fig.width=10}
-plot(s5.linear,diff.values = c(-2,0,2), theme.bw = TRUE)
+```{r ch3-effmod-linear-plot, cache=FALSE, fig.height=4.5, fig.width=9}
+plot(s5.linear,diff.values = c(-2,0,2))
 ```
 
 ```{r ch3-effmod-linear-diff, message=FALSE}
@@ -444,11 +415,7 @@ inter.test(s5.kernel,diff.values=c(0.25,0.5,0.75),percentile=TRUE)
 
 ## Discrete Moderator {#sec-discrete-moderator}
 
-In this section, we explore the special cases of CME where moderator $X$ is discrete. We show how to use **interflex** package for estimation, with binary treatment and continuous treatment.
-
-### Binary treatment
-
-When moderator $X$ is discrete, the estimation of CME is a special case of estimating Conditional Average Treatment Effect (CATE), then marginalized over the moderator $X$.
+In this section, we explore the special cases of CME where moderator $X$ is discrete. When moderator $X$ is discrete, the estimation of CME is a special case of estimating Conditional Average Treatment Effect (CATE), then marginalized over the moderator $X$.
 
 In the **interflex** package, we can estimate GATE with discrete moderator $X$ using any estimator that supports `gate = TRUE` (e.g., `linear`, `lasso`, `dml`, `grf`). In the settings of binary treatment, the data is partitioned into groups based on moderator $X$, and within each group the function estimates treatment effects separately.
 
@@ -476,7 +443,7 @@ Xlabel<-"Income"
 out.raw <- interflex(estimator='raw', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE)
+                       Xlabel = Xlabel)
 
 out.raw
 ```
@@ -489,7 +456,7 @@ From the scatter plot, the treatment effect is positively correlated to moderato
 out.kernel <- interflex(estimator='kernel', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE,
+                       Xlabel = Xlabel,
                        vartype = "bootstrap", nboots = 200)
 ```
 
@@ -505,7 +472,7 @@ The smooth curve interpolates between discrete income levels, which may not be m
 out.kernel.gate <- interflex(estimator='kernel', data = d,
                        Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
                        Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE,
+                       Xlabel = Xlabel,
                        vartype = "bootstrap", nboots = 200,
                        gate = TRUE)
 ```
@@ -515,24 +482,4 @@ out.kernel.gate$figure
 ```
 
 When `gate = TRUE`, the plot automatically shows separate point estimates and confidence intervals for each discrete level of the moderator, rather than a smooth curve.
-
-**Estimation with linear (`gate = TRUE`).** Alternatively, we can use the linear estimator with `gate = TRUE`, which computes GATE via outcome regression within each group:
-
-```{r ch3-gate-linear-fit, cache=TRUE, message=FALSE, warning=FALSE}
-out.gate <- interflex(estimator='linear', data = d,
-                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
-                       Ylabel = Ylabel, Dlabel = Dlabel,
-                       Xlabel = Xlabel, theme.bw = TRUE,
-                       gate = TRUE)
-```
-
-```{r ch3-gate-linear-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
-out.gate$figure
-```
-
-**Results.** User can extract the estimation by group through `g.est`.
-
-```{r ch3-gate-results}
-out.gate$g.est[[1]]
-```
 
