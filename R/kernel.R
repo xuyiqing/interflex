@@ -21,7 +21,7 @@ interflex.kernel <- function(data,
                              vartype = "bootstrap", ## "delta"; "bootstrap"
                              nboots = 200,
                              parallel = FALSE,
-                             cores = 4,
+                             cores = NULL,
                              cl = NULL, # variable to be clustered on
                              # predict = FALSE,
                              Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
@@ -39,7 +39,8 @@ interflex.kernel <- function(data,
                              ylab = NULL,
                              xlim = NULL,
                              ylim = NULL,
-                             theme.bw = FALSE,
+                             user_xlim_explicit = FALSE,
+                             theme.bw = TRUE,
                              show.grid = TRUE,
                              cex.main = NULL,
                              cex.sub = NULL,
@@ -54,7 +55,8 @@ interflex.kernel <- function(data,
                              show.all = FALSE,
                              scale = 1.1,
                              height = 7,
-                             width = 10) {
+                             width = 10,
+                             verbose = TRUE) {
     WEIGHTS <- NULL
     uniform.coverage <- NULL
     n <- dim(data)[1]
@@ -97,7 +99,14 @@ interflex.kernel <- function(data,
     #X.eval <- sort(c(X.eval, X.eval0))
     #neval <- length(X.eval)
     if(is.null(X.eval)){
-       X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval) 
+       ## PAD-001: gated grid restriction to user-supplied xlim, see linear.R.
+       if (isTRUE(user_xlim_explicit) && treat.type == "continuous" &&
+           !is.null(xlim) && length(xlim) == 2L &&
+           all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+           X.eval <- seq(xlim[1], xlim[2], length.out = neval)
+       } else {
+           X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
+       }
     }
     else{
         neval <- length(X.eval)
@@ -771,30 +780,38 @@ interflex.kernel <- function(data,
 
         ## -----------------------------------------------------------------------------------
         if (parallel) {
-            requireNamespace("doParallel")
-            ## require(iterators)
-            maxcores <- detectCores()
+            maxcores <- parallelly::availableCores()
             cores <- min(maxcores, cores)
-            pcl <- future::makeClusterPSOCK(cores)
-            doParallel::registerDoParallel(pcl)
-            cat("Parallel computing with", cores, "cores...\n")
-            Error <- suppressWarnings(foreach(
-                bw = bw.grid, .combine = rbind,
-                .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
-                .inorder = FALSE
-            ) %dopar% {
-                cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
-                if ("try-error" %in% class(cv.output.sub)) {
-                    return(NA)
-                } else {
-                    return(cv.output.sub)
+            pcfg <- .parallel_config(length(bw.grid), cores)
+            if (pcfg$use_parallel) {
+              .setup_parallel(cores)
+              on.exit(future::plan(future::sequential), add = TRUE)
+            }
+            `%op%` <- pcfg$op
+            ## message already printed by interflex()
+            Error <- suppressWarnings(progressr::with_progress({
+                p <- progressr::progressor(steps = length(bw.grid))
+                foreach(
+                    bw = bw.grid, .combine = rbind,
+                    .export = c("p"),
+                    .packages = c("ModelMetrics", "pROC", "MASS", "AER"),
+                    .inorder = FALSE,
+                    .options.future = list(seed = TRUE)
+                ) %op% {
+                    cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
+                    p()
+                    if ("try-error" %in% class(cv.output.sub)) {
+                        return(NA)
+                    } else {
+                        return(cv.output.sub)
+                    }
                 }
-            })
-
-            suppressWarnings(stopCluster(pcl))
+            }, handlers = .progress_handler("Cross-validation")))
             # return(Error)
         } else {
             Error <- matrix(NA, length(bw.grid), 6)
+            cli::cli_progress_bar("Cross-validation", total = length(bw.grid),
+                                  clear = TRUE)
             for (i in 1:length(bw.grid)) {
                 suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval), silent = FALSE))
                 if ("try-error" %in% class(cv.output.sub)) {
@@ -802,8 +819,9 @@ interflex.kernel <- function(data,
                 } else {
                     Error[i, ] <- cv.output.sub
                 }
-                cat(".")
+                cli::cli_progress_update()
             }
+            cli::cli_progress_done()
         }
 
         colnames(Error) <- c("bw", "Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
@@ -865,7 +883,7 @@ interflex.kernel <- function(data,
     X.eval <- coef.grid[, "x0"]
     neval <- length(X.eval)
 
-    cat(paste0("Number of evaluation points:", neval, "\n"))
+    if (verbose) cat(paste0("Number of evaluation points:", neval, "\n"))
 
     gen.sd <- function(result, char = NULL, D.ref = NULL, to.diff = FALSE) {
         coef.grid <- result$result
@@ -1266,6 +1284,9 @@ interflex.kernel <- function(data,
     # 1,	input: coef.grid; char/D.ref; diff.values
     # 2,	output: difference of TE/ME at different values of the moderator
     gen.kernel.difference <- function(coef.grid, diff.values, char = NULL, D.ref = NULL) {
+        if (is.null(diff.values)) {
+            return(list(difference = NULL, difference.sd = NULL))
+        }
         if (is.null(char)) {
             treat.type <- "continuous"
 
@@ -2127,32 +2148,40 @@ interflex.kernel <- function(data,
             }
 
             if (parallel) {
-                requireNamespace("doParallel")
-                ## require(iterators)
-                maxcores <- detectCores()
+                maxcores <- parallelly::availableCores()
                 cores <- min(maxcores, cores)
-                pcl <- future::makeClusterPSOCK(cores)
-                doParallel::registerDoParallel(pcl)
-                cat("Parallel computing with", cores, "cores...\n")
+                pcfg <- .parallel_config(nboots, cores)
+                if (pcfg$use_parallel) {
+                  .setup_parallel(cores)
+                  on.exit(future::plan(future::sequential), add = TRUE)
+                }
+                `%op%` <- pcfg$op
+                ## message already printed by interflex()
 
                 suppressWarnings(
-                    bootout <- foreach(
-                        i = 1:nboots, .combine = cbind,
-                        .export = c("one.boot"), .packages = c("MASS", "AER"),
-                        .inorder = FALSE
-                    ) %dopar% {
-                        output.all <- try(one.boot(), silent = TRUE)
-                        if ("try-error" %in% class(output.all)) {
-                            return(NA)
-                        } else {
-                            return(output.all)
+                    bootout <- progressr::with_progress({
+                        p <- progressr::progressor(steps = nboots)
+                        foreach(
+                            i = 1:nboots, .combine = cbind,
+                            .export = c("one.boot", "p"),
+                            .packages = c("MASS", "AER"),
+                            .inorder = FALSE,
+                            .options.future = list(seed = TRUE)
+                        ) %op% {
+                            output.all <- try(one.boot(), silent = TRUE)
+                            p()
+                            if ("try-error" %in% class(output.all)) {
+                                return(NA)
+                            } else {
+                                return(output.all)
+                            }
                         }
-                    }
+                    }, handlers = .progress_handler("Bootstrap"))
                 )
-                suppressWarnings(stopCluster(pcl))
-                cat("\r")
             } else {
                 bootout <- matrix(NA, all.length, 0)
+                cli::cli_progress_bar("Bootstrap", total = nboots,
+                                      clear = TRUE)
                 for (i in 1:nboots) {
                     suppressWarnings(tempdata <- try(one.boot(), silent = TRUE))
                     if ("try-error" %in% class(tempdata)) {
@@ -2160,12 +2189,9 @@ interflex.kernel <- function(data,
                     } else {
                         bootout <- cbind(bootout, tempdata)
                     }
-                    # if (!is.null(tempdata)) {
-                    #    bootout <- cbind(bootout, tempdata)
-                    # }
-                    if (i %% 50 == 0) cat(i) else cat(".")
+                    cli::cli_progress_update()
                 }
-                cat("\r")
+                cli::cli_progress_done()
             }
 
             if (treat.type == "discrete") {
@@ -2566,10 +2592,12 @@ interflex.kernel <- function(data,
                 rownames(link.output.all) <- NULL
                 link.output.all.list[[other.treat.origin[char]]] <- link.output.all
 
-                diff.output.all <- cbind(diff.estimate.output)
-                colnames(diff.output.all) <- c("diff.estimate")
-                rownames(diff.output.all) <- difference.name
-                diff.output.all.list[[other.treat.origin[char]]] <- diff.output.all
+                if (!is.null(diff.estimate.output)) {
+                    diff.output.all <- cbind(diff.estimate.output)
+                    colnames(diff.output.all) <- c("diff.estimate")
+                    rownames(diff.output.all) <- difference.name
+                    diff.output.all.list[[other.treat.origin[char]]] <- diff.output.all
+                }
 
                 ATE.output <- c(ATE.estimate)
                 names(ATE.output) <- c("ATE")
@@ -2618,10 +2646,12 @@ interflex.kernel <- function(data,
                 rownames(link.output.all) <- NULL
                 link.output.all.list[[label]] <- link.output.all
 
-                diff.output.all <- cbind(diff.estimate.output)
-                colnames(diff.output.all) <- c("diff.estimate")
-                rownames(diff.output.all) <- difference.name
-                diff.output.all.list[[label]] <- diff.output.all
+                if (!is.null(diff.estimate.output)) {
+                    diff.output.all <- cbind(diff.estimate.output)
+                    colnames(diff.output.all) <- c("diff.estimate")
+                    rownames(diff.output.all) <- difference.name
+                    diff.output.all.list[[label]] <- diff.output.all
+                }
 
                 k <- k + 1
             }

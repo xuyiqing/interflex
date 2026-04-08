@@ -5,7 +5,7 @@
 \usage{\method{predict}{interflex}(object, type = 'response', order = NULL, 
   subtitles = NULL, show.subtitles = NULL, Xdistr = "histogram", CI = NULL, pool = FALSE, 
   main = NULL, Ylabel = NULL, Xlabel = NULL, xlab = NULL, ylab = NULL, 
-  xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
+  xlim = NULL, ylim = NULL, theme.bw = TRUE, show.grid = TRUE,
   cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
   color = NULL, file = NULL,interval = NULL, 
   legend.title = NULL, ncols = NULL, show.all = FALSE, 

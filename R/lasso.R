@@ -29,6 +29,7 @@ interflex.lasso <- function(data,
                          bw                 = NULL,
                          best.span          = NULL,
                          x.eval             = NULL,
+                         cores              = 8,
                          verbose            = TRUE,
                          figure             = TRUE,
                          show.uniform.CI    = TRUE,
@@ -45,7 +46,8 @@ interflex.lasso <- function(data,
                          ylab               = NULL,
                          xlim               = NULL,
                          ylim               = NULL,
-                         theme.bw           = FALSE,
+                         user_xlim_explicit = FALSE,
+                         theme.bw           = TRUE,
                          show.grid          = TRUE,
                          cex.main           = NULL,
                          cex.sub            = NULL,
@@ -103,6 +105,14 @@ interflex.lasso <- function(data,
   treat.base        <- treat.info[["base"]]
   TE.output.all.list <- list()
   fit_full.list <- list()
+
+  # Set up parallel backend once for all treatment arms
+  pcfg <- .parallel_config(B, cores)
+  if (pcfg$use_parallel) {
+    .setup_parallel(cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
+  }
+
   # -------------------------------
   # Branch 1: Discrete D / Binary
   # -------------------------------
@@ -145,9 +155,11 @@ interflex.lasso <- function(data,
         x.eval               = x.eval,
         neval = neval,
         CI = CI,
+        cores = cores,
+        parallel_ready       = pcfg$use_parallel,
         verbose              = verbose
       )
-      
+
       TE.output.all <- data.frame(result$results, check.names = FALSE)
       TE.output.all.list[[ other.treat.origin[char] ]] <- TE.output.all
       fit_full.list[[ other.treat.origin[char] ]] <- result$fit_full
@@ -184,8 +196,12 @@ interflex.lasso <- function(data,
       reduce.dimension      = reduce.dimension,
       bw                    = bw,
       x.eval                = x.eval,
+      xlim                  = xlim,
+      user_xlim_explicit    = user_xlim_explicit,
       neval = neval,
       CI = CI,
+      cores = cores,
+      parallel_ready        = pcfg$use_parallel,
       verbose               = verbose
     )
     TE.output.all <- data.frame(result$results, check.names = FALSE)

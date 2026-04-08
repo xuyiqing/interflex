@@ -1,4 +1,6 @@
 
+# PAD-001: AIPW (IRM) is binary-discrete only; no continuous-treatment xlim
+# grid restriction is applied here. See comprehension.md.
 #' @title Estimate Conditional Marginal Effects (CME) using AIPW-Lasso
 #' @description This function estimates the CME using outcome, IPW, or AIPW signals.
 #' It supports basis expansion, fixed effects, and post-Lasso model refitting.
@@ -696,6 +698,8 @@ bootstrapCME <- function(
     neval = 100, 
     x.eval             = NULL,
     CI = TRUE,
+    cores = 8,
+    parallel_ready = FALSE,
     verbose = TRUE
 ) {
   if (verbose) message("BootstrapCME Step 1: Running baseline CME estimation on full data...")
@@ -744,54 +748,56 @@ bootstrapCME <- function(
     cme_mat_bs <- matrix(NA, nrow = B, ncol = nEval)
     idx_seq <- seq_len(n)
     
-    if (!requireNamespace("doParallel", quietly = TRUE)) {
-      stop("Package 'doParallel' not installed. Please install or remove parallel usage.")
+    pcfg <- .parallel_config(B, cores)
+    if (pcfg$use_parallel && !parallel_ready) {
+      .setup_parallel(cores)
+      on.exit(future::plan(future::sequential), add = TRUE)
     }
-    nCores <- parallel::detectCores()
-    cl <- parallel::makeCluster(nCores)
-    doParallel::registerDoParallel(cl)
-    `%dopar%` <- foreach::`%dopar%`
-    
+    `%op%` <- pcfg$op
+
     if (verbose) message("BootstrapCME Step 3: Starting bootstrap loop...")
-    res_list <- foreach::foreach(
-      b = 1:B,
-      .combine = "rbind",
-      .export  = "estimateCME",
-      .packages = c("splines","glmnet","mgcv")
-    ) %dopar% {
-      set.seed(1000 + b)
-      idx_b <- sample(idx_seq, size = n, replace = TRUE)
-      data_b <- data[idx_b, , drop = FALSE]
-      XZ_b <- XZ_full[idx_b, , drop = FALSE]
-      use_out_model <- outcome_model_type
-      use_ps_model  <- ps_model_type
-      
-      fit_b <- estimateCME(
-        data               = data_b,
-        Y                  = Y,
-        D                  = D,
-        X                  = X,
-        Z                  = NULL, # design matrix already provided
-        FE                 = FE,   
-        estimand           = estimand,
-        signal             = signal,
-        XZ_design          = XZ_b,
-        outcome_model_type = use_out_model,
-        ps_model_type      = use_ps_model,
-        basis_type         = "none",  # not needed if XZ_design is given
-        include_interactions= FALSE,
-        spline_df          = spline_df,
-        spline_degree      = spline_degree,
-        lambda_seq         = lambda_seq,
-        reduce.dimension   = reduce.dimension,
-        best_span          = best_span_full,
-        x.eval             = x.eval,
-        lambda_cv = lambda_cv,
-        verbose            = FALSE
-      )
-      fit_b$cme_df$CME
-    }
-    parallel::stopCluster(cl)
+    res_list <- progressr::with_progress({
+      p <- progressr::progressor(steps = B)
+      foreach::foreach(
+        b = 1:B,
+        .combine = "rbind",
+        .export  = c("estimateCME", "p"),
+        .packages = c("splines","glmnet","mgcv"),
+        .options.future = list(seed = TRUE)
+      ) %op% {
+        idx_b <- sample(idx_seq, size = n, replace = TRUE)
+        data_b <- data[idx_b, , drop = FALSE]
+        XZ_b <- XZ_full[idx_b, , drop = FALSE]
+        use_out_model <- outcome_model_type
+        use_ps_model  <- ps_model_type
+
+        fit_b <- estimateCME(
+          data               = data_b,
+          Y                  = Y,
+          D                  = D,
+          X                  = X,
+          Z                  = NULL, # design matrix already provided
+          FE                 = FE,
+          estimand           = estimand,
+          signal             = signal,
+          XZ_design          = XZ_b,
+          outcome_model_type = use_out_model,
+          ps_model_type      = use_ps_model,
+          basis_type         = "none",  # not needed if XZ_design is given
+          include_interactions= FALSE,
+          spline_df          = spline_df,
+          spline_degree      = spline_degree,
+          lambda_seq         = lambda_seq,
+          reduce.dimension   = reduce.dimension,
+          best_span          = best_span_full,
+          x.eval             = x.eval,
+          lambda_cv = lambda_cv,
+          verbose            = FALSE
+        )
+        p()
+        fit_b$cme_df$CME
+      }
+    }, handlers = .progress_handler("Bootstrap"))
     if (verbose) message("BootstrapCME Step 4: Bootstrap loop complete.")
     
     cme_mat_bs[,] <- res_list

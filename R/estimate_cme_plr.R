@@ -53,6 +53,8 @@ estimateCME_PLR <- function(
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
     x.eval               = NULL,    # grid of X values for final CME curve
+    xlim                 = NULL,    # PAD-001: optional user-supplied display window
+    user_xlim_explicit   = FALSE,   # PAD-001: TRUE iff user explicitly passed xlim
     neval = 100,
     verbose              = TRUE
 ) {
@@ -96,7 +98,14 @@ estimateCME_PLR <- function(
 
   n <- nrow(data)
   if (is.null(x.eval)) {
-    x.eval <- seq(min(Xvec), max(Xvec), length.out = neval)
+    ## PAD-001: gated grid restriction to user-supplied xlim. Continuous-only;
+    ## PLR is the continuous-treatment path so the treat.type check is implicit.
+    if (isTRUE(user_xlim_explicit) && !is.null(xlim) && length(xlim) == 2L &&
+        all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+      x.eval <- seq(xlim[1], xlim[2], length.out = neval)
+    } else {
+      x.eval <- seq(min(Xvec), max(Xvec), length.out = neval)
+    }
   }
 
   ##############################################################################
@@ -250,7 +259,6 @@ estimateCME_PLR <- function(
   if (!requireNamespace("glmnet", quietly = TRUE)) {
     stop("Package 'glmnet' is required for penalized regression.")
   }
-  library(glmnet)
 
   # Generic helper to fit linear, ridge, or lasso, *with optional penalty.factor*
   do_single_fit <- function(y_sub, x_sub, model_type, lambda_use, pf = NULL) {
@@ -437,7 +445,8 @@ estimateCME_PLR <- function(
         X.eval = x.eval,
         CV     = TRUE,
         parallel = TRUE,
-        cores    = parallel::detectCores()-1
+        cores    = parallel::detectCores()-1,
+        verbose  = verbose
       )
     } else {
       sol_k <- interflex::interflex(
@@ -446,7 +455,9 @@ estimateCME_PLR <- function(
         data = data_k,
         X.eval = x.eval,
         CV     = FALSE,
-        bw     = bw
+        bw     = bw,
+        verbose  = FALSE,
+        figure   = FALSE
       )
     }
     cme_fit <- sol_k$est.kernel[[1]][, 2]  # second column is estimate for CME
@@ -543,8 +554,12 @@ bootstrapCME_PLR <- function(
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
     x.eval               = NULL,     # grid of X values for final CME curve
+    xlim                 = NULL,     # PAD-001: optional user display window
+    user_xlim_explicit   = FALSE,    # PAD-001: TRUE iff user explicitly passed xlim
     neval = 100,
     CI = TRUE,
+    cores = 8,
+    parallel_ready = FALSE,
     verbose              = TRUE
 ) {
   basis_type       <- match.arg(basis_type)
@@ -573,7 +588,9 @@ bootstrapCME_PLR <- function(
     reduce.dimension     = reduce.dimension,
     bw                   = bw,
     x.eval               = x.eval,
-    neval = neval, 
+    xlim                 = xlim,
+    user_xlim_explicit   = user_xlim_explicit,
+    neval = neval,
     verbose              = verbose
   )
   if (verbose) cat("  -> Full-sample fit complete.\n")
@@ -609,64 +626,65 @@ bootstrapCME_PLR <- function(
     # 3. Set up parallel backend
     ###########################################################################
     if (verbose) cat("BootstrapPLR Step 3: Setting up parallel backend...\n")
-    if (!requireNamespace("doParallel", quietly = TRUE)) {
-      stop("Package 'doParallel' is required for parallel bootstrap.")
+    pcfg <- .parallel_config(B, cores)
+    if (pcfg$use_parallel && !parallel_ready) {
+      .setup_parallel(cores)
+      on.exit(future::plan(future::sequential), add = TRUE)
     }
-    nCores <- parallel::detectCores()
-    cl     <- parallel::makeCluster(nCores)
-    doParallel::registerDoParallel(cl)
+    `%op%` <- pcfg$op
 
     ###########################################################################
     # 4. Parallel bootstrap loop
     ###########################################################################
     if (verbose) cat("BootstrapPLR Step 4: Running bootstrap loop...\n")
-    `%dopar%` <- foreach::`%dopar%`
 
-    res_list <- foreach::foreach(
-      b = 1:B,
-      .combine  = "rbind",
-      .export   = "estimateCME_PLR",
-      .packages = c("splines","glmnet","interflex")
-    ) %dopar% {
-      set.seed(b + 1234)
+    res_list <- progressr::with_progress({
+      p <- progressr::progressor(steps = B)
+      foreach::foreach(
+        b = 1:B,
+        .combine  = "rbind",
+        .export   = c("estimateCME_PLR", "p"),
+        .packages = c("splines","glmnet","interflex"),
+        .options.future = list(seed = TRUE)
+      ) %op% {
 
-      # (a) Resample indices and data
-      idx_b  <- sample(idx_seq, size = n, replace = TRUE)
-      data_b <- data[idx_b, , drop = FALSE]
+        # (a) Resample indices and data
+        idx_b  <- sample(idx_seq, size = n, replace = TRUE)
+        data_b <- data[idx_b, , drop = FALSE]
 
-      # (b) Grab the corresponding rows of XZ_design (including FE dummies)
-      XZ_b <- fit_full$XZ_design[idx_b, , drop = FALSE]
+        # (b) Grab the corresponding rows of XZ_design (including FE dummies)
+        XZ_b <- fit_full$XZ_design[idx_b, , drop = FALSE]
 
-      # (c) Re-fit PLR on bootstrap sample, passing FE and precomputed XZ_b
-      fit_b <- estimateCME_PLR(
-        data                 = data_b,
-        Y                    = Y,
-        D                    = D,
-        X                    = X,
-        Z                    = NULL,
-        FE                   = FE,
-        XZ_design            = XZ_b,
-        outcome_model_type   = outcome_model_type,
-        treatment_model_type = treatment_model_type,
-        basis_type           = basis_type,
-        include_interactions = include_interactions,
-        poly_degree          = poly_degree,
-        spline_df            = spline_df,
-        spline_degree        = spline_degree,
-        lambda_cv            = if (need_tune) lambda_cv else NULL,
-        lambda_seq           = lambda_seq,
-        reduce.dimension     = reduce.dimension,
-        bw                   = bw,
-        x.eval               = x.eval,
-        verbose              = FALSE
-      )
+        # (c) Re-fit PLR on bootstrap sample, passing FE and precomputed XZ_b
+        fit_b <- estimateCME_PLR(
+          data                 = data_b,
+          Y                    = Y,
+          D                    = D,
+          X                    = X,
+          Z                    = NULL,
+          FE                   = FE,
+          XZ_design            = XZ_b,
+          outcome_model_type   = outcome_model_type,
+          treatment_model_type = treatment_model_type,
+          basis_type           = basis_type,
+          include_interactions = include_interactions,
+          poly_degree          = poly_degree,
+          spline_df            = spline_df,
+          spline_degree        = spline_degree,
+          lambda_cv            = if (need_tune) lambda_cv else NULL,
+          lambda_seq           = lambda_seq,
+          reduce.dimension     = reduce.dimension,
+          bw                   = bw,
+          x.eval               = x.eval,
+          verbose              = FALSE
+        )
 
-      # Return the CME curve for this bootstrap as a single row
-      c(fit_b$cme_df$CME_fit)
-    }
+        p()
+        # Return the CME curve for this bootstrap as a single row
+        c(fit_b$cme_df$CME_fit)
+      }
+    }, handlers = .progress_handler("Bootstrap"))
 
-    # Stop parallel cluster
-    parallel::stopCluster(cl)
     if (verbose) cat("  -> Bootstrap loop complete.\n")
 
     # Fill fit_mat_bs with bootstrap results

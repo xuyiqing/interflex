@@ -20,7 +20,7 @@ interflex.binning <- function(data,
 								nboots = 200,
 								nsimu = 1000,
 								parallel = TRUE,
-								cores = 4,
+								cores = NULL,
 								cl = NULL, # variable to be clustered on
 								#predict = FALSE,
 								Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
@@ -41,7 +41,8 @@ interflex.binning <- function(data,
 								ylab = NULL,
 								xlim = NULL,
 								ylim = NULL,
-								theme.bw = FALSE,
+								user_xlim_explicit = FALSE,
+								theme.bw = TRUE,
 								show.grid = TRUE,
 								cex.main = NULL,
 								cex.sub = NULL,
@@ -93,7 +94,14 @@ interflex.binning <- function(data,
 		data.time <- data[,time]
 	}
   
-	X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
+	## PAD-001: gated grid restriction to user-supplied xlim (continuous only).
+	if (isTRUE(user_xlim_explicit) && treat.type == "continuous" &&
+	    !is.null(xlim) && length(xlim) == 2L &&
+	    all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+		X.eval <- seq(xlim[1], xlim[2], length.out = neval)
+	} else {
+		X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
+	}
 	
 	##----------------------------------------------------------------------
 	##---------The Linear Estimator----------------------------------------
@@ -2350,32 +2358,42 @@ interflex.binning <- function(data,
 		
 		
 		if(parallel){
-			requireNamespace("doParallel")
-			## require(iterators)
-			maxcores <- detectCores()
+			maxcores <- parallelly::availableCores()
 			cores <- min(maxcores, cores)
-			pcl <-future::makeClusterPSOCK(cores)  
-			doParallel::registerDoParallel(pcl)
-			cat("Parallel computing with", cores,"cores...\n") 
+			pcfg <- .parallel_config(nboots, cores)
+			if (pcfg$use_parallel) {
+			  .setup_parallel(cores)
+			  on.exit(future::plan(future::sequential), add = TRUE)
+			}
+			`%op%` <- pcfg$op
+			## message already printed by interflex()
 
 			suppressWarnings(
-				bootout <- foreach (i=1:nboots, .combine=cbind,
-									.export=c("one.boot"),.packages=c('lfe','AER'),
-									.inorder=FALSE) %dopar% {one.boot()}
-			) 
-			suppressWarnings(stopCluster(pcl))
-			cat("\r")
-		}	 
+				bootout <- progressr::with_progress({
+					p <- progressr::progressor(steps = nboots)
+					foreach (i=1:nboots, .combine=cbind,
+								.export=c("one.boot","p"),.packages=c('lfe','AER'),
+								.inorder=FALSE,
+								.options.future=list(seed=TRUE)) %op% {
+						result <- one.boot()
+						p()
+						result
+					}
+				}, handlers = .progress_handler("Bootstrap"))
+			)
+		}
 		else{
 			bootout<-matrix(NA,all.length,0)
+			cli::cli_progress_bar("Bootstrap", total = nboots,
+			                      clear = TRUE)
 			for(i in 1:nboots){
 				tempdata <- one.boot()
 				if(!is.null(tempdata)){
 					bootout<- cbind(bootout,tempdata)
 				}
-				if (i%%50==0) cat(i) else cat(".")
+				cli::cli_progress_update()
 			}
-			cat("\r")
+			cli::cli_progress_done()
 		}
 
 		if(treat.type=='discrete'){

@@ -289,6 +289,8 @@ bootstrapGATE_PLR <- function(
   spline_degree        = 2,
   lambda_seq           = NULL,
   CI = TRUE,
+  cores = 8,
+  parallel_ready = FALSE,
   verbose              = TRUE
 ) {
   # 1) Prep & full-sample fit ------------------------------------------------
@@ -323,51 +325,55 @@ bootstrapGATE_PLR <- function(
   if(isTRUE(CI)){
     # 2) Parallel bootstrap ----------------------------------------------------
     if (verbose) message("BootstrapGATE_PLR: launching cluster...")
-    if (!requireNamespace("doParallel", quietly=TRUE)) {
-      stop("Package 'doParallel' required for parallel bootstrap.")
+    pcfg <- .parallel_config(B, cores)
+    if (pcfg$use_parallel && !parallel_ready) {
+      .setup_parallel(cores)
+      on.exit(future::plan(future::sequential), add = TRUE)
     }
-    cl <- parallel::makeCluster(parallel::detectCores())
-    doParallel::registerDoParallel(cl)
+    `%op%` <- pcfg$op
 
     if (verbose) message("BootstrapGATE_PLR: running ", B, " bootstrap draws...")
-    res_mat <- foreach::foreach(
-      b = seq_len(B),
-      .combine  = "rbind",
-      .export   = "estimateGATE_PLR",
-      .packages = c("glmnet","splines")
-    ) %dopar% {
-      set.seed(1000 + b)
-      idx <- sample(n, n, replace = TRUE)
-      db  <- data[idx, , drop = FALSE]
-      XZb <- XZ0[idx, , drop = FALSE]
+    res_mat <- progressr::with_progress({
+      p <- progressr::progressor(steps = B)
+      foreach::foreach(
+        b = seq_len(B),
+        .combine  = "rbind",
+        .export   = c("estimateGATE_PLR", "p"),
+        .packages = c("glmnet","splines"),
+        .options.future = list(seed = TRUE)
+      ) %op% {
+        idx <- sample(n, n, replace = TRUE)
+        db  <- data[idx, , drop = FALSE]
+        XZb <- XZ0[idx, , drop = FALSE]
 
-      fb <- estimateGATE_PLR(
-        data                 = db,
-        Y                    = Y,
-        D                    = D,
-        X                    = X,
-        Z                    = NULL,        # design already in XZb
-        FE                   = FE,
-        XZ_design            = XZb,
-        outcome_model_type   = outcome_model_type,
-        treatment_model_type = treatment_model_type,
-        basis_type           = basis_type,
-        include_interactions = include_interactions,
-        poly_degree          = poly_degree,
-        spline_df            = spline_df,
-        spline_degree        = spline_degree,
-        lambda_cv            = lambda_used,  # reuse full-sample lambda's
-        lambda_seq           = lambda_seq,
-        verbose              = FALSE
-      )
+        fb <- estimateGATE_PLR(
+          data                 = db,
+          Y                    = Y,
+          D                    = D,
+          X                    = X,
+          Z                    = NULL,        # design already in XZb
+          FE                   = FE,
+          XZ_design            = XZb,
+          outcome_model_type   = outcome_model_type,
+          treatment_model_type = treatment_model_type,
+          basis_type           = basis_type,
+          include_interactions = include_interactions,
+          poly_degree          = poly_degree,
+          spline_df            = spline_df,
+          spline_degree        = spline_degree,
+          lambda_cv            = lambda_used,  # reuse full-sample lambda's
+          lambda_seq           = lambda_seq,
+          verbose              = FALSE
+        )
 
-      # extract GATEs in same X-order
-      sapply(lvls, function(lv) {
-        pos <- which(fb$gate_df$X == lv)
-        if (length(pos)==1) fb$gate_df$GATE[pos] else NA_real_
-      })
-    }
-    parallel::stopCluster(cl)
+        p()
+        # extract GATEs in same X-order
+        sapply(lvls, function(lv) {
+          pos <- which(fb$gate_df$X == lv)
+          if (length(pos)==1) fb$gate_df$GATE[pos] else NA_real_
+        })
+      }
+    }, handlers = .progress_handler("Bootstrap"))
 
     # 3) Compute SE & CIs -------------------------------------------------------
     if (verbose) message("BootstrapGATE_PLR: summarizing draws...")

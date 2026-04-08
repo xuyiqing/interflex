@@ -25,6 +25,7 @@ interflex.lasso_discrete <- function(
   spline.degree        = 2,
 
   lambda.seq           = NULL,
+  cores              = 8,
 
   verbose            = TRUE,
   figure             = TRUE,
@@ -41,7 +42,7 @@ interflex.lasso_discrete <- function(
   ylab               = NULL,
   xlim               = NULL,
   ylim               = NULL,
-  theme.bw           = FALSE,
+  theme.bw           = TRUE,
   show.grid          = TRUE,
   cex.main           = NULL,
   cex.sub            = NULL,
@@ -66,6 +67,14 @@ interflex.lasso_discrete <- function(
   ti <- .extract_treat_info(treat.info)
   treat.type <- ti$treat.type
 
+  all.treat <- all.treat.origin <- other.treat <- other.treat.origin <- NULL
+  if (treat.type == "discrete") {
+    other.treat <- ti$other.treat
+    other.treat.origin <- ti$other.treat.origin
+    all.treat <- ti$all.treat
+    all.treat.origin <- ti$all.treat.origin
+  }
+
   # weights
   n <- nrow(data)
   if (is.null(weights)) {
@@ -76,19 +85,24 @@ interflex.lasso_discrete <- function(
   data[["WEIGHTS"]] <- w
 
   # X-distribution (density and histogram)
-  dens <- .compute_density(data, X, D, weights, treat.type)
+  dens <- .compute_density(data, X, D, weights, treat.type, all.treat, all.treat.origin)
   de <- dens$de
-  hists <- .compute_histograms(data, X, D, weights, treat.type)
+  treat_den <- dens$treat_den
+  hists <- .compute_histograms(data, X, D, weights, treat.type, all.treat, all.treat.origin)
   hist.out <- hists$hist.out
+  treat.hist <- hists$treat.hist
 
   TE.output.all.list <- list()
 
+  # Set up parallel backend once for all treatment arms
+  pcfg <- .parallel_config(B, cores)
+  if (pcfg$use_parallel) {
+    .setup_parallel(cores)
+    on.exit(future::plan(future::sequential), add = TRUE)
+  }
+
   # 1) DISCRETE TREATMENT ---------------------------------------------------
   if (treat.type == "discrete") {
-    other.treat <- ti$other.treat
-    other.treat.origin <- ti$other.treat.origin
-    all.treat <- ti$all.treat
-    all.treat.origin <- ti$all.treat.origin
 
     if (verbose) {
       cat(">> Treatment is discrete/binary.\n")
@@ -103,6 +117,7 @@ interflex.lasso_discrete <- function(
       data_part <- subset(data, data[[D]] %in% c(treat.info[["base"]], char))
       data_part[data_part[[D]] == treat.info[["base"]], D] <- 0L
       data_part[data_part[[D]] == char,            D] <- 1L
+      data_part[[D]] <- as.numeric(data_part[[D]])
 
       result <- bootstrapGTE(
         data                  = data_part,
@@ -124,6 +139,8 @@ interflex.lasso_discrete <- function(
         spline_degree         = spline.degree,
         lambda_seq            = lambda.seq,
         CI = CI,
+        cores = cores,
+        parallel_ready        = pcfg$use_parallel,
         verbose               = verbose
       )
 
@@ -162,6 +179,8 @@ interflex.lasso_discrete <- function(
       spline_degree         = spline.degree,
       lambda_seq            = lambda.seq,
       CI = CI,
+      cores = cores,
+      parallel_ready        = pcfg$use_parallel,
       verbose               = verbose
     )
 
@@ -179,13 +198,14 @@ interflex.lasso_discrete <- function(
     diff.info    = diff.info,
     treat.info   = treat.info,
     est.lasso    = TE.output.all.list,
+    g.est        = TE.output.all.list,
     Xlabel       = Xlabel,
     Dlabel       = Dlabel,
     Ylabel       = Ylabel,
     de           = de,
     hist.out     = hist.out,
-    de.tr        = if (treat.type=="discrete") NULL else NULL,  # no per‐treatment density here
-    count.tr     = if (treat.type=="discrete") NULL else NULL,
+    de.tr        = treat_den,
+    count.tr     = treat.hist,
     estimator    = "lasso"
   )
 

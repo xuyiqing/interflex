@@ -20,7 +20,7 @@ interflex.linear <- function(data,
                              nboots = 200,
                              nsimu = 1000,
                              parallel = TRUE,
-                             cores = 4,
+                             cores = NULL,
                              cl = NULL, # variable to be clustered on
                              # predict = FALSE,
                              Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
@@ -39,7 +39,8 @@ interflex.linear <- function(data,
                              ylab = NULL,
                              xlim = NULL,
                              ylim = NULL,
-                             theme.bw = FALSE,
+                             user_xlim_explicit = FALSE,
+                             theme.bw = TRUE,
                              show.grid = TRUE,
                              cex.main = NULL,
                              cex.sub = NULL,
@@ -54,7 +55,8 @@ interflex.linear <- function(data,
                              show.all = FALSE,
                              scale = 1.1,
                              height = 7,
-                             width = 10) {
+                             width = 10,
+                             gate = FALSE) {
     WEIGHTS <- NULL
     n <- dim(data)[1]
     diff.values.plot <- diff.info[["diff.values.plot"]]
@@ -100,7 +102,17 @@ interflex.linear <- function(data,
     #X.eval <- sort(c(X.eval, X.eval0))
     #neval <- length(X.eval)
     if(is.null(X.eval)){
-       X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval) 
+       ## PAD-001: when user explicitly supplied xlim on a continuous-treatment
+       ## plot, restrict the prediction grid to [xlim[1], xlim[2]] so that the
+       ## visible curve ends inside the panel and .pad_xlim's 4% breathing room
+       ## remains visible. Falls back to full data range otherwise.
+       if (isTRUE(user_xlim_explicit) && treat.type == "continuous" &&
+           !is.null(xlim) && length(xlim) == 2L &&
+           all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+           X.eval <- seq(xlim[1], xlim[2], length.out = neval)
+       } else {
+           X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
+       }
     }
     else{
         neval <- length(X.eval)
@@ -1820,35 +1832,44 @@ interflex.linear <- function(data,
         }
 
         if (parallel) {
-            requireNamespace("doParallel")
-            ## require(iterators)
-            maxcores <- detectCores()
+            maxcores <- parallelly::availableCores()
             cores <- min(maxcores, cores)
-            pcl <- future::makeClusterPSOCK(cores)
-            doParallel::registerDoParallel(pcl)
-            cat("Parallel computing with", cores, "cores...\n")
+            pcfg <- .parallel_config(nboots, cores)
+            if (pcfg$use_parallel) {
+              .setup_parallel(cores)
+              on.exit(future::plan(future::sequential), add = TRUE)
+            }
+            `%op%` <- pcfg$op
+            ## message already printed by interflex()
 
             suppressWarnings(
-                bootout <- foreach(
-                    i = 1:nboots, .combine = cbind,
-                    .export = c("one.boot"), .packages = c("lfe", "AER"),
-                    .inorder = FALSE
-                ) %dopar% {
-                    one.boot()
-                }
+                bootout <- progressr::with_progress({
+                    p <- progressr::progressor(steps = nboots)
+                    foreach(
+                        i = 1:nboots, .combine = cbind,
+                        .export = c("one.boot", "p"),
+                        .packages = c("lfe", "AER"),
+                        .inorder = FALSE,
+                        .options.future = list(seed = TRUE)
+                    ) %op% {
+                        result <- one.boot()
+                        p()
+                        result
+                    }
+                }, handlers = .progress_handler("Bootstrap"))
             )
-            suppressWarnings(stopCluster(pcl))
-            cat("\r")
         } else {
             bootout <- matrix(NA, all.length, 0)
+            cli::cli_progress_bar("Bootstrap", total = nboots,
+                                  clear = TRUE)
             for (i in 1:nboots) {
                 tempdata <- one.boot()
                 if (!is.null(tempdata)) {
                     bootout <- cbind(bootout, tempdata)
                 }
-                if (i %% 50 == 0) cat(i) else cat(".")
+                cli::cli_progress_update()
             }
-            cat("\r")
+            cli::cli_progress_done()
         }
 
         if (treat.type == "discrete") {
@@ -2168,6 +2189,72 @@ interflex.linear <- function(data,
             model.linear = model,
             use.fe = use_fe
         )
+    }
+
+    # GATE estimation
+    if (isTRUE(gate)) {
+        gate.list <- list()
+
+        if (treat.type == "discrete") {
+            # Binary treatment: use bootstrapGTE with linear nuisance
+            for (char in other.treat) {
+                data_part <- data[data[[D]] %in% c(treat.info[["base"]], char), ]
+                # Recode to 0/1
+                base_val <- treat.info[["base"]]
+                data_part[[paste0(D, "_bin")]] <- ifelse(data_part[[D]] == base_val, 0, 1)
+
+                gate_result <- bootstrapGTE(
+                    data = data_part,
+                    Y = Y,
+                    D = paste0(D, "_bin"),
+                    X = X,
+                    Z = Z,
+                    FE = FE,
+                    signal = "outcome",
+                    outcome_model_type = "linear",
+                    ps_model_type = "linear",
+                    B = nboots,
+                    alpha = 0.05,
+                    CI = CI,
+                    cores = cores,
+                    verbose = FALSE
+                )
+
+                # Rename columns to match DML gate_df format
+                res <- gate_result$results
+                colnames(res) <- .standardize_gate_columns(colnames(res), "GTE")
+                gate.list[[other.treat.origin[char]]] <- res
+            }
+        }
+
+        if (treat.type == "continuous") {
+            # Continuous treatment: use bootstrapGATE_PLR with linear nuisance
+            gate_result <- bootstrapGATE_PLR(
+                data = data,
+                Y = Y,
+                D = D,
+                X = X,
+                Z = Z,
+                FE = FE,
+                outcome_model_type = "linear",
+                treatment_model_type = "linear",
+                B = nboots,
+                alpha = 0.05,
+                CI = CI,
+                cores = cores,
+                verbose = FALSE
+            )
+
+            res <- gate_result$results
+            colnames(res) <- .standardize_gate_columns(colnames(res), "GATE")
+
+            # Use label naming consistent with continuous treatment labeling
+            for (label in label.name) {
+                gate.list[[label]] <- res
+            }
+        }
+
+        final.output$g.est <- gate.list
     }
 
     # Plot

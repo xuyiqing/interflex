@@ -23,8 +23,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       pairwise = TRUE,
                       nboots = 200,
                       nsimu = 1000,
-                      parallel = FALSE,
-                      cores = 4,
+                      parallel = TRUE,
+                      cores = NULL,
                       cl = NULL, # variable to be clustered on
                       Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
                       D.ref = NULL, # default to the mean of D when plotting marginal effects
@@ -72,7 +72,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       ylab = NULL,
                       xlim = NULL,
                       ylim = NULL,
-                      theme.bw = FALSE,
+                      theme.bw = TRUE,
                       show.grid = TRUE,
                       show.uniform.CI = TRUE,
                       cex.main = NULL,
@@ -94,7 +94,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       scale = 1.1,
                       height = 7,
                       width = 10,
-                      box.pos = "down") {
+                      box.pos = "down",
+                      verbose = TRUE) {
     ##################################################### CHECK ##############################################################
     ## in case data is in tibble format
     if (!is.data.frame(data)) {
@@ -102,11 +103,30 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
     n <- dim(data)[1]
 
+    # Reset per-call warning flags
+    options(interflex.uniform_ci_warned = FALSE)
+
     estimator <- tolower(estimator)
 
     ## estimator
     if (!estimator %in% c("linear", "binning", "kernel", "gam", "raw", "grf", "dml", "lasso")) {
         stop("estimator must be one of the following: raw, linear, binning, kernel, gam, grf, dml or lasso.\n")
+    }
+
+    ## gate validation
+    if (isTRUE(gate)) {
+        if (estimator == "binning") {
+            stop("gate = TRUE is not supported with estimator = 'binning'.\n")
+        }
+        n_unique_X <- length(unique(data[, X]))
+        if (n_unique_X > 10) {
+            stop("gate = TRUE requires a discrete moderator X. The variable '", X, "' has ", n_unique_X, " unique values, which suggests it is continuous.\n")
+        }
+        ## For kernel + gate: evaluate only at observed X levels
+        if (estimator == "kernel") {
+            X.eval <- sort(unique(data[[X]]))
+            neval <- length(X.eval)
+        }
     }
 
     ## Y
@@ -315,13 +335,24 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         stop("\"paralell\" is not a logical flag.")
     }
 
-    # Cores
-    if (!is.numeric(cores)) {
-        stop("\"cores\" is not a positive integer.")
+    # Cores: if not supplied, use min(available - 2, 8) to avoid hogging system resources
+    cores_auto <- is.null(cores)
+    if (cores_auto) {
+        cores <- max(1L, min(parallelly::availableCores(omit = 2L), 8L))
     } else {
-        cores <- cores[1]
-        if (cores %% 1 != 0 | cores <= 0) {
+        if (!is.numeric(cores) || cores[1] %% 1 != 0 || cores[1] <= 0) {
             stop("\"cores\" is not a positive integer.")
+        }
+        cores <- cores[1]
+    }
+    # Only print parallel message when parallel computing will actually be used
+    uses_parallel <- estimator %in% c("lasso", "dml", "grf") ||
+        (estimator %in% c("kernel", "linear", "binning") && vartype == "bootstrap" && parallel)
+    if (verbose && uses_parallel) {
+        avail <- parallelly::availableCores()
+        cat(sprintf("Parallel computing: using %d of %d available cores.\n", cores, avail))
+        if (cores_auto) {
+            cat("To change: set cores = <n> in interflex().\n")
         }
     }
 
@@ -421,7 +452,53 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
     }
 
+    ## Snapshot whether the user explicitly supplied xlim/ylim BEFORE the
+    ## auto-trim block below mutates `xlim`. plot.interflex consumes these
+    ## flags to distinguish user-supplied limits (which must be honored on
+    ## coord_cartesian) from auto-trimmed defaults (which should not pin the
+    ## inner ggplot's coord limits). Stored on the output object via the
+    ## estimator-level wrappers; see also R/plot.R recovery logic.
+    .user_xlim_explicit <- !is.null(xlim)
+    .user_ylim_explicit <- !is.null(ylim)
+    ## Communicate explicit-vs-default to the downstream plot.interflex call
+    ## via package-internal options. plot.interflex reads + clears these.
+    .old_opts <- options(
+        interflex.user_xlim_explicit = .user_xlim_explicit,
+        interflex.user_ylim_explicit = .user_ylim_explicit
+    )
+    on.exit(options(.old_opts), add = TRUE)
+
     ## xlim ylim
+    ## Auto-trim: when xlim is not specified and X is continuous,
+    ## clip tails that lack treatment variation (sparse/uninformative regions).
+    ## Uses 1st and 99th percentiles as candidates, but only clips a tail
+    ## if the observations beyond the cutoff lack treatment variation
+    ## (e.g., all treated or all control) or have fewer than 10 observations.
+    if (is.null(xlim) && !isTRUE(gate)) {
+        x_vals <- data[[X]]
+        d_vals <- data[[D]]
+        n_unique_x <- length(unique(x_vals))
+        if (n_unique_x > 10) {
+            q01 <- as.numeric(quantile(x_vals, 0.01, na.rm = TRUE))
+            q99 <- as.numeric(quantile(x_vals, 0.99, na.rm = TRUE))
+            .tail_has_variation <- function(d_sub) {
+                if (length(d_sub) < 10) return(FALSE)
+                if (is.numeric(d_sub) && length(unique(d_sub)) <= 5) {
+                    # binary/discrete D: need at least 2 distinct values
+                    return(length(unique(d_sub)) >= 2)
+                }
+                # continuous D: need nonzero variance
+                return(sd(d_sub, na.rm = TRUE) > 1e-10)
+            }
+            left_idx <- which(x_vals < q01)
+            right_idx <- which(x_vals > q99)
+            xlim_lo <- if (length(left_idx) > 0 && !.tail_has_variation(d_vals[left_idx])) q01 else min(x_vals, na.rm = TRUE)
+            xlim_hi <- if (length(right_idx) > 0 && !.tail_has_variation(d_vals[right_idx])) q99 else max(x_vals, na.rm = TRUE)
+            if (xlim_lo > min(x_vals, na.rm = TRUE) || xlim_hi < max(x_vals, na.rm = TRUE)) {
+                xlim <- c(xlim_lo, xlim_hi)
+            }
+        }
+    }
     if (!is.null(xlim)) {
         if (!is.numeric(xlim)) {
             stop("Some element in \"xlim\" is not numeric.")
@@ -429,6 +506,14 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             if (length(xlim) != 2) {
                 stop("\"xlim\" must be of length 2.")
             }
+        }
+        ## PAD-001: enforce lo < hi and finite endpoints; fall back to NULL
+        ## (full-range grid) on degenerate input rather than erroring.
+        if (any(!is.finite(xlim)) || xlim[2] <= xlim[1]) {
+            warning("xlim must satisfy xlim[1] < xlim[2] with finite endpoints; ignoring.")
+            xlim <- NULL
+            .user_xlim_explicit <- FALSE
+            options(interflex.user_xlim_explicit = FALSE)
         }
     }
 
@@ -1002,6 +1087,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1017,7 +1103,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             show.all = show.all,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            gate = gate
         )
     }
     if (estimator == "binning") {
@@ -1065,6 +1152,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1126,6 +1214,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1141,8 +1230,25 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             show.all = show.all,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            verbose = verbose
         )
+        ## When gate = TRUE, copy kernel estimates to g.est and re-plot with by.group
+        if (isTRUE(gate) && !is.null(output$est.kernel)) {
+            output$g.est <- output$est.kernel
+            if (figure) {
+                class(output) <- "interflex"
+                output$figure <- plot.interflex(output,
+                    by.group = TRUE, CI = CI,
+                    Xdistr = Xdistr, main = main,
+                    Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel,
+                    xlab = xlab, ylab = ylab, xlim = xlim, ylim = ylim,
+                    theme.bw = theme.bw, show.grid = show.grid,
+                    cex.main = cex.main, cex.sub = cex.sub,
+                    cex.lab = cex.lab, cex.axis = cex.axis,
+                    show.uniform.CI = show.uniform.CI)
+            }
+        }
     }
 
     if (estimator == "gam") {
@@ -1246,7 +1352,8 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             show.all = show.all,
             scale = scale,
             height = height,
-            width = width
+            width = width,
+            gate = gate
         )
     }
     if (estimator == "dml") {
@@ -1286,6 +1393,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1306,7 +1414,11 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     }
 
     if (estimator == "lasso") {
-        if(length(unique(data[,X]))<5){
+        # When gate = TRUE, basis expansion on discrete X is inappropriate
+        if (isTRUE(gate) && basis.type != "none") {
+            basis.type <- "none"
+        }
+        if(isTRUE(gate) || length(unique(data[,X]))<5){
             output <- interflex.lasso_discrete(
                 data = data,
                 Y = Y,
@@ -1328,6 +1440,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 spline.df = spline.df,
                 spline.degree = spline.degree,
                 lambda.seq = lambda.seq,
+                cores = cores,
                 verbose = TRUE,
                 treat.info = treat.info,
                 diff.info = diff.info,
@@ -1385,6 +1498,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 spline.degree = spline.degree,
                 lambda.seq = lambda.seq,
                 reduce.dimension = reduce.dimension,
+                cores = cores,
                 verbose = TRUE,
                 treat.info = treat.info,
                 diff.info = diff.info,
@@ -1402,6 +1516,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 ylab = ylab,
                 xlim = xlim,
                 ylim = ylim,
+                user_xlim_explicit = .user_xlim_explicit,
                 theme.bw = theme.bw,
                 show.grid = show.grid,
                 cex.main = cex.main,
@@ -1418,7 +1533,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 scale = scale,
                 height = height,
                 width = width
-            )            
+            )
         }
 
     }

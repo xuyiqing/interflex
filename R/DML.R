@@ -1,5 +1,5 @@
 # ============================================================================
-# interflex DML estimator — Pure R implementation using DoubleML + mlr3
+# interflex DML estimator -- Pure R implementation using DoubleML + mlr3
 # ============================================================================
 # Replaces the former Python/reticulate backend with R-native code.
 # Uses the R DoubleML package (R6 interface) for core DML estimation,
@@ -44,6 +44,11 @@
     # Default params match sklearn RandomForest: max_features=1.0, min_samples_leaf=1
     if (model_lower %in% c("randomforest", "random forest", "random_forest",
                             "rf", "forest")) {
+        if (!requireNamespace("ranger", quietly = TRUE)) {
+            stop("ml_method = \"randomforest\" requires the 'ranger' package. ",
+                 "Install it with install.packages(\"ranger\").",
+                 call. = FALSE)
+        }
         mapped <- .map_rf_params(param)
         # Set sklearn-matching defaults if user didn't specify
         # sklearn RandomForest: n_estimators=100, min_samples_leaf=1
@@ -218,7 +223,7 @@
         max_iter           = "maxit"
     )
 
-    # sklearn MLP params that have no nnet equivalent — silently drop
+    # sklearn MLP params that have no nnet equivalent -- silently drop
     sklearn_only <- c("activation", "solver", "alpha", "learning_rate",
                       "learning_rate_init", "batch_size", "momentum",
                       "beta_1", "beta_2", "epsilon", "n_iter_no_change",
@@ -304,7 +309,7 @@
         mapping <- character(0)
     }
 
-    # sklearn params that have no nnet/R equivalent — skip in tuning grid
+    # sklearn params that have no nnet/R equivalent -- skip in tuning grid
     sklearn_only_nn <- c("activation", "solver", "alpha", "learning_rate",
                          "learning_rate_init", "batch_size", "momentum",
                          "beta_1", "beta_2", "epsilon", "n_iter_no_change",
@@ -358,7 +363,8 @@
 # --------------------------------------------------------------------------
 # Helper: Compute CATE via BLP of pseudo-outcomes onto B-spline basis
 # --------------------------------------------------------------------------
-.compute_cate_blp <- function(dml_model, data_X, X_name, n_grid = 50L) {
+.compute_cate_blp <- function(dml_model, data_X, X_name, n_grid = 50L,
+                              xlim = NULL, user_xlim_explicit = FALSE) {
     n <- length(data_X)
 
     # 1. Extract pseudo-outcomes (influence function values)
@@ -370,7 +376,14 @@
     B_train <- cbind(1, B_spline)
 
     # 3. Evaluation grid
-    x_grid <- seq(min(data_X), max(data_X), length.out = n_grid)
+    ## PAD-001: gated grid restriction. Continuous-treatment DML CATE only;
+    ## .compute_gate_blp is intentionally NOT modified (gate plots out of scope).
+    if (isTRUE(user_xlim_explicit) && !is.null(xlim) && length(xlim) == 2L &&
+        all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+        x_grid <- seq(xlim[1], xlim[2], length.out = n_grid)
+    } else {
+        x_grid <- seq(min(data_X), max(data_X), length.out = n_grid)
+    }
     B_grid <- cbind(1, predict(B_spline, newx = x_grid))
 
     # 4. OLS projection: beta_hat = (B'B)^{-1} B' psi
@@ -510,7 +523,7 @@
         }
     }
 
-    # Fallback: if only psi_b available, rescale by -1/mean(psi_a) ≈ 1/mean(D_tilde^2)
+    # Fallback: if only psi_b available, rescale by -1/mean(psi_a) ~= 1/mean(D_tilde^2)
     if (!is.null(psi_b) && !is.null(psi_a) && !is.null(theta_hat)) {
         J_hat <- mean(psi_a)
         if (abs(J_hat) > 1e-12) {
@@ -548,7 +561,9 @@
 .run_dml_estimation <- function(data, Y, D, X, Z,
                                 model.y, param.y, param.grid.y, scoring.y,
                                 model.t, param.t, param.grid.t, scoring.t,
-                                CV, n.folds, cf.n.folds, cf.n.rep, gate) {
+                                CV, n.folds, cf.n.folds, cf.n.rep, gate,
+                                xlim = NULL,
+                                user_xlim_explicit = FALSE) {
 
     # 1. Detect outcome / treatment type
     y_vals <- sort(unique(data[[Y]]))
@@ -704,7 +719,9 @@
 
     # 10. Compute CATE (always)
     #     Use ORIGINAL (unscaled) X for the BLP grid, since the plot is in original units
-    cate_df <- .compute_cate_blp(dml_model, data[[X]], X)
+    cate_df <- .compute_cate_blp(dml_model, data[[X]], X,
+                                 xlim = xlim,
+                                 user_xlim_explicit = user_xlim_explicit)
 
     #     If Y was scaled, rescale psi-derived quantities back to original units
     if (is_scale_sensitive && !is.null(scale_info[[Y]])) {
@@ -772,7 +789,8 @@ interflex.dml <- function(data,
                           ylab = NULL,
                           xlim = NULL,
                           ylim = NULL,
-                          theme.bw = FALSE,
+                          user_xlim_explicit = FALSE,
+                          theme.bw = TRUE,
                           show.grid = TRUE,
                           cex.main = NULL,
                           cex.sub = NULL,
@@ -854,7 +872,9 @@ interflex.dml <- function(data,
             data, Y, D, X, Z,
             model.y, param.y, param.grid.y, scoring.y,
             model.t, param.t, param.grid.t, scoring.t,
-            CV, n.folds, cf.n.folds, cf.n.rep, gate
+            CV, n.folds, cf.n.folds, cf.n.rep, gate,
+            xlim = xlim,
+            user_xlim_explicit = user_xlim_explicit
         )
 
         for (k in seq_along(D.sample)) {
@@ -872,7 +892,8 @@ interflex.dml <- function(data,
             diff.info  = diff.info,
             treat.info = treat.info,
             est.dml    = TE.output.all.list,
-            g.est.dml  = TE.G.output.all.list,
+            g.est      = TE.G.output.all.list,
+            g.est.dml  = TE.G.output.all.list,  # deprecated alias
             Xlabel     = Xlabel,
             Dlabel     = Dlabel,
             Ylabel     = Ylabel,
@@ -889,7 +910,8 @@ interflex.dml <- function(data,
             diff.info  = diff.info,
             treat.info = treat.info,
             est.dml    = TE.output.all.list,
-            g.est.dml  = TE.G.output.all.list,
+            g.est      = TE.G.output.all.list,
+            g.est.dml  = TE.G.output.all.list,  # deprecated alias
             Xlabel     = Xlabel,
             Dlabel     = Dlabel,
             Ylabel     = Ylabel,

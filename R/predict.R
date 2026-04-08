@@ -15,7 +15,7 @@ predict.interflex <- function(
     ylab = NULL,
     xlim = NULL,
     ylim = NULL,
-    theme.bw = FALSE,
+    theme.bw = TRUE,
     show.grid = TRUE,
     cex.main = NULL,
     cex.sub = NULL,
@@ -449,7 +449,7 @@ predict.interflex <- function(
             if (!show.grid) {
                 p <- p + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
             }
-            p <- p + geom_line(data = pred[[char]], aes(x = X, y = EY), size = 1, color = platte[k])
+            p <- p + geom_line(data = pred[[char]], aes(x = X, y = EY), linewidth = 1, color = platte[k])
             if (isTRUE(CI)) {
                 p <- p + geom_ribbon(
                     data = pred[[char]], aes(x = X, ymin = CI_lower, ymax = CI_upper),
@@ -499,7 +499,7 @@ predict.interflex <- function(
 
                     p <- p + geom_rect(
                         data = hist.treat, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = count1),
-                        fill = platte[k], colour = "gray50", alpha = 0.3, size = 0.3
+                        fill = platte[k], colour = "gray50", alpha = 0.3, linewidth = 0.3
                     )
                 }
             }
@@ -539,7 +539,7 @@ predict.interflex <- function(
 
                     p <- p + geom_rect(
                         data = histX, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                        colour = "gray50", fill = "gray50", alpha = 0.3, size = 0.5
+                        colour = "gray50", fill = "gray50", alpha = 0.3, linewidth = 0.5
                     )
                 }
             }
@@ -570,7 +570,7 @@ predict.interflex <- function(
 
         if (treat.type == "discrete") {
             tograph$Treatment <- factor(tograph$Treatment, levels = all.treat)
-            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), size = 0.5)
+            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), linewidth = 0.5)
             if (is.null(subtitles)) {
                 p <- p + scale_color_manual(values = platte[1:ntreat])
             } else {
@@ -580,7 +580,7 @@ predict.interflex <- function(
 
         if (treat.type == "continuous") {
             tograph$Treatment <- factor(tograph$Treatment, levels = all.treat)
-            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), size = 0.5)
+            p <- p + geom_line(data = tograph, aes(x = X, y = EY, color = Treatment), linewidth = 0.5)
             if (is.null(subtitles)) {
                 p <- p + scale_color_manual(values = platte[1:ntreat], labels = label.name)
             } else {
@@ -592,7 +592,7 @@ predict.interflex <- function(
         if (isTRUE(CI)) {
             p <- p + geom_ribbon(
                 data = tograph, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment),
-                alpha = 0.2, show.legend = T, size = 0
+                alpha = 0.2, show.legend = T, linewidth = 0
             )
             if("CI_uniform_lower" %in% colnames(tograph)){
                 p <- p + geom_ribbon(
@@ -649,12 +649,12 @@ predict.interflex <- function(
 
                 p <- p + geom_ribbon(
                     data = dex.tr.plot, aes(x = x, ymax = end_level, ymin = start_level), color = platte[k],
-                    alpha = 0.0, fill = platte[k], size = 0.3
+                    alpha = 0.0, fill = platte[k], linewidth = 0.3
                 )
 
                 k <- k + 1
             }
-            p <- p + geom_line(data = dex.tr.plot, aes(x = x, y = min(yrange) - maxdiff / 5), color = "gray50", size = 0.3)
+            p <- p + geom_line(data = dex.tr.plot, aes(x = x, y = min(yrange) - maxdiff / 5), color = "gray50", linewidth = 0.3)
         }
 
         if (Xdistr == "density" & treat.type == "continuous") {
@@ -688,7 +688,7 @@ predict.interflex <- function(
 
                 p <- p + geom_rect(
                     data = hist.treat, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax), fill = platte[k], color = "gray50",
-                    alpha = 0.3, size = 0.2
+                    alpha = 0.3, linewidth = 0.2
                 )
                 k <- k + 1
             }
@@ -719,21 +719,12 @@ predict.interflex <- function(
             p1 <- plot_list[[char]]
             ## mark the original interval (in replicated papers)
             if (!is.null(interval)) {
-                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+                p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
             }
             ## Other universal options
             p1 <- p1 + xlab(NULL) + ylab(NULL) +
                 theme(axis.text = element_text(size = cex.axis))
 
-            if (!is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
-            }
-            if (is.null(xlim) & !is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(ylim = ylim2)
-            }
-            if (!is.null(xlim) & is.null(ylim)) {
-                p1 <- p1 + coord_cartesian(xlim = xlim)
-            }
             plot_list[[char]] <- p1
         }
 
@@ -749,7 +740,10 @@ predict.interflex <- function(
             }
         }
         for (char in all.treat) {
-            plot_list[[char]] <- plot_list[[char]] + ylim(c(yminmin, ymaxmax))
+            final_ylim <- if (!is.null(ylim)) ylim2 else c(yminmin, ymaxmax)
+            final_xlim <- if (!is.null(xlim)) .pad_xlim(xlim) else NULL
+            plot_list[[char]] <- plot_list[[char]] +
+                coord_cartesian(xlim = final_xlim, ylim = final_ylim)
         }
 
         requireNamespace("gridExtra")
@@ -767,7 +761,7 @@ predict.interflex <- function(
     if (pool) {
         p1 <- plot_list
         if (!is.null(interval)) {
-            p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+            p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
         }
         ## Other universal options
         p1 <- p1 + xlab(xlab) + ylab(ylab) +
@@ -777,13 +771,13 @@ predict.interflex <- function(
             p1 <- p1 + ggtitle(main) + theme(plot.title = element_text(hjust = 0.5, size = cex.main, lineheight = .8, face = "bold"))
         }
         if (!is.null(xlim) & !is.null(ylim)) {
-            p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
+            p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
         }
         if (is.null(xlim) & !is.null(ylim)) {
             p1 <- p1 + coord_cartesian(ylim = ylim2)
         }
         if (!is.null(xlim) & is.null(ylim)) {
-            p1 <- p1 + coord_cartesian(xlim = xlim)
+            p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim))
         }
 
         p1 <- p1 + theme(

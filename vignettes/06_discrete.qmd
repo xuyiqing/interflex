@@ -1,0 +1,249 @@
+
+# Discrete outcome {#sec-discrete-outcome}
+ 
+
+Discrete outcomes require different modeling strategies with link functions, thus changing how we implement and interpret CME estimation. In the **interflex** package, we provide four options for link function: `method = "probit"` or `"logit"`, `"poisson"`, `"nbinom"`; In the package, `probit` and `logit` support binary outcome, `poisson` and `nbinom` support outcome with count distributions.
+
+```{r include=FALSE}
+source("init.R")
+```
+
+**Example: @egerod2023extremists**
+
+```{r ch6-data-setup}
+data(interflex)
+d <- app_et2023
+d <- remove_labels(d)
+
+main<-"Egerod & Tran 2023"
+D="did" 
+Y="seats_t_ind" 
+X="abs_nom"
+
+Z = c("sen", "hloga")
+# Dlabel<-"Honest Leadership and Open Government Act"
+Dlabel<-"Treatment" 
+# Ylabel<-"ATT of HLOGA on Board Service" 
+Ylabel<-"Outcome" 
+Xlabel<-"Ideological Extremism"
+cl <- "state_po"
+```
+
+------------------------------------------------------------------------
+
+### Classic approach
+
+#### Binning estimator
+
+The binning estimator is a diagnostic tool; it discretizes the moderator $X$ into several bins and create a dummy variable for each bin and picks an evaluation point within each bin, where users want to estimate the conditional marginal effect (CME) of $D$ on $Y$. The regression terms include interactions between the bin dummies and the treatment indicator, the bin dummies and the moderator $X$ minus the evaluation points, as well as the triple interactions.
+
+**Estimation.**
+
+```{r ch6-binning-fit, warning=FALSE, cache=TRUE}
+out.binning <- interflex(estimator='binning', method='logit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       Xlabel = Xlabel)
+```
+
+```{r ch6-binning-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+out.binning$figure
+```
+
+If the CME estimates from the binning estimator sit closely to the estimated CME from the linear estimator, then the LIE assumption likely holds. For this example, it is clear that the first two binning estimators sit closely to the results from linear estimator.
+
+The program provides formal tools for verifying the LIE assumption: the Wald test and the likelihood ratio test. Both of these tests reject the null hypothesis of LIE.
+
+**Results.** The CME plot is stored in `$figure` while the estimates and standard errors are stored in `$est.lin`.
+
+```{r warning=FALSE,cache=TRUE}
+head(out.binning$est.bin[[1]])
+```
+
+One can visualize $E(Y|X,D,Z)$ estimated using the binning model. It is expected to see some "zigzags" at the bin boundaries in the plot.
+
+```{r ch6-binning-predict-plot, warning=FALSE, cache=FALSE, fig.width = 9, fig.height = 4.5}
+predict(out.binning)
+```
+
+#### Linear estimator
+
+**Estimations.** When setting the option estimator to `linear`, the program will conduct the classic glm regression and estimate the CME using the coefficients from the regression. In the following command, the outcome variable is $Y$, the moderator is $X$, the covariates are $Z$, and here it uses `logit` link function.
+
+```{r ch6-linear-fit, warning=FALSE, cache=TRUE}
+out.linear.1 <- interflex(estimator='linear', method='logit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       Xlabel = Xlabel)
+```
+
+```{r ch6-linear-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+out.linear.1$figure
+```
+
+For the linear estimator, when the option `full.moderate` is set to `TRUE`, interaction terms between the moderator $X$ and each covariate will enter the model, which is the case in @blackwell2022reducing. This extension in some cases can reduce the bias of the original model.
+
+Users can also specify a different link function by changing the `method` option.
+
+```{r ch6-linear-method-fit, warning=FALSE, cache=TRUE}
+out.linear.2 <- interflex(estimator='linear', method='logit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
+
+out.linear.3 <- interflex(estimator='linear', method='probit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
+
+out.linear.4 <- interflex(estimator='linear', method='logit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       full.moderate = TRUE,
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
+```
+
+```{r ch6-linear-method-plot, cache=FALSE, fig.height=4, fig.width=10}
+ggarrange(out.linear.2$figure, out.linear.3$figure, out.linear.4$figure,
+          ncol = 3)
+```
+
+**Continuous treatment.** As the CME in glm models also depends on the value of $D$, users can pass their preferred values of $D$ into the option `D.ref`.
+
+**Uncertainty estimation.** In the default setting, confidence intervals of CME are estimated using the `delta` method. The program also supports the `bootstrap` method and the simulation methods `simu`. Noted that uniform CI is not available for `vartype = simu`.
+
+```{r ch6-linear-var-fit, warning=FALSE, cache=TRUE}
+out.linear.2 <- interflex(estimator='linear', method='logit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel, vartype = "delta",
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
+
+out.linear.3 <- interflex(estimator='linear', method='probit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel, vartype = "bootstrap",
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
+
+out.linear.4 <- interflex(estimator='linear', method='logit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel, vartype = "simu",
+                       Xlabel = Xlabel, ylim = c(-0.4,0.6))
+```
+
+```{r ch6-linear-var-plot, cache=FALSE, fig.height=4, fig.width=10}
+ggarrange(out.linear.2$figure, out.linear.3$figure, out.linear.4$figure,
+          ncol = 3)
+```
+
+**Results.** The CME plot is stored in `out$figure` while the estimates and standard errors are stored in `out$est.lin`.
+
+```{r binary_lin2, message=FALSE, warning=FALSE, cathe = TRUE}
+head(out.linear.1$est.lin$`1`)
+```
+
+The estimated $E[Y |X, Z,D]$ is saved. Users can specify either 1 for treatment group, or 0 for control group.
+
+```{r ch6-linear-pred}
+head(out.linear.1$pred.lin$`1`)
+```
+
+The estimated average treatment effect (ATE) is saved in `Avg.estimate`. Here the program uses the coefficients from the regression and the input data to calculate the ATE/AME.
+
+```{r ch6-linear-ate}
+head(out.linear.1$Avg.estimate)
+```
+
+The estimated difference of treatment effects are saved in `diff.estimate`:
+
+```{r ch6-linear-diff}
+head(out.linear.1$diff.estimate)
+```
+
+#### Kernel estimator
+
+**Estimation.**
+
+```{r ch6-kernel-fit, warning=FALSE, cache=TRUE}
+out.kernel <- interflex(estimator='kernel', method='logit', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel,
+                       vartype = "bootstrap", ylim = c(-0.4, 0.6),
+                       Xlabel = Xlabel)
+```
+
+```{r ch6-kernel-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+out.kernel$figure
+```
+
+**Uncertainty estimation.** With the kernel method, a bandwidth is first selected via a 10-fold cross-validation. If the outcome variable is binary, the bandwidth that produces the largest area under the curve (AUC) or the least cross entropy in cross validation will be chosen as the "optimal" bandwidth. The standard errors are produced by a non-parametric bootstrap. It is very flexible but takes more time compared with the linear estimation. The `nboots`, `bw`, and `grid` options for choosing bandwidths are also available in discrete outcome settings.
+
+**Results.** The estimation results, including pointwise and uniform confidence intervals, are included in `est.kernel`.
+
+```{r binary_kernel3, message=FALSE, warning=FALSE, cathe = TRUE}
+head(out.kernel$est.kernel$`1`)
+```
+
+The results of cross-validation are saved in `CV.output`.
+
+```{r binary_kernel4, message=FALSE, warning=FALSE, cathe = TRUE}
+head(out.kernel$CV.output)
+```
+
+Like the linear estimator, the estimated conditional effects $E[Y | X, D, Z]$ are saved in "pred.kernel". Users can visualize it using the command "predict".
+
+```{r ch6-kernel-predict-plot, warning=FALSE, cache=FALSE, fig.width = 9, fig.height = 4.5}
+head(out.kernel$pred.kernel$`1`)
+predict(out.kernel)
+```
+
+The estimated average treatment effect (ATE) is saved in `Avg.estimate`, and the estimated difference of treatment effects are saved in `diff.estimate`:
+
+```{r ch6-kernel-ate-diff}
+head(out.kernel$Avg.estimate)
+head(out.kernel$diff.estimate)
+```
+
+------------------------------------------------------------------------
+
+### Lasso approach
+
+Traditional parametric approaches for binary or count data typically rely on link functions - such as logit, probit, poisson, or negative binomial - to capture nonlinearity between predictors and the outcome. However, this introduces two key challenges. First, it becomes difficult to disentangle the nonlinearity imposed by the link function from the intrinsic nonlinearity of the CME. Second, when the treatment (D) is continuous, the derivative $(\frac{\partial Y}{\partial D})$ depends on both (X) and (D), requiring an additional averaging over (D) to recover a coherent measure of the CME: $(\mathbb{E}\left[\left.\frac{\partial Y}{\partial D}\right\rvert X = x\right])$.
+
+When the treatment is binary, the link function can be naturally incorporated into the Lasso estimator by modifying the learner to model the outcome appropriately. When the treatment is continuous, although the theoretical framework underlying the PO-Lasso is based on the partially linear regression model - which does not explicitly account for the link function - these methods can still serve as good approximations.
+
+To estimate CME with discrete outcome using Lasso-based estimator, the syntax is exactly the same as with continuous treatment settings, so we don't need to specify the link function.
+
+```{r ch6-lasso-fit, warning=FALSE, message=FALSE, cache=TRUE}
+out.lasso <- interflex(estimator='lasso', data = d,
+                       Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                       Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel,
+                       vartype = "bootstrap", ylim = c(-0.4, 0.6))
+```
+
+```{r ch6-lasso-plot, cache=FALSE, fig.width = 6, fig.height = 4.5}
+out.lasso$figure
+```
+
+Because the sample size is small ($n = 570$), the AIPW estimator doesn't perform very well.
+
+------------------------------------------------------------------------
+
+### Double machine learning
+
+Similar to the Lasso estimator, when treatment is binary the link function can be naturally incorporated into the DML estimator as well. When the treatment is continuous, the DML estimator can serve as a good approximation via the partially linear regression model.
+
+To estimate CME with discrete outcome using DML estimator, the syntax is the same as with both binary and continuous treatment settings:
+
+
+```{r ch6-dml-fit, message=FALSE, warning=FALSE, cache=TRUE}
+binary.dml.nn.nn <- interflex(estimator="dml", data = d,
+                              Y = Y, D = D, X = X, Z = Z, na.rm = TRUE,
+                              Ylabel = Ylabel, Dlabel = Dlabel,
+                              Xlabel = Xlabel,
+                              model.y = "nn", model.t = "nn",
+                              main = "Neural Network")
+```
+
+```{r ch6-dml-plot, message=FALSE, warning=FALSE, cache=FALSE, fig.width = 6, fig.height = 4.5}
+binary.dml.nn.nn$figure
+```
+

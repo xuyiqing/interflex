@@ -1,0 +1,407 @@
+# Plot Options {#sec-plotting}
+
+Earlier chapters showed plots in the context of specific estimators. This chapter flips the perspective: it is **parameter-first**, not method-first. Every argument of `plot.interflex()` is listed in a master table, grouped by purpose, and then demonstrated in isolation on pre-fitted objects. Users who want to know "how do I change X" can scan the table, jump to the relevant section, and copy a single-argument example.
+
+All demos in this chapter reuse a small set of fitted objects created once in the **Setup** section. Plotting chunks never refit a model.
+
+```{r ch7-init, include=FALSE}
+source("init.R")
+```
+
+## Setup: Data and Reusable Fits
+
+We use two datasets: `app_hma2015` from @huddy2015expressive (single continuous treatment) and the package simulation dataset `s5` (multi-arm discrete treatment).
+
+```{r ch7-setup-data}
+data(interflex)
+d <- app_hma2015
+
+Y <- "totangry"     ## outcome: anger
+D <- "threat"       ## treatment: threat
+X <- "pidentity"    ## moderator: partisan identity
+Z <- c("issuestr2", "knowledge", "educ", "male", "age10")
+
+Ylabel <- "Anger"
+Dlabel <- "Threat"
+Xlabel <- "Partisanship"
+```
+
+We fit four objects once and reuse them throughout the chapter. Each fit lives in its own cached chunk so editing a plot demo never invalidates a fit.
+
+```{r ch7-fit-linear-huddy, cache=TRUE, message=FALSE, warning=FALSE}
+linear.out.1 <- interflex(estimator = "linear", data = d,
+                          Y = Y, D = D, X = X, Z = Z,
+                          Ylabel = Ylabel, Dlabel = Dlabel,
+                          Xlabel = Xlabel, vartype = "bootstrap",
+                          main = "Linear model")
+```
+
+```{r ch7-fit-s5-linear, cache=TRUE, message=FALSE, warning=FALSE}
+s5.linear <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                       data = s5,
+                       estimator = "linear")
+```
+
+```{r ch7-fit-s5-binning, cache=TRUE, message=FALSE, warning=FALSE, results="hide"}
+s5.binning <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                        data = s5,
+                        estimator = "binning", vartype = "bootstrap")
+```
+
+```{r ch7-fit-s5-kernel, cache=TRUE, message=FALSE, warning=FALSE, results="hide"}
+s5.kernel <- interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
+                       data = s5,
+                       estimator = "kernel", vartype = "bootstrap")
+```
+
+There are two equivalent ways to control the figure:
+
+1. **During estimation**: pass any plot argument into `interflex()` and retrieve `result$figure`.
+2. **After estimation**: call `plot(result, ...)` and supply or overwrite the same arguments.
+
+All options in this chapter work identically in both places. The demos below use the post-estimation form because it lets us vary one argument at a time on a single cached fit.
+
+```{r ch7-demo-two-ways, fig.width=6, fig.height=4.5}
+plot(linear.out.1, ylim = c(-0.2, 0.6))
+```
+
+## Master Parameter Table
+
+The full list of `plot.interflex()` arguments, grouped by purpose. Sections below revisit each group with demos.
+
+| Group | Parameter | Purpose | Default |
+|---|---|---|---|
+| **Estimates to plot** | `order` | Display order of treatment arms / reference values | `NULL` |
+|  | `diff.values` | Three moderator values at which to print effect differences (linear / kernel) | `NULL` |
+|  | `CI` | Draw pointwise confidence bands | estimator-dependent |
+|  | `show.uniform.CI` | Overlay uniform (simultaneous) CI band on top of pointwise band | `TRUE` |
+|  | `pool` | Combine a list of interflex objects into one pooled plot | `FALSE` |
+|  | `by.group` | Facet a kernel plot by group-wise estimates | `FALSE` |
+|  | `show.all` | Return a list of per-arm ggplot objects instead of a single figure | `FALSE` |
+| **Moderator's distribution** | `Xdistr` | Distribution strip under the curve: `"histogram"`, `"density"`, `"none"` | `"histogram"` |
+|  | `hist.color` | Bar colors for control/treated histogram | `c("gray50","red")` |
+|  | `hist.color.alpha` | Histogram transparency | `0.3` |
+|  | `density.color` | Ribbon colors for control/treated density | `c("gray50","red")` |
+|  | `density.color.alpha` | Density transparency | `0.3` |
+| **Titles, subtitles, annotations** | `main` | Main title (top-center) | `NULL` |
+|  | `subtitles` | Per-facet subtitles | `NULL` |
+|  | `show.subtitles` | Force subtitles on/off | `NULL` |
+|  | `interval` | Draw light-blue vertical reference line(s) at these moderator values | `NULL` |
+|  | `legend.title` | Legend title when `pool = TRUE` | `NULL` |
+|  | `bin.labs` | Show "L/M/H" labels under binning centers | `TRUE` |
+| **Axis labels & limits** | `Ylabel` / `Dlabel` / `Xlabel` | Variable names used in default axis text and titles | `NULL` |
+|  | `xlab` / `ylab` | Full custom axis titles (override the `*label` glue) | `NULL` |
+|  | `xlim` / `ylim` | Numeric length-2 axis ranges | `NULL` |
+| **Theme & grid** | `theme.bw` | Use `theme_bw()` with grey zero line; `FALSE` uses default theme | `TRUE` |
+|  | `show.grid` | Toggle major/minor grid lines | `TRUE` |
+| **Curves, ribbons, colors** | `line.color` | Color of the effect curve | `"black"` |
+|  | `line.size` | Thickness of the effect curve | `1.2` |
+|  | `CI.color` | Fill color of the CI ribbon | `"black"` |
+|  | `CI.color.alpha` | CI ribbon transparency | `0.2` |
+|  | `color` | Vector of colors used when `pool = TRUE` (one per arm) | `NULL` |
+| **Font sizes** | `cex.main` | Main title size | `NULL` |
+|  | `cex.sub` | Subtitle size | `NULL` |
+|  | `cex.lab` | Axis title size | `NULL` |
+|  | `cex.axis` | Tick label size | `NULL` |
+| **Layout & output** | `ncols` | Number of columns when multiple panels are arranged | #panels |
+|  | `scale` | Overall figure scaling factor | `1.1` |
+|  | `height` / `width` | Dimensions used when writing to `file` | `7` / `10` |
+|  | `file` | Path to save the figure | `NULL` |
+
+## Estimates to Plot
+
+| Parameter | Purpose |
+|---|---|
+| `order` | Display order of treatment arms / reference values |
+| `diff.values` | Three moderator values at which to print effect differences |
+| `CI` | Draw pointwise CI ribbon |
+| `show.uniform.CI` | Overlay simultaneous CI band |
+| `pool` | Combine arms on a single panel |
+| `by.group` | Facet kernel plot by group |
+| `show.all` | Return per-arm ggplot list |
+
+### `order` and `subtitles`
+
+Fix the display order of treatment arms and give each facet a custom label. `s5` has three arms (A, B, C); selecting only `("C","B")` also drops A from the display.
+
+```{r fig.width=8, fig.height=4.5}
+plot(s5.binning, order = c("C", "B"),
+     subtitles = c("Group C", "Group B"))
+```
+
+### `diff.values` and `CI`
+
+With a linear or kernel estimator, `diff.values` prints effect differences at three moderator values. `CI = FALSE` hides the pointwise ribbon.
+
+```{r fig.width=8, fig.height=4.5}
+plot(s5.linear,
+     diff.values = c(-2, 0, 2),
+     CI = FALSE)
+```
+
+### `show.uniform.CI`
+
+When an interflex object carries a uniform (simultaneous) confidence band, it is overlaid on top of the pointwise band by default. Turn it off to show the pointwise band alone.
+
+```{r fig.width=8, fig.height=4.5}
+plot(s5.kernel, show.uniform.CI = FALSE)
+```
+
+### `pool` and `color`
+
+`pool = TRUE` combines all arms onto one panel. Pass `color` to choose per-arm colors.
+
+```{r fig.width=6, fig.height=4.5}
+plot(s5.binning, order = c("C", "B"),
+     subtitles = c("Control Group", "Group C", "Group B"),
+     pool = TRUE,
+     color = c("Salmon", "#7FC97F", "#BEAED4"))
+```
+
+### `by.group`
+
+When an interflex object carries Group Average Treatment Effects (GATE), `by.group = TRUE` draws one panel per group. GATE is produced by calling `interflex(..., gate = TRUE)`, which requires a **discrete** moderator `X`. None of the simulation datasets shipped with the package have a discrete moderator, so this demo is not executed here; the typical usage is:
+
+```r
+fit <- interflex(Y = Y, D = D, X = X_discrete, Z = Z,
+                 data = d, estimator = "kernel", gate = TRUE)
+plot(fit, by.group = TRUE)
+```
+
+Once `g.est` is present on the object, `plot()` auto-enables `by.group` unless you explicitly pass `by.group = FALSE`.
+
+### `show.all`
+
+Returns a list of ggplot objects, one per treatment arm, so users can further customize them individually.
+
+```{r fig.width=6, fig.height=4.5}
+plots.list <- plot(s5.binning, show.all = TRUE)
+length(plots.list)
+plots.list[[1]]
+```
+
+## Moderator's Distribution
+
+| Parameter | Purpose |
+|---|---|
+| `Xdistr` | `"histogram"`, `"density"`, or `"none"` |
+| `hist.color` / `hist.color.alpha` | Histogram fill color and transparency |
+| `density.color` / `density.color.alpha` | Density ribbon color and transparency |
+
+### `Xdistr`
+
+Three choices: stacked histogram (default), shaded density, or nothing.
+
+```{r fig.width=12, fig.height=4.5}
+p.hist <- plot(linear.out.1, Xdistr = "histogram", main = "Xdistr = histogram")
+p.dens <- plot(linear.out.1, Xdistr = "density",   main = "Xdistr = density")
+p.none <- plot(linear.out.1, Xdistr = "none",      main = "Xdistr = none")
+ggarrange(p.hist, p.dens, p.none, nrow = 1)
+```
+
+### `hist.color` and `hist.color.alpha`
+
+First element is the control color, second is the treated color.
+
+```{r fig.width=6, fig.height=4.5}
+plot(linear.out.1,
+     Xdistr = "histogram",
+     hist.color = c("steelblue", "darkorange"),
+     hist.color.alpha = 0.6)
+```
+
+### `density.color` and `density.color.alpha`
+
+```{r fig.width=6, fig.height=4.5}
+plot(linear.out.1,
+     Xdistr = "density",
+     density.color = c("steelblue", "darkorange"),
+     density.color.alpha = 0.5)
+```
+
+## Titles, Subtitles, and Annotations
+
+| Parameter | Purpose |
+|---|---|
+| `main` | Main title |
+| `subtitles` | Per-facet subtitles |
+| `show.subtitles` | Force subtitles on/off |
+| `interval` | Vertical reference line(s) |
+| `legend.title` | Legend title in pooled plots |
+| `bin.labs` | "L/M/H" labels under binning centers |
+
+### `main`, `subtitles`, `show.subtitles`, `interval`
+
+One chunk demonstrates four at once — the logical home for them is the same plot.
+
+```{r fig.width=8, fig.height=4.5}
+plot(s5.linear,
+     main = "Linear estimator",
+     subtitles = c("Group B", "Group C"),
+     show.subtitles = TRUE,
+     interval = c(0))
+```
+
+### `legend.title`
+
+Only meaningful when `pool = TRUE`.
+
+```{r fig.width=6, fig.height=4.5}
+plot(s5.binning, pool = TRUE, legend.title = "Arm")
+```
+
+### `bin.labs`
+
+On a binning plot, `bin.labs = TRUE` (default) prints "L/M/H" under each bin center; `FALSE` hides them.
+
+```{r fig.width=10, fig.height=4.5}
+p.lab  <- plot(s5.binning, bin.labs = TRUE,  main = "bin.labs = TRUE")
+p.nolab <- plot(s5.binning, bin.labs = FALSE, main = "bin.labs = FALSE")
+ggarrange(p.lab, p.nolab, nrow = 1)
+```
+
+## Axis Labels and Limits
+
+| Parameter | Purpose |
+|---|---|
+| `Ylabel` / `Dlabel` / `Xlabel` | Variable names reused in default axis text |
+| `xlab` / `ylab` | Full custom axis titles (override the glue) |
+| `xlim` / `ylim` | Axis ranges |
+
+### `Ylabel`, `Dlabel`, `Xlabel`
+
+These set the variable names that `plot.interflex()` uses to build default axis titles (`"Moderator: <Xlabel>"`, `"Marginal Effect of <Dlabel> on <Ylabel>"`).
+
+```{r fig.width=6, fig.height=4.5}
+plot(linear.out.1,
+     Ylabel = "Anger score",
+     Dlabel = "Threat cue",
+     Xlabel = "Partisan strength")
+```
+
+### `xlab` and `ylab`
+
+Override the glued defaults entirely with full axis titles.
+
+```{r fig.width=6, fig.height=4.5}
+plot(linear.out.1,
+     xlab = "moderator",
+     ylab = "CME")
+```
+
+### `xlim` and `ylim`
+
+```{r fig.width=6, fig.height=4.5}
+plot(linear.out.1,
+     xlim = c(0.25, 1),
+     ylim = c(-0.2, 0.6))
+```
+
+## Theme and Grid
+
+| Parameter | Purpose |
+|---|---|
+| `theme.bw` | `theme_bw()` background + grey zero line, or default theme + white zero line |
+| `show.grid` | Toggle panel grid lines |
+
+### `theme.bw`
+
+```{r fig.width=10, fig.height=4.5}
+p.bw  <- plot(linear.out.1, theme.bw = TRUE,  main = "theme.bw = TRUE")
+p.def <- plot(linear.out.1, theme.bw = FALSE, main = "theme.bw = FALSE")
+ggarrange(p.bw, p.def, nrow = 1)
+```
+
+### `show.grid`
+
+```{r fig.width=10, fig.height=4.5}
+p.grid  <- plot(linear.out.1, show.grid = TRUE,  main = "show.grid = TRUE")
+p.nogrid <- plot(linear.out.1, show.grid = FALSE, main = "show.grid = FALSE")
+ggarrange(p.grid, p.nogrid, nrow = 1)
+```
+
+## Curves, Ribbons, and Colors
+
+| Parameter | Purpose |
+|---|---|
+| `line.color` | Color of the effect curve |
+| `line.size` | Thickness of the effect curve |
+| `CI.color` | CI ribbon fill color |
+| `CI.color.alpha` | CI ribbon transparency |
+| `color` | Per-arm palette in pooled plots |
+
+### `line.color` and `line.size`
+
+```{r fig.width=6, fig.height=4.5}
+plot(linear.out.1,
+     line.color = "navy",
+     line.size = 2)
+```
+
+### `CI.color` and `CI.color.alpha`
+
+```{r fig.width=6, fig.height=4.5}
+plot(linear.out.1,
+     CI.color = "red",
+     CI.color.alpha = 0.35)
+```
+
+### `color` (pooled plots)
+
+```{r fig.width=6, fig.height=4.5}
+plot(s5.binning, pool = TRUE,
+     color = c("#1b9e77", "#d95f02", "#7570b3"))
+```
+
+## Font Sizes
+
+| Parameter | Purpose |
+|---|---|
+| `cex.main` | Main title size |
+| `cex.sub` | Subtitle size |
+| `cex.lab` | Axis title size |
+| `cex.axis` | Tick label size |
+
+All four in one demo so scaling is visible.
+
+```{r fig.width=10, fig.height=4.5}
+p.default <- plot(linear.out.1, main = "Default sizes")
+p.large <- plot(linear.out.1,
+                main = "Enlarged",
+                subtitles = "threat",
+                show.subtitles = TRUE,
+                cex.main  = 1.6,
+                cex.sub   = 1.3,
+                cex.lab   = 1.3,
+                cex.axis  = 1.2)
+ggarrange(p.default, p.large, nrow = 1)
+```
+
+## Layout and Output
+
+| Parameter | Purpose |
+|---|---|
+| `ncols` | Number of columns in multi-panel layouts |
+| `scale` | Overall figure scaling |
+| `height` / `width` | Dimensions when saving to `file` |
+| `file` | Path to save the figure |
+
+### `ncols`
+
+With `s5.binning` (two non-baseline arms), `ncols = 1` stacks them vertically.
+
+```{r fig.width=6, fig.height=8}
+plot(s5.binning, ncols = 1)
+```
+
+### `scale`, `height`, `width`, `file`
+
+`scale` multiplies overall figure size; `height`, `width`, and `file` are passed through to `ggsave()` when a path is supplied. They do not affect the inline rendering in this book, so they are documented without a demo — a typical usage is:
+
+```r
+plot(linear.out.1,
+     file   = "linear_effect.pdf",
+     width  = 8,
+     height = 5,
+     scale  = 1.2)
+```

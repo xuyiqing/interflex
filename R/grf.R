@@ -6,6 +6,7 @@ interflex.grf <- function(data,
                           diff.info,
                           Z = NULL, # covariates
                           weights = NULL, # weighting variable
+                          gate = FALSE,
                           num.trees = 4000,
                           figure = TRUE,
                           show.uniform.CI = TRUE,
@@ -22,7 +23,7 @@ interflex.grf <- function(data,
                           ylab = NULL,
                           xlim = NULL,
                           ylim = NULL,
-                          theme.bw = FALSE,
+                          theme.bw = TRUE,
                           show.grid = TRUE,
                           cex.main = NULL,
                           cex.sub = NULL,
@@ -73,7 +74,7 @@ interflex.grf <- function(data,
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
             data_part[data_part[[D]] == treat.base, D] <- 0L
             data_part[data_part[[D]] == char, D] <- 1L
-            data_part$D <- as.numeric(data_part$D)
+            data_part[[D]] <- as.numeric(data_part[[D]])
             causal.forest <- causal_forest(data_part[covariates], data_part[[Y]], data_part[[D]], num.trees = num.trees)
             X.test <- matrix(0, 50, length.covariates)
             X.test[, 1] <- seq(min(data_part[[X]]), max(data_part[[X]]), length.out = 50)
@@ -105,6 +106,56 @@ interflex.grf <- function(data,
             count.tr = treat.hist,
             estimator = "grf"
         )
+    }
+
+    # GATE estimation
+    if (isTRUE(gate)) {
+        gate.list <- list()
+
+        for (char in other.treat) {
+            data_part <- data[data[[D]] %in% c(treat.base, char), ]
+            data_part[data_part[[D]] == treat.base, D] <- 0L
+            data_part[data_part[[D]] == char, D] <- 1L
+            data_part$D_num <- as.numeric(data_part[[D]])
+
+            # Fit causal forest (reuse same specification as the smooth CATE)
+            cf <- causal_forest(
+                data_part[covariates],
+                data_part[[Y]],
+                data_part$D_num,
+                num.trees = num.trees
+            )
+
+            # Individual CATEs
+            cate_i <- predict(cf)$predictions
+            var_i <- predict(cf, estimate.variance = TRUE)$variance.estimates
+
+            # Aggregate by X group
+            X_vals <- data_part[[X]]
+            groups <- sort(unique(X_vals))
+
+            gate_est <- numeric(length(groups))
+            gate_se <- numeric(length(groups))
+            for (k in seq_along(groups)) {
+                idx <- which(X_vals == groups[k])
+                gate_est[k] <- mean(cate_i[idx])
+                # SE via delta method: SE(mean) = sqrt(mean(var_i) / n_group)
+                gate_se[k] <- sqrt(mean(var_i[idx]) / length(idx))
+            }
+
+            res <- data.frame(
+                X                       = groups,
+                ME                      = gate_est,
+                sd                      = gate_se,
+                `lower CI(95%)`         = gate_est - 1.96 * gate_se,
+                `upper CI(95%)`         = gate_est + 1.96 * gate_se,
+                check.names = FALSE
+            )
+
+            gate.list[[other.treat.origin[char]]] <- res
+        }
+
+        final.output$g.est <- gate.list
     }
 
     # Plot

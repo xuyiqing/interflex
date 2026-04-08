@@ -2,13 +2,17 @@
 \alias{plot.interflex}
 \title{Plotting Marginal Effect Estimates}
 \description{Plotting marginal effect estimates after either the binning estimator or the kernel estimator is applied}
-\usage{\method{plot}{interflex}(x, order = NULL, subtitles = NULL, 
-  show.subtitles = NULL, CI = NULL, diff.values = NULL, Xdistr = "histogram", 
-  main = NULL, Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL, 
-  ylab = NULL, xlim = NULL, ylim = NULL, theme.bw = FALSE, show.grid = TRUE, 
-  cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL, 
-  bin.labs = TRUE, interval = NULL, file = NULL, ncols = NULL, pool = FALSE, 
-  legend.title = NULL, color = NULL, show.all = FALSE,
+\usage{\method{plot}{interflex}(x, order = NULL, subtitles = NULL,
+  show.subtitles = NULL, CI = NULL, diff.values = NULL, Xdistr = "histogram",
+  main = NULL, Ylabel = NULL, Dlabel = NULL, Xlabel = NULL, xlab = NULL,
+  ylab = NULL, xlim = NULL, ylim = NULL, theme.bw = TRUE, show.grid = TRUE,
+  cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL,
+  bin.labs = TRUE, interval = NULL, file = NULL, ncols = NULL, pool = FALSE,
+  by.group = FALSE, legend.title = NULL, line.size = 1.2, color = NULL,
+  line.color = "black", CI.color = "black", CI.color.alpha = 0.2,
+  hist.color = c("gray50", "red"), hist.color.alpha = 0.3,
+  density.color = c("gray50", "red"), density.color.alpha = 0.3,
+  show.all = FALSE, show.uniform.CI = TRUE,
   scale = 1.1, height = 7, width = 10,
   \dots)
 }
@@ -39,9 +43,19 @@
   \item{file}{a string that specifies the filename in which the plot is saved.}
   \item{ncols}{an integer that controls the number of columns in the plot if \bold{pool} is FALSE.}
   \item{pool}{a logical flag specifying whether to integrate marginal effects for each treatment arm in one plot.}
+  \item{by.group}{a logical flag specifying whether to draw one panel per group when the fitted object carries group-average treatment effects (\code{g.est}), which requires fitting with \code{gate = TRUE} and a discrete moderator.}
   \item{legend.title}{a string that specifies the title of the legend when \bold{pool} is TRUE.}
+  \item{line.size}{a numeric value controlling the width of the effect curve.}
   \item{color}{a vector of colors that determines the color of lines when \bold{pool} is TRUE.}
+  \item{line.color}{a string specifying the colour of the effect curve.}
+  \item{CI.color}{a string specifying the fill colour of the pointwise confidence-interval ribbon.}
+  \item{CI.color.alpha}{a numeric value in [0, 1] controlling the transparency of the confidence-interval ribbon.}
+  \item{hist.color}{a length-two character vector of colours used for the control/treated histogram bars below the effect curve.}
+  \item{hist.color.alpha}{a numeric value in [0, 1] controlling the transparency of the histogram bars.}
+  \item{density.color}{a length-two character vector of colours used for the control/treated density ribbons below the effect curve (when \code{Xdistr = "density"}).}
+  \item{density.color.alpha}{a numeric value in [0, 1] controlling the transparency of the density ribbons.}
   \item{show.all}{a logical flag specifying whether to return the plots for each kinds of treatment level. If setting to TRUE, the program will return a list of ggplot2 objects.}
+  \item{show.uniform.CI}{a logical flag controlling whether the uniform (simultaneous) confidence band, if available on the fitted object, is overlaid on the pointwise band.}
   \item{scale}{Multiplicative scaling factor of printed graph.}
   \item{height}{Plot size (Height).}
   \item{width}{Plot size (Width).}

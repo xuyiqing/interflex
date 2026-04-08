@@ -14,7 +14,7 @@ interflex.raw <- function(data,
                           Ylabel = NULL,
                           Dlabel = NULL,
                           Xlabel = NULL,
-                          theme.bw = FALSE,
+                          theme.bw = TRUE,
                           show.grid = TRUE,
                           cex.main = NULL,
                           cex.lab = NULL,
@@ -119,9 +119,9 @@ interflex.raw <- function(data,
 
         ## plotting
         if (is.null(weights)) {
-            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes_string(X, Y))
+            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes(.data[[X]], .data[[Y]]))
         } else {
-            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes_string(X, Y, weight = weights))
+            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes(.data[[X]], .data[[Y]], weight = .data[[weights]]))
         }
         if (theme.bw) {
             p1 <- p1 + theme_bw()
@@ -129,18 +129,18 @@ interflex.raw <- function(data,
         if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", size = 1)
+        p1 <- p1 + geom_point(na.rm = TRUE) + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", linewidth = 1, na.rm = TRUE)
 
         if (is.null(span)) {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", na.rm = TRUE)
         } else {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span)
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span, na.rm = TRUE)
         }
         p1 <- p1 + xlab(Xlabel) + ylab(Ylabel)
 
-        p1 <- p1 + geom_line(aes_string(X, "qt90"), size = 1, colour = "grey50", na.rm = TRUE)
-        p1 <- p1 + geom_line(aes_string(X, "qt50"), size = 3, colour = "grey50", na.rm = TRUE)
-        p1 <- p1 + geom_point(aes_string(X, "med"), size = 3, shape = 21, fill = "white", colour = "red", na.rm = TRUE)
+        p1 <- p1 + geom_line(aes(.data[[X]], .data[["qt90"]]), linewidth = 1, colour = "grey50", na.rm = TRUE)
+        p1 <- p1 + geom_line(aes(.data[[X]], .data[["qt50"]]), linewidth = 3, colour = "grey50", na.rm = TRUE)
+        p1 <- p1 + geom_point(aes(.data[[X]], .data[["med"]]), size = 3, shape = 21, fill = "white", colour = "red", na.rm = TRUE)
         p1 <- p1 + facet_wrap(~treat, ncol = ncols)
     } else { # continuous case
         if (!is.numeric(data[, D])) {
@@ -172,9 +172,9 @@ interflex.raw <- function(data,
 
         ## plotting
         if (is.null(weights)) {
-            p1 <- ggplot(data.aug, aes_string(D, Y))
+            p1 <- ggplot(data.aug, aes(.data[[D]], .data[[Y]]))
         } else {
-            p1 <- ggplot(data.aug, aes_string(D, Y, weight = weights))
+            p1 <- ggplot(data.aug, aes(.data[[D]], .data[[Y]], weight = .data[[weights]]))
         }
         if (theme.bw) {
             p1 <- p1 + theme_bw()
@@ -182,12 +182,12 @@ interflex.raw <- function(data,
         if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", size = 1)
+        p1 <- p1 + geom_point(na.rm = TRUE) + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", linewidth = 1, na.rm = TRUE)
 
         if (is.null(span)) {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", na.rm = TRUE)
         } else {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span)
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span, na.rm = TRUE)
         }
         p1 <- p1 + xlab(Dlabel) + ylab(Ylabel) + facet_wrap(. ~ groupID, ncol = ncols)
     }
@@ -216,12 +216,11 @@ interflex.raw <- function(data,
             theme(plot.title = element_text(hjust = 0.5, size = cex.main, lineheight = .8, face = "bold"))
     }
 
-    if (!is.null(xlim)) {
-        p1 <- p1 + xlim(xlim[1], xlim[2])
-    }
-
-    if (!is.null(ylim)) {
-        p1 <- p1 + ylim(ylim[1], ylim[2])
+    if (!is.null(xlim) || !is.null(ylim)) {
+        p1 <- p1 + coord_cartesian(
+            xlim = if (!is.null(xlim)) .pad_xlim(xlim) else NULL,
+            ylim = ylim
+        )
     }
 
     ## save to file
@@ -229,5 +228,11 @@ interflex.raw <- function(data,
         ggsave(file, p1, scale = scale, width = width, height = height)
     }
 
-    return(p1)
+    out <- list(
+        figure = p1,
+        type = "raw",
+        treat.info = treat.info
+    )
+    class(out) <- "interflex"
+    return(out)
 }

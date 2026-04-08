@@ -36,7 +36,12 @@ calculate_uniform_quantiles <- function(theta_matrix, alpha) {
   coverage <- check_condition(zeta_hat)
   
   if (zeta_hat == alpha / (2 * k)) {
-    warning("Insufficient bootstrap samples for Bootstrapped Uniform CI. Using Bonferroni CI by default.\n")
+    if (!isTRUE(getOption("interflex.uniform_ci_warned"))) {
+      message("Note: Insufficient bootstrap samples (B=", N, ") for Bootstrapped Uniform CI ",
+              "with ", k, " evaluation points. Using Bonferroni CI by default. ",
+              "Consider increasing nboots for tighter uniform bands.")
+      options(interflex.uniform_ci_warned = TRUE)
+    }
   }
   
   Q_j <- t(apply(theta_matrix, 1, quantile, c(zeta_hat, 1 - zeta_hat)))

@@ -8,13 +8,14 @@ book:
     background: light
   chapters:
     - index.qmd
-    - intro.qmd
-    - chapter2_classic.qmd
-    - chapter3_lasso.qmd
-    - chapter5_dml.qmd
-    - chapter4_discrete_moderator.qmd
-    - chapter6_discrete_outcome.qmd
-    - chapter7_plot.qmd
+    - 01_intro.qmd
+    - 02_classic.qmd
+    - 03_extension.qmd
+    - 04_lasso.qmd
+    - 05_dml.qmd
+    - 06_discrete.qmd
+    - 07_plot.qmd
+    - changelog.qmd
     - references.qmd
 
 initial-block:
