@@ -1,7 +1,86 @@
 # Architecture — interflex
 
-> Updated by scriber for run `BOOK-003` on 2026-04-07.
-> Previous runs: `interflex-dml-refactor-20260315-212459` (2026-03-15 — utils.R refactoring), `merge-bs-dml-20260316-032034` (2026-03-16 — merge bs features into dml), `py-to-r-dml-001` (2026-03-16 — Python-to-R DML migration), `REQ-20260403-080941` (2026-04-03 — parallel RNG migration from doParallel to doFuture), `GATE-001` (2026-04-04 — generalize GATE support across estimators), `BOOK-003` (2026-04-07 — plot xlim/ylim coord_cartesian migration, defensive narrow-table helpers, ch6 fit/plot chunk split).
+> Updated by scriber for run `PAD-001` on 2026-04-07.
+> Previous runs: `interflex-dml-refactor-20260315-212459` (2026-03-15 — utils.R refactoring), `merge-bs-dml-20260316-032034` (2026-03-16 — merge bs features into dml), `py-to-r-dml-001` (2026-03-16 — Python-to-R DML migration), `REQ-20260403-080941` (2026-04-03 — parallel RNG migration from doParallel to doFuture), `GATE-001` (2026-04-04 — generalize GATE support across estimators), `BOOK-003` (2026-04-07 — plot xlim/ylim coord_cartesian migration, defensive narrow-table helpers, ch6 fit/plot chunk split), `PAD-001` (2026-04-07 — visible xlim padding for continuous-treatment plots via two-pass grid restriction + plot-time row filter).
+
+## Padded-xlim invariant (PAD-001)
+
+For continuous-treatment plots, whenever the user supplies an explicit
+`xlim = c(lo, hi)`, the visible curve (mean line, pointwise CI ribbon,
+uniform CI bands) and the moderator distribution overlay (density ribbon
+or histogram bars) end exactly at `lo`/`hi`, and `coord_cartesian(xlim =
+.pad_xlim(xlim, mult = 0.04))` produces ~4% whitespace between those
+endpoints and the panel edges. Two independent guarantees enforce this:
+
+- **PASS 1 — fit-time grid restriction.** When `xlim` is passed to
+  `interflex(..., xlim = c(lo, hi))` and `treat.type == "continuous"`, the
+  prediction grid is built as `seq(lo, hi, length.out = neval)` at every
+  continuous-estimator construction site: `R/linear.R`, `R/kernel.R`,
+  `R/binning.R`, `R/estimate_cme_plr.R` (lasso PLR path),
+  `R/DML.R::.compute_cate_blp` (DML CATE path). A function-local
+  `user_xlim_explicit` flag (default `FALSE`) is plumbed as a named
+  argument from `interflex.R` through each dispatch — the gate NEVER
+  reads from `getOption(...)` inside helper files. Degenerate `xlim`
+  (non-finite, `lo >= hi`) falls back to `NULL` with a warning at the
+  `interflex.R` validation block. AIPW/IRM is binary-discrete only and
+  out of scope; gate plots (`.compute_gate_blp`) and `R/gam.R` (which
+  delegates to `mgcv::vis.gam` with its own internal grid) are untouched.
+
+- **PASS 2 — plot-time row filter.** When the user passes `xlim` to
+  `plot.interflex(out, xlim = c(lo, hi))` on an `out` object that was
+  fit WITHOUT `xlim`, the stored prediction tables still span the full
+  data range. `plot.interflex` therefore builds a local filtered shadow
+  `.out_filt` immediately after the `.user_xlim_in` snapshot at
+  `R/plot.R:198`. The gate `.pad_xlim_gate` fires only when
+  `treat.type == "continuous"` AND `.user_xlim_in` is finite, ordered
+  length-2. When it fires, `.filter_xlim_rows` drops rows where
+  `X < lo - eps | X > hi + eps` (with `eps = 1e-9 * max(1, |hi - lo|)`
+  and an empty-keep guard) from every continuous `est.*` field
+  (`est.lin`, `est.bin`, `est.kernel`, `est.dml`, `est.lasso`,
+  `est.grf`). Downstream continuous branches rebind `est.* <- .out_filt$est.*`
+  — the filter therefore covers the mean line, pointwise CI ribbon,
+  AND uniform CI bands in a single pass (all three read from the same
+  `tempest` data frame). `out` itself is NEVER mutated; `.out_filt`
+  is a fresh local.
+
+- **PASS 2b — density/histogram filter.** The Xdistr overlay bars and
+  density ribbons extend into the padded whitespace if not filtered.
+  Two additional helpers `.filter_xlim_density(dens, lo, hi)` and
+  `.filter_xlim_histlike(h, lo, hi)` (also in `R/plot.R`) extend the
+  `.out_filt` shadow to cover `out$de` (density: `$x`, `$y`) and
+  `out$hist.out` (histogram: `$mids`, `$counts`, `$density`).
+  The continuous branches in the `Xdistr == "density"` and
+  `Xdistr %in% c("histogram","hist")` blocks of `plot.R` rebind
+  `de <- .out_filt$de` and `hist.out <- .out_filt$hist.out` as the
+  first statement inside their `if (treat.type == "continuous")`
+  sub-block. Histogram bin-width `dist` has a fallback to the
+  pre-filter spacing when the filtered hist has <2 mids. Discrete
+  Xdistr fields (`out$de.tr`, `out$count.tr`) are intentionally NOT
+  filtered.
+
+- **Idempotence.** PASS 1 and PASS 2/2b compose cleanly. When `xlim`
+  is supplied to BOTH `interflex()` and `plot()`, PASS 1 has already
+  built the grid on `[lo, hi]`, so PASS 2's row filter is a no-op
+  on a table whose rows are already inside the window. When `xlim`
+  is supplied at plot time only, PASS 1 is silent and PASS 2 does
+  the work. When `xlim` is absent at both layers, neither gate
+  fires and the behavior is bit-identical to pre-PAD-001.
+
+- **Forbidden paths (preserved).** `.pad_xlim(mult = 0.04)` is
+  unchanged. `R/plot_pool.R`'s `coord_cartesian(.pad_xlim(...))`
+  call sites are unchanged. No `scale_x_continuous(limits = ...)` or
+  `oob = censor` is used anywhere — the 4% whitespace is still
+  delivered by `coord_cartesian`, not by scale clipping. Discrete
+  branches, gate plots, auto-trim, and `R/gam.R` are untouched.
+
+- **Encoding invariant.** All R source files under `R/` MUST remain
+  ASCII-safe unless `DESCRIPTION` declares `Encoding: UTF-8`.
+  `pkgload::source_one()` (used by `devtools::load_all` and therefore
+  by `devtools::test`) calls `readLines()` without an explicit
+  encoding; non-ASCII bytes in the native locale cause
+  "unexpected end of input" parse errors even though plain
+  `parse()` and `R CMD INSTALL` succeed. See PAD-001 process record.
+
 
 ## Overview
 

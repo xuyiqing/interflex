@@ -1,4 +1,6 @@
 
+# PAD-001: AIPW (IRM) is binary-discrete only; no continuous-treatment xlim
+# grid restriction is applied here. See comprehension.md.
 #' @title Estimate Conditional Marginal Effects (CME) using AIPW-Lasso
 #' @description This function estimates the CME using outcome, IPW, or AIPW signals.
 #' It supports basis expansion, fixed effects, and post-Lasso model refitting.

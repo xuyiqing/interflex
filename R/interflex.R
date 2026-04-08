@@ -507,6 +507,14 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 stop("\"xlim\" must be of length 2.")
             }
         }
+        ## PAD-001: enforce lo < hi and finite endpoints; fall back to NULL
+        ## (full-range grid) on degenerate input rather than erroring.
+        if (any(!is.finite(xlim)) || xlim[2] <= xlim[1]) {
+            warning("xlim must satisfy xlim[1] < xlim[2] with finite endpoints; ignoring.")
+            xlim <- NULL
+            .user_xlim_explicit <- FALSE
+            options(interflex.user_xlim_explicit = FALSE)
+        }
     }
 
     if (!is.null(ylim)) {
@@ -1079,6 +1087,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1143,6 +1152,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1204,6 +1214,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1382,6 +1393,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             ylab = ylab,
             xlim = xlim,
             ylim = ylim,
+            user_xlim_explicit = .user_xlim_explicit,
             theme.bw = theme.bw,
             show.grid = show.grid,
             cex.main = cex.main,
@@ -1504,6 +1516,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 ylab = ylab,
                 xlim = xlim,
                 ylim = ylim,
+                user_xlim_explicit = .user_xlim_explicit,
                 theme.bw = theme.bw,
                 show.grid = show.grid,
                 cex.main = cex.main,
@@ -1520,7 +1533,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 scale = scale,
                 height = height,
                 width = width
-            )            
+            )
         }
 
     }

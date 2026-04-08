@@ -66,13 +66,13 @@ test_that("default plot has no user-imposed coord_cartesian xlim", {
     }
 })
 
-test_that("user-supplied xlim is padded by ~2% via .pad_xlim", {
+test_that("user-supplied xlim is padded by ~4% via .pad_xlim", {
     s1 <- load_toy("s1")
     user_xlim <- c(-2, 2)
     span <- user_xlim[2] - user_xlim[1]            # 4
-    expected_pad <- 0.02 * span                    # 0.08
-    expected_lo <- user_xlim[1] - expected_pad     # -2.08
-    expected_hi <- user_xlim[2] + expected_pad     #  2.08
+    expected_pad <- 0.04 * span                    # 0.16
+    expected_lo <- user_xlim[1] - expected_pad     # -2.16
+    expected_hi <- user_xlim[2] + expected_pad     #  2.16
 
     out <- interflex(estimator = "linear", data = s1,
                      Y = "Y", D = "D", X = "X", na.rm = TRUE,

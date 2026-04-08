@@ -358,7 +358,8 @@
 # --------------------------------------------------------------------------
 # Helper: Compute CATE via BLP of pseudo-outcomes onto B-spline basis
 # --------------------------------------------------------------------------
-.compute_cate_blp <- function(dml_model, data_X, X_name, n_grid = 50L) {
+.compute_cate_blp <- function(dml_model, data_X, X_name, n_grid = 50L,
+                              xlim = NULL, user_xlim_explicit = FALSE) {
     n <- length(data_X)
 
     # 1. Extract pseudo-outcomes (influence function values)
@@ -370,7 +371,14 @@
     B_train <- cbind(1, B_spline)
 
     # 3. Evaluation grid
-    x_grid <- seq(min(data_X), max(data_X), length.out = n_grid)
+    ## PAD-001: gated grid restriction. Continuous-treatment DML CATE only;
+    ## .compute_gate_blp is intentionally NOT modified (gate plots out of scope).
+    if (isTRUE(user_xlim_explicit) && !is.null(xlim) && length(xlim) == 2L &&
+        all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+        x_grid <- seq(xlim[1], xlim[2], length.out = n_grid)
+    } else {
+        x_grid <- seq(min(data_X), max(data_X), length.out = n_grid)
+    }
     B_grid <- cbind(1, predict(B_spline, newx = x_grid))
 
     # 4. OLS projection: beta_hat = (B'B)^{-1} B' psi
@@ -548,7 +556,9 @@
 .run_dml_estimation <- function(data, Y, D, X, Z,
                                 model.y, param.y, param.grid.y, scoring.y,
                                 model.t, param.t, param.grid.t, scoring.t,
-                                CV, n.folds, cf.n.folds, cf.n.rep, gate) {
+                                CV, n.folds, cf.n.folds, cf.n.rep, gate,
+                                xlim = NULL,
+                                user_xlim_explicit = FALSE) {
 
     # 1. Detect outcome / treatment type
     y_vals <- sort(unique(data[[Y]]))
@@ -704,7 +714,9 @@
 
     # 10. Compute CATE (always)
     #     Use ORIGINAL (unscaled) X for the BLP grid, since the plot is in original units
-    cate_df <- .compute_cate_blp(dml_model, data[[X]], X)
+    cate_df <- .compute_cate_blp(dml_model, data[[X]], X,
+                                 xlim = xlim,
+                                 user_xlim_explicit = user_xlim_explicit)
 
     #     If Y was scaled, rescale psi-derived quantities back to original units
     if (is_scale_sensitive && !is.null(scale_info[[Y]])) {
@@ -772,6 +784,7 @@ interflex.dml <- function(data,
                           ylab = NULL,
                           xlim = NULL,
                           ylim = NULL,
+                          user_xlim_explicit = FALSE,
                           theme.bw = TRUE,
                           show.grid = TRUE,
                           cex.main = NULL,
@@ -854,7 +867,9 @@ interflex.dml <- function(data,
             data, Y, D, X, Z,
             model.y, param.y, param.grid.y, scoring.y,
             model.t, param.t, param.grid.t, scoring.t,
-            CV, n.folds, cf.n.folds, cf.n.rep, gate
+            CV, n.folds, cf.n.folds, cf.n.rep, gate,
+            xlim = xlim,
+            user_xlim_explicit = user_xlim_explicit
         )
 
         for (k in seq_along(D.sample)) {

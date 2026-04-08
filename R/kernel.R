@@ -39,6 +39,7 @@ interflex.kernel <- function(data,
                              ylab = NULL,
                              xlim = NULL,
                              ylim = NULL,
+                             user_xlim_explicit = FALSE,
                              theme.bw = TRUE,
                              show.grid = TRUE,
                              cex.main = NULL,
@@ -98,7 +99,14 @@ interflex.kernel <- function(data,
     #X.eval <- sort(c(X.eval, X.eval0))
     #neval <- length(X.eval)
     if(is.null(X.eval)){
-       X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval) 
+       ## PAD-001: gated grid restriction to user-supplied xlim, see linear.R.
+       if (isTRUE(user_xlim_explicit) && treat.type == "continuous" &&
+           !is.null(xlim) && length(xlim) == 2L &&
+           all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+           X.eval <- seq(xlim[1], xlim[2], length.out = neval)
+       } else {
+           X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
+       }
     }
     else{
         neval <- length(X.eval)

@@ -39,6 +39,7 @@ interflex.linear <- function(data,
                              ylab = NULL,
                              xlim = NULL,
                              ylim = NULL,
+                             user_xlim_explicit = FALSE,
                              theme.bw = TRUE,
                              show.grid = TRUE,
                              cex.main = NULL,
@@ -101,7 +102,17 @@ interflex.linear <- function(data,
     #X.eval <- sort(c(X.eval, X.eval0))
     #neval <- length(X.eval)
     if(is.null(X.eval)){
-       X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval) 
+       ## PAD-001: when user explicitly supplied xlim on a continuous-treatment
+       ## plot, restrict the prediction grid to [xlim[1], xlim[2]] so that the
+       ## visible curve ends inside the panel and .pad_xlim's 4% breathing room
+       ## remains visible. Falls back to full data range otherwise.
+       if (isTRUE(user_xlim_explicit) && treat.type == "continuous" &&
+           !is.null(xlim) && length(xlim) == 2L &&
+           all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+           X.eval <- seq(xlim[1], xlim[2], length.out = neval)
+       } else {
+           X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
+       }
     }
     else{
         neval <- length(X.eval)

@@ -1,7 +1,7 @@
 # Internal: add a small symmetric pad to a user-supplied xlim so curves do not
 # clip exactly at the panel edge. Returns `xlim` unchanged when NULL or when
 # the range is degenerate (non-finite or zero-width).
-.pad_xlim <- function(xlim, mult = 0.02) {
+.pad_xlim <- function(xlim, mult = 0.04) {
     if (is.null(xlim)) return(NULL)
     if (length(xlim) != 2L) return(xlim)
     if (any(!is.finite(xlim))) return(xlim)
@@ -195,6 +195,97 @@ plot.interflex <- function(x,
             .user_ylim_in <- prior_ylim
         }
     }
+
+    ## --- PAD-001 PASS 2: plot-time row filter for Path 2 ---
+    ## When the user supplies xlim at plot time on a fit built without xlim,
+    ## the stored est.<estimator> tables span the full data range. We drop
+    ## rows whose moderator value lies outside [lo, hi] BEFORE the rest of
+    ## plot.interflex consumes them, so geom_line / geom_ribbon /
+    ## geom_path / uniform-CI layers all see the restricted window without
+    ## any post-build layer manipulation. We never re-fit; we never modify
+    ## `out` in place. PASS 1 (fit-time grid restriction) is idempotent
+    ## with PASS 2 -- when both fired the filter is a no-op.
+    .filter_xlim_rows <- function(tbl, lo, hi) {
+        if (is.null(tbl)) return(tbl)
+        if (is.null(dim(tbl))) return(tbl)
+        if (!"X" %in% colnames(tbl)) return(tbl)
+        eps <- 1e-9 * max(1, abs(hi - lo))
+        keep <- which(tbl[, "X"] >= lo - eps & tbl[, "X"] <= hi + eps)
+        if (length(keep) == 0L) return(tbl)        # never empty out the table
+        tbl[keep, , drop = FALSE]
+    }
+    .filter_xlim_field <- function(field, lo, hi) {
+        if (is.null(field)) return(field)
+        if (is.list(field) && is.null(dim(field))) {
+            return(lapply(field, .filter_xlim_rows, lo = lo, hi = hi))
+        }
+        .filter_xlim_rows(field, lo, hi)
+    }
+    ## PAD-001 PASS 2b: filter density objects (with $x and $y vectors,
+    ## as produced by stats::density) so continuous density ribbons do
+    ## not extend past the user xlim window.
+    .filter_xlim_density <- function(dens, lo, hi) {
+        if (is.null(dens)) return(dens)
+        if (!is.list(dens)) return(dens)
+        if (is.null(dens$x) || is.null(dens$y)) return(dens)
+        eps <- 1e-9 * max(1, abs(hi - lo))
+        keep <- which(dens$x >= lo - eps & dens$x <= hi + eps)
+        if (length(keep) == 0L) return(dens)  # empty guard
+        dens$x <- dens$x[keep]
+        dens$y <- dens$y[keep]
+        dens
+    }
+    ## PAD-001 PASS 2b: filter histogram object (hist.out has $mids,
+    ## $counts, possibly $breaks/$density). count.tr (per-treatment
+    ## count vectors) is index-aligned with mids and must be filtered
+    ## with the same mask -- but we only filter it here; the continuous
+    ## branch does not use count.tr (discrete branch does), so touching
+    ## count.tr is a safety measure consistent with the mask.
+    .filter_xlim_histlike <- function(h, lo, hi) {
+        if (is.null(h)) return(h)
+        if (!is.list(h) || is.null(h$mids)) return(h)
+        eps <- 1e-9 * max(1, abs(hi - lo))
+        keep <- which(h$mids >= lo - eps & h$mids <= hi + eps)
+        if (length(keep) == 0L) return(h)  # empty guard
+        if (!is.null(h$counts) && length(h$counts) == length(h$mids)) {
+            h$counts <- h$counts[keep]
+        }
+        if (!is.null(h$density) && length(h$density) == length(h$mids)) {
+            h$density <- h$density[keep]
+        }
+        h$mids <- h$mids[keep]
+        h
+    }
+    .pad_treat_type <- out$treat.info[["treat.type"]]
+    .pad_xlim_gate <- (!is.null(.pad_treat_type)
+        && .pad_treat_type == "continuous"
+        && !is.null(.user_xlim_in)
+        && is.numeric(.user_xlim_in)
+        && length(.user_xlim_in) == 2L
+        && all(is.finite(.user_xlim_in))
+        && .user_xlim_in[1] < .user_xlim_in[2])
+    .out_filt <- out
+    if (isTRUE(.pad_xlim_gate)) {
+        .lo <- .user_xlim_in[1]
+        .hi <- .user_xlim_in[2]
+        for (.fld in c("est.lin", "est.bin", "est.kernel", "est.dml",
+                       "est.lasso", "est.grf")) {
+            if (.fld %in% names(.out_filt)) {
+                .out_filt[[.fld]] <- .filter_xlim_field(.out_filt[[.fld]], .lo, .hi)
+            }
+        }
+        ## PAD-001 PASS 2b: also filter bar/density/histogram source
+        ## fields so continuous Xdistr layers (geom_ribbon on de, geom_rect
+        ## on hist.out) are bounded to the user xlim window. Discrete
+        ## branches use out$de.tr / out$count.tr directly and are untouched.
+        if ("de" %in% names(.out_filt)) {
+            .out_filt$de <- .filter_xlim_density(.out_filt$de, .lo, .hi)
+        }
+        if ("hist.out" %in% names(.out_filt)) {
+            .out_filt$hist.out <- .filter_xlim_histlike(.out_filt$hist.out, .lo, .hi)
+        }
+    }
+    ## --- end PAD-001 PASS 2 hoisted filter ---
 
     ## Auto by.group when gate estimates are available and non-empty
     .has_gate <- function(obj, field) {
@@ -628,8 +719,8 @@ plot.interflex <- function(x,
         }
 
         if (treat.type == "continuous") {
-            est.lin <- out$est.lin
-            est.bin <- out$est.bin
+            est.lin <- .out_filt$est.lin   # PAD-001 PASS 2: filtered Path-2 view
+            est.bin <- .out_filt$est.bin   # PAD-001 PASS 2: filtered Path-2 view
             est.bin2 <- list() ## non missing part
             est.bin3 <- list() ## missing part
             yrange <- c(0)
@@ -678,7 +769,7 @@ plot.interflex <- function(x,
             X.lvls <- est.dml[[other.treat[1]]][, 1]
         }
         if (treat.type == "continuous") {
-            est.dml <- out$est.dml
+            est.dml <- .out_filt$est.dml   # PAD-001 PASS 2: filtered Path-2 view
             if (by.group) {
                 est.dml <- if (!is.null(out$g.est)) out$g.est else out$g.est.dml
             }
@@ -715,7 +806,7 @@ plot.interflex <- function(x,
         }
 
         if (treat.type == "continuous") {
-            est.lin <- out$est.lin
+            est.lin <- .out_filt$est.lin   # PAD-001 PASS 2: filtered Path-2 view
             yrange <- c(0)
             for (label in label.name) {
                 if (isTRUE(CI)) {
@@ -736,7 +827,7 @@ plot.interflex <- function(x,
     }
 
     if (estimator == "kernel") {
-        est.kernel <- out$est.kernel
+        est.kernel <- .out_filt$est.kernel   # PAD-001 PASS 2: filtered Path-2 view (no-op for discrete)
         yrange <- c(0)
         if (isFALSE(CI)) {
             if (treat.type == "discrete") {
@@ -817,7 +908,7 @@ plot.interflex <- function(x,
             X.lvls <- est.lasso[[other.treat[1]]][, 1]
         }
         if (treat.type == "continuous") {
-            est.lasso <- out$est.lasso
+            est.lasso <- .out_filt$est.lasso   # PAD-001 PASS 2: filtered Path-2 view
             if (by.group) {
                 est.lasso <- out$est.lasso
             }
@@ -911,6 +1002,7 @@ plot.interflex <- function(x,
         }
 
         if (treat.type == "continuous") {
+            de <- .out_filt$de   # PAD-001 PASS 2b: filtered density view
             deX.ymin <- min(yrange) - maxdiff / hist_frac
             deX <- data.frame(
                 x = de$x,
@@ -970,8 +1062,16 @@ plot.interflex <- function(x,
         }
 
         if (treat.type == "continuous") {
+            .hist.out.full <- hist.out  # PAD-001 PASS 2b: keep full ref for bin width
+            hist.out <- .out_filt$hist.out   # PAD-001 PASS 2b: filtered hist view
             n.hist <- length(hist.out$mids)
-            dist <- hist.out$mids[2] - hist.out$mids[1]
+            dist <- if (length(hist.out$mids) >= 2L) {
+                hist.out$mids[2] - hist.out$mids[1]
+            } else if (length(.hist.out.full$mids) >= 2L) {
+                .hist.out.full$mids[2] - .hist.out.full$mids[1]
+            } else {
+                1
+            }
             hist.max <- max(hist.out$counts)
             histX <- data.frame(
                 ymin = rep(min(yrange) - maxdiff / hist_frac, n.hist),

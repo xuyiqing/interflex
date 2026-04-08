@@ -53,6 +53,8 @@ estimateCME_PLR <- function(
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
     x.eval               = NULL,    # grid of X values for final CME curve
+    xlim                 = NULL,    # PAD-001: optional user-supplied display window
+    user_xlim_explicit   = FALSE,   # PAD-001: TRUE iff user explicitly passed xlim
     neval = 100,
     verbose              = TRUE
 ) {
@@ -96,7 +98,14 @@ estimateCME_PLR <- function(
 
   n <- nrow(data)
   if (is.null(x.eval)) {
-    x.eval <- seq(min(Xvec), max(Xvec), length.out = neval)
+    ## PAD-001: gated grid restriction to user-supplied xlim. Continuous-only;
+    ## PLR is the continuous-treatment path so the treat.type check is implicit.
+    if (isTRUE(user_xlim_explicit) && !is.null(xlim) && length(xlim) == 2L &&
+        all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+      x.eval <- seq(xlim[1], xlim[2], length.out = neval)
+    } else {
+      x.eval <- seq(min(Xvec), max(Xvec), length.out = neval)
+    }
   }
 
   ##############################################################################
@@ -546,6 +555,8 @@ bootstrapCME_PLR <- function(
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
     x.eval               = NULL,     # grid of X values for final CME curve
+    xlim                 = NULL,     # PAD-001: optional user display window
+    user_xlim_explicit   = FALSE,    # PAD-001: TRUE iff user explicitly passed xlim
     neval = 100,
     CI = TRUE,
     cores = 8,
@@ -578,7 +589,9 @@ bootstrapCME_PLR <- function(
     reduce.dimension     = reduce.dimension,
     bw                   = bw,
     x.eval               = x.eval,
-    neval = neval, 
+    xlim                 = xlim,
+    user_xlim_explicit   = user_xlim_explicit,
+    neval = neval,
     verbose              = verbose
   )
   if (verbose) cat("  -> Full-sample fit complete.\n")
