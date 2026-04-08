@@ -91,7 +91,9 @@ aipw.out.aipw <- interflex(estimator = "lasso", data = d,
 ```
 
 ```{r ch4-binary-signal-plot, cache=FALSE, fig.width = 10, fig.height = 4}
-ggarrange(aipw.out.outcome$figure, aipw.out.ipw$figure, aipw.out.aipw$figure,
+ggarrange(plot(aipw.out.outcome, ylim = c(-0.3, 0.6)),
+          plot(aipw.out.ipw, ylim = c(-0.3, 0.6)),
+          plot(aipw.out.aipw, ylim = c(-0.3, 0.6)),
           ncol = 3)
 ```
 
@@ -120,7 +122,8 @@ aipw.out.att <- interflex(estimator = "lasso", data = d,
 ```
 
 ```{r ch4-binary-ate-att-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
-ggarrange(aipw.out.ate$figure, aipw.out.att$figure,ncol = 2)
+ggarrange(plot(aipw.out.ate, ylim = c(-0.4, 0.6)),
+          plot(aipw.out.att, ylim = c(-0.4, 0.6)), ncol = 2)
 ```
 
 ##### Smoothing options
@@ -139,13 +142,14 @@ aipw.out.bs.smooth <- interflex(estimator = "lasso", data = d,
 aipw.out.bs.kernel <- interflex(estimator = "lasso", data = d,
                   Y = Y,D = D, X = X, Z = Z,
                   Ylabel = Ylabel, Dlabel = Dlabel,
-                  Xlabel = Xlabel,ylim = c(-0.4, 0.6),
+                  Xlabel = Xlabel,
                   reduce.dimension = "kernel",
                   main = "Smoothing: kernel")
 ```
 
 ```{r ch4-binary-smoothing-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
-ggarrange(aipw.out.bs.smooth$figure,aipw.out.bs.kernel$figure,ncol = 2)
+ggarrange(plot(aipw.out.bs.smooth, ylim = c(-0.8, 0.8)),
+          plot(aipw.out.bs.kernel, ylim = c(-0.8, 0.8)), ncol = 2)
 ```
 
 ##### Basis expansions options
@@ -155,14 +159,12 @@ In fitting the outcome and propensity score models, we introduce basis expansion
 ```{r ch4-binary-basis-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 aipw.out.poly.basis <- interflex(estimator = "lasso", data = d,
                         Y = Y,D = D, X = X, Z = Z,
-                        Ylabel = Ylabel, Dlabel = Dlabel,
-                        Xlabel = Xlabel,
-                        basis.type = 'polynomial', ylim = c(-0.4, 0.6),
-                        main = "Smoothing: b-spline")
+                        Ylabel = Ylabel, Dlabel = Dlabel, Xlabel = Xlabel, 
+                        basis.type = 'polynomial')
 ```
 
 ```{r ch4-binary-basis-plot, cache=FALSE}
-aipw.out.poly.basis$figure
+plot(aipw.out.poly.basis,  ylim = c(-0.4, 0.6), main = "Smoothing: polynomial")
 ```
 
 ------------------------------------------------------------------------
