@@ -499,7 +499,7 @@ predict.interflex <- function(
 
                     p <- p + geom_rect(
                         data = hist.treat, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = count1),
-                        fill = platte[k], colour = "gray50", alpha = 0.3, size = 0.3
+                        fill = platte[k], colour = "gray50", alpha = 0.3, linewidth = 0.3
                     )
                 }
             }
@@ -539,7 +539,7 @@ predict.interflex <- function(
 
                     p <- p + geom_rect(
                         data = histX, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                        colour = "gray50", fill = "gray50", alpha = 0.3, size = 0.5
+                        colour = "gray50", fill = "gray50", alpha = 0.3, linewidth = 0.5
                     )
                 }
             }
@@ -592,7 +592,7 @@ predict.interflex <- function(
         if (isTRUE(CI)) {
             p <- p + geom_ribbon(
                 data = tograph, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment),
-                alpha = 0.2, show.legend = T, size = 0
+                alpha = 0.2, show.legend = T, linewidth = 0
             )
             if("CI_uniform_lower" %in% colnames(tograph)){
                 p <- p + geom_ribbon(
@@ -649,7 +649,7 @@ predict.interflex <- function(
 
                 p <- p + geom_ribbon(
                     data = dex.tr.plot, aes(x = x, ymax = end_level, ymin = start_level), color = platte[k],
-                    alpha = 0.0, fill = platte[k], size = 0.3
+                    alpha = 0.0, fill = platte[k], linewidth = 0.3
                 )
 
                 k <- k + 1
@@ -688,7 +688,7 @@ predict.interflex <- function(
 
                 p <- p + geom_rect(
                     data = hist.treat, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax), fill = platte[k], color = "gray50",
-                    alpha = 0.3, size = 0.2
+                    alpha = 0.3, linewidth = 0.2
                 )
                 k <- k + 1
             }

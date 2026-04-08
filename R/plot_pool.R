@@ -816,7 +816,7 @@ interflex.plot.pool <- function(
 
                         p1 <- p1 + annotate("point", x = target.value, y = est.mark, size = 1, colour = platte[k])
                         if (isTRUE(CI)) {
-                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], size = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
+                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], linewidth = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
                         }
                     }
                     k <- k + 1
@@ -910,7 +910,7 @@ interflex.plot.pool <- function(
 
                         p1 <- p1 + annotate("point", x = target.value, y = est.mark, size = 1, colour = platte[k])
                         if (isTRUE(CI)) {
-                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], size = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
+                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], linewidth = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
                         }
                     }
                     k <- k + 1
@@ -1072,7 +1072,7 @@ interflex.plot.pool <- function(
             ## color
             p1 <- p1 + geom_ribbon(
                 data = deX.co, aes(x = x, ymax = y, ymin = deX.ymin), color = base.color,
-                fill = base.color, alpha = 0.0, size = 0.3
+                fill = base.color, alpha = 0.0, linewidth = 0.3
             )
             k <- 1
             char0 <- other.treat[1]
@@ -1086,7 +1086,7 @@ interflex.plot.pool <- function(
 
                 p1 <- p1 + geom_ribbon(
                     data = dex.tr.plot, aes(x = x, ymax = end_level, ymin = start_level), color = platte[k],
-                    alpha = 0.0, fill = platte[k], size = 0.3
+                    alpha = 0.0, fill = platte[k], linewidth = 0.3
                 )
 
                 k <- k + 1
@@ -1126,7 +1126,7 @@ interflex.plot.pool <- function(
 
             p1 <- p1 + geom_rect(
                 data = hist.col, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = count1), fill = base.color, color = "gray50",
-                alpha = 0.3, size = 0.5
+                alpha = 0.3, linewidth = 0.5
             )
 
             k <- 1
@@ -1143,7 +1143,7 @@ interflex.plot.pool <- function(
 
                 p1 <- p1 + geom_rect(
                     data = hist.treat, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax), fill = platte[k], color = "gray50",
-                    alpha = 0.5, size = 0.5
+                    alpha = 0.5, linewidth = 0.5
                 )
                 k <- k + 1
             }

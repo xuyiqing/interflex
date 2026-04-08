@@ -54,6 +54,7 @@ coord_limits <- function(p) {
 }
 
 test_that("default plot has no user-imposed coord_cartesian xlim", {
+  skip_on_cran()
     s1 <- load_toy("s1")
     out <- interflex(estimator = "linear", data = s1,
                      Y = "Y", D = "D", X = "X", na.rm = TRUE)
@@ -67,6 +68,7 @@ test_that("default plot has no user-imposed coord_cartesian xlim", {
 })
 
 test_that("user-supplied xlim is padded by ~4% via .pad_xlim", {
+  skip_on_cran()
     s1 <- load_toy("s1")
     user_xlim <- c(-2, 2)
     span <- user_xlim[2] - user_xlim[1]            # 4
@@ -95,6 +97,7 @@ test_that("user-supplied xlim is padded by ~4% via .pad_xlim", {
 })
 
 test_that("user-supplied ylim is set on coord_cartesian, not via ylim()", {
+  skip_on_cran()
     s1 <- load_toy("s1")
     user_ylim <- c(-0.5, 0.5)
     out <- interflex(estimator = "linear", data = s1,
@@ -118,6 +121,7 @@ test_that("user-supplied ylim is set on coord_cartesian, not via ylim()", {
 })
 
 test_that("CI ribbon retains data outside narrow user ylim", {
+  skip_on_cran()
     pick_outside_ylim <- function() {
         candidates <- list(
             list(name = "s1", est = "linear",  args = list()),

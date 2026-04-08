@@ -1,9 +1,9 @@
 # Architecture — interflex
 
-> Updated by scriber for run `PAD-001` on 2026-04-07.
-> Previous runs: `interflex-dml-refactor-20260315-212459` (2026-03-15 — utils.R refactoring), `merge-bs-dml-20260316-032034` (2026-03-16 — merge bs features into dml), `py-to-r-dml-001` (2026-03-16 — Python-to-R DML migration), `REQ-20260403-080941` (2026-04-03 — parallel RNG migration from doParallel to doFuture), `GATE-001` (2026-04-04 — generalize GATE support across estimators), `BOOK-003` (2026-04-07 — plot xlim/ylim coord_cartesian migration, defensive narrow-table helpers, ch6 fit/plot chunk split), `PAD-001` (2026-04-07 — visible xlim padding for continuous-treatment plots via two-pass grid restriction + plot-time row filter).
+> Updated by scriber for run `PAD-002-discrete` on 2026-04-07.
+> Previous runs: `interflex-dml-refactor-20260315-212459` (2026-03-15 — utils.R refactoring), `merge-bs-dml-20260316-032034` (2026-03-16 — merge bs features into dml), `py-to-r-dml-001` (2026-03-16 — Python-to-R DML migration), `REQ-20260403-080941` (2026-04-03 — parallel RNG migration from doParallel to doFuture), `GATE-001` (2026-04-04 — generalize GATE support across estimators), `BOOK-003` (2026-04-07 — plot xlim/ylim coord_cartesian migration, defensive narrow-table helpers, ch6 fit/plot chunk split), `PAD-001` (2026-04-07 — visible xlim padding for continuous-treatment plots via two-pass grid restriction + plot-time row filter), `PAD-002-discrete` (2026-04-07 — extended PAD-001 PASS 2 row filter to binary and multi-arm discrete treatments; tightened panel window so scale limits match `coord_cartesian` exactly).
 
-## Padded-xlim invariant (PAD-001)
+## Padded-xlim invariant (PAD-001 / PAD-002)
 
 For continuous-treatment plots, whenever the user supplies an explicit
 `xlim = c(lo, hi)`, the visible curve (mean line, pointwise CI ribbon,
@@ -70,8 +70,78 @@ endpoints and the panel edges. Two independent guarantees enforce this:
   unchanged. `R/plot_pool.R`'s `coord_cartesian(.pad_xlim(...))`
   call sites are unchanged. No `scale_x_continuous(limits = ...)` or
   `oob = censor` is used anywhere — the 4% whitespace is still
-  delivered by `coord_cartesian`, not by scale clipping. Discrete
-  branches, gate plots, auto-trim, and `R/gam.R` are untouched.
+  delivered by `coord_cartesian`, not by scale clipping. `R/gam.R`
+  (delegated to `mgcv::vis.gam`) is untouched.
+
+- **PAD-002 — discrete treatment coverage.** PAD-001 originally
+  hard-gated PASS 2 on `treat.type == "continuous"`, so binary and
+  multi-arm discrete fits bypassed the row filter entirely. PAD-002
+  removes the `treat.type == "continuous"` clause from
+  `.pad_xlim_gate` in `R/plot.R` so the gate fires for any fit type
+  when `.user_xlim_in` is a finite ordered length-2 numeric. Two new
+  helpers extend the `.out_filt` shadow to cover discrete-only
+  fields: `.filter_xlim_count_tr(count_tr, mask, orig_len)` masks
+  each per-treatment count vector in `out$count.tr` using the
+  **unfiltered** `out$hist.out$mids` as the indexing basis (the
+  mids snapshot MUST be captured before `.filter_xlim_histlike`
+  mutates `.out_filt$hist.out$mids`), and `.filter_xlim_de_tr` is a
+  thin wrapper applying `.filter_xlim_density` across the named list
+  of per-arm density objects in `out$de.tr`. `g.est` and `g.est.dml`
+  (GATE discrete outputs) are filtered via the existing
+  `.filter_xlim_field` helper. Every new branch is guarded by a
+  `%in% names(.out_filt)` presence check and degrades to a no-op
+  when the field is absent or has unexpected shape.
+
+- **PAD-002 — rendering locals rebound under the gate.** The local
+  bindings `de`, `de.tr`, `hist.out`, `count.tr` (at the top of the
+  per-treatment rendering block in `plot.interflex`) are now
+  assigned conditionally: when `.pad_xlim_gate` is TRUE, they read
+  from `.out_filt$*`; when FALSE, they fall back to `out$*`
+  byte-identically. The same gate-conditional rebinding is applied
+  to every discrete `est.*` sub-branch — binning (`est.lin`,
+  `est.bin`), dml (`est.dml`), linear (`est.lin`), grf (`est.grf`),
+  lasso (`est.lasso`) — mirroring the pattern already present in
+  the continuous sub-branches. Kernel's discrete sub-branch already
+  reads `.out_filt$est.kernel` unconditionally and is untouched.
+
+- **PAD-002 — rect boundary clamp.** The discrete histogram overlay
+  builds rect data frames from `hist.out$mids ± dist/2`, so rect
+  rows for boundary mids can extend up to half a bin width past the
+  user `xlim`. Under the gate, `xmin <- pmax(xmin, .user_xlim_in[1])`
+  and `xmax <- pmin(xmax, .user_xlim_in[2])` are applied at three
+  sites in `plot.R`: the discrete control-arm `hist.col` overlay,
+  the discrete per-treated-arm `hist.treat` overlay (inside the
+  `for (char in other.treat)` loop), and the continuous `histX`
+  overlay (for symmetry — the continuous branch was already
+  filtered but boundary mids can still overhang). The clamp
+  shrinks the outermost bars rather than dropping them.
+
+- **PAD-002 — panel window matches coord limits exactly.** Even
+  after the row filter and rect clamp cover all geom data, the
+  rendered x-axis panel range still overshot `coord_cartesian`'s
+  `.pad_xlim(xlim, 0.04)` window because ggplot2's default scale
+  expansion adds another ~5% per side on top of `coord_cartesian`.
+  Under the gate, `plot.interflex` now adds
+  `ggplot2::scale_x_continuous(expand = ggplot2::expansion(0, 0))`
+  immediately before the existing `coord_cartesian(xlim =
+  final_xlim, ylim = final_ylim)` call at BOTH per-panel sites —
+  the discrete per-arm panel loop (`for (char in other.treat)`)
+  and the continuous per-label panel loop
+  (`for (label in label.name)`). The rendered panel `x.range` is
+  therefore exactly `.pad_xlim(xlim)` (verified to within `1e-6`
+  in the PAD-002 test suite: `[0.22, 1.03]` for binary `xlim =
+  c(0.25, 1)`, `[-2.16, 2.16]` for multi-arm `xlim = c(-2, 2)`).
+  When the gate is FALSE the new `scale_x_continuous` line is
+  never added, so the no-xlim path is byte-identical to the
+  pre-PAD-002 behavior.
+
+- **PAD-002 — composition with PAD-001.** PAD-002 is additive: the
+  PAD-001 continuous flow (row filter for `est.*`, density, and
+  histogram) is unchanged in both code path and numerical result.
+  The discrete extension reuses the same helpers and the same
+  gate, so continuous and discrete fits now share one unified
+  row-filter invariant. The gate remains a complete no-op when
+  `xlim` is unset at plot time.
 
 - **Encoding invariant.** All R source files under `R/` MUST remain
   ASCII-safe unless `DESCRIPTION` declares `Encoding: UTF-8`.

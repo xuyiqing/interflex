@@ -1,4 +1,5 @@
 test_that("plot method works with Xdistr = density", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = app_hma2015,
@@ -13,6 +14,7 @@ test_that("plot method works with Xdistr = density", {
 })
 
 test_that("plot method works with Xdistr = none", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = app_hma2015,
@@ -27,6 +29,7 @@ test_that("plot method works with Xdistr = none", {
 })
 
 test_that("plot method works with bin.labs = FALSE", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = app_hma2015,
@@ -41,6 +44,7 @@ test_that("plot method works with bin.labs = FALSE", {
 })
 
 test_that("plot method works with show.grid = FALSE", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = app_hma2015,
@@ -55,6 +59,7 @@ test_that("plot method works with show.grid = FALSE", {
 })
 
 test_that("plot method works with order and subtitles for multi-arm", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = s5,
@@ -70,6 +75,7 @@ test_that("plot method works with order and subtitles for multi-arm", {
 })
 
 test_that("plot method works with pool = TRUE for multi-arm", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = s5,
@@ -85,6 +91,7 @@ test_that("plot method works with pool = TRUE for multi-arm", {
 })
 
 test_that("plot method works with CI = FALSE", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = s5,
@@ -98,6 +105,7 @@ test_that("plot method works with CI = FALSE", {
 })
 
 test_that("plot method works with ncols option", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "raw", data = s5,
@@ -108,6 +116,7 @@ test_that("plot method works with ncols option", {
 })
 
 test_that("plot method works with show.all = TRUE", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = s5,

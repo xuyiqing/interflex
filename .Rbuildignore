@@ -1,7 +1,15 @@
 ^architecture\.md$
+^ARCHITECTURE\.md$
+^README\.md$
+^README\.Rmd$
 ^log$
 ^_pkgdown\.yml$
+^pkgdown$
 ^\.lintr$
 ^interflex\.Rproj$
 ^\.Rproj\.user$
 ^vignettes$
+^Rplots\.pdf$
+^\.repos$
+^interflex.*\.tar\.gz$
+^interflex\.Rcheck$

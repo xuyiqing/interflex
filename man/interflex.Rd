@@ -8,7 +8,7 @@ interflex(estimator, data, Y, D, X, treat.type = NULL,
   weights = NULL, na.rm = FALSE, Xunif = FALSE, CI = TRUE, neval = 50,
   X.eval = NULL, method = "linear", vartype = "delta",
   vcov.type = "robust", time = NULL, pairwise = TRUE, nboots = 200,
-  nsimu = 1000, parallel = FALSE, cores = 4, cl = NULL, Z.ref = NULL,
+  nsimu = 1000, parallel = TRUE, cores = NULL, cl = NULL, Z.ref = NULL,
   D.ref = NULL, nbins = 3, cutoffs = NULL, wald = TRUE, bw = NULL,
   kfold = 10, grid = 30, metric = NULL, model.y = "rf",
   param.y = NULL, param.grid.y = NULL,
@@ -18,16 +18,17 @@ interflex(estimator, data, Y, D, X, treat.type = NULL,
   grf.num.trees = 4000, signal = c("aipw"), estimand = c("ATE"),
   basis.type = c("bspline"), include.interactions = TRUE, poly.degree = 2,
   spline.df = 4, spline.degree = 2, lambda.seq = NULL,
-  reduce.dimension = c("bspline"), figure = TRUE, bin.labs = TRUE,
+  reduce.dimension = c("kernel"), figure = TRUE, bin.labs = TRUE,
   order = NULL, subtitles = NULL, show.subtitles = NULL,
   Xdistr = "histogram", main = NULL, Ylabel = NULL, Dlabel = NULL,
   Xlabel = NULL, xlab = NULL, ylab = NULL, xlim = NULL, ylim = NULL,
-  theme.bw = FALSE, show.grid = TRUE, show.uniform.CI = TRUE,
+  theme.bw = TRUE, show.grid = TRUE, show.uniform.CI = TRUE,
   cex.main = NULL, cex.sub = NULL, cex.lab = NULL, cex.axis = NULL,
   interval = NULL, file = NULL, ncols = NULL, pool = FALSE, color = NULL,
   show.all = FALSE, legend.title = NULL, diff.values = NULL,
   percentile = FALSE, gam.k = 10, angle = c(30, 100, -30, -120),
-  span = NULL, scale = 1.1, height = 7, width = 10, box.pos = "down")
+  span = NULL, scale = 1.1, height = 7, width = 10, box.pos = "down",
+  verbose = TRUE)
 }
 \arguments{
   \item{estimator}{a string that specifies the estimator. Can be one of the following: "raw", "linear", "binning", "kernel", "gam", "grf", "dml", or "lasso".}
@@ -126,6 +127,7 @@ interflex(estimator, data, Y, D, X, treat.type = NULL,
   \item{height}{plot height (in inches) when saving.}
   \item{width}{plot width (in inches) when saving.}
   \item{box.pos}{(RAW estimator) where to place the reference box in discrete-treatment raw plots: "down" (near minimum of \bold{Y}) or "up" (near maximum of \bold{Y}).}
+  \item{verbose}{a logical flag indicating whether to print informational messages and progress bars during estimation. Set to \code{FALSE} for a quieter run.}
 }
 \details{
   \bold{interflex} can implement the linear, binning and kernel estimator to estimate the marginal effects of D on Y across the supports of X in linear or generalized linear models. It also provides a few diagnostic tests for classic interaction models and convenient tools for visulization.

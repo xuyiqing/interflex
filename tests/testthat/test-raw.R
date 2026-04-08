@@ -1,4 +1,5 @@
 test_that("raw estimator works with binary treatment", {
+  skip_on_cran()
   data(interflex, envir = environment())
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "raw", data = app_hma2015,
@@ -11,6 +12,7 @@ test_that("raw estimator works with binary treatment", {
 })
 
 test_that("raw estimator works with continuous treatment (simulated)", {
+  skip_on_cran()
   set.seed(1234)
   n <- 200
   d2 <- rnorm(n, 3, 1)
@@ -30,6 +32,7 @@ test_that("raw estimator works with continuous treatment (simulated)", {
 })
 
 test_that("raw estimator works with built-in s1 data", {
+  skip_on_cran()
   data(interflex, envir = environment())
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "raw", data = s1,

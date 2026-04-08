@@ -112,6 +112,7 @@ assert_default_xlim_null <- function(g, label) {
 # --- Linear ------------------------------------------------------------------
 
 test_that("PAD-001 linear: layer x grid is restricted to user xlim", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- interflex(estimator = "linear", data = s,
                      Y = "Y", D = "D", X = "X",
@@ -123,6 +124,7 @@ test_that("PAD-001 linear: layer x grid is restricted to user xlim", {
 })
 
 test_that("PAD-001 linear: default (no xlim) leaves coord$xlim NULL", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- interflex(estimator = "linear", data = s,
                      Y = "Y", D = "D", X = "X",
@@ -134,6 +136,7 @@ test_that("PAD-001 linear: default (no xlim) leaves coord$xlim NULL", {
 # --- Kernel ------------------------------------------------------------------
 
 test_that("PAD-001 kernel: layer x grid is restricted to user xlim", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- tryCatch(
         interflex(estimator = "kernel", data = s,
@@ -148,6 +151,7 @@ test_that("PAD-001 kernel: layer x grid is restricted to user xlim", {
 })
 
 test_that("PAD-001 kernel: default (no xlim) leaves coord$xlim NULL", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- tryCatch(
         interflex(estimator = "kernel", data = s,
@@ -162,6 +166,7 @@ test_that("PAD-001 kernel: default (no xlim) leaves coord$xlim NULL", {
 # --- Binning -----------------------------------------------------------------
 
 test_that("PAD-001 binning: layer x grid is restricted to user xlim", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- tryCatch(
         interflex(estimator = "binning", data = s,
@@ -176,6 +181,7 @@ test_that("PAD-001 binning: layer x grid is restricted to user xlim", {
 })
 
 test_that("PAD-001 binning: default (no xlim) leaves coord$xlim NULL", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- tryCatch(
         interflex(estimator = "binning", data = s,
@@ -190,6 +196,7 @@ test_that("PAD-001 binning: default (no xlim) leaves coord$xlim NULL", {
 # --- Lasso (PO-lasso, continuous PLR) ----------------------------------------
 
 test_that("PAD-001 lasso: layer x grid is restricted to user xlim", {
+  skip_on_cran()
     skip_if_not_installed("glmnet")
     s <- load_toy(CONT_DS)
     out <- tryCatch(
@@ -205,6 +212,7 @@ test_that("PAD-001 lasso: layer x grid is restricted to user xlim", {
 })
 
 test_that("PAD-001 lasso: default (no xlim) leaves coord$xlim NULL", {
+  skip_on_cran()
     skip_if_not_installed("glmnet")
     s <- load_toy(CONT_DS)
     out <- tryCatch(
@@ -220,6 +228,7 @@ test_that("PAD-001 lasso: default (no xlim) leaves coord$xlim NULL", {
 # --- DML ---------------------------------------------------------------------
 
 test_that("PAD-001 DML: layer x grid is restricted to user xlim", {
+  skip_on_cran()
     skip_if_not_installed("DoubleML")
     skip_if_not_installed("mlr3")
     s <- load_toy(CONT_DS)
@@ -238,12 +247,14 @@ test_that("PAD-001 DML: layer x grid is restricted to user xlim", {
 # --- §2.6 .pad_xlim default mult is still 0.04 -------------------------------
 
 test_that(".pad_xlim default mult is 0.04 (PAD-001 invariant)", {
+  skip_on_cran()
     expect_equal(interflex:::.pad_xlim(c(0, 10)), c(-0.4, 10.4))
 })
 
 # --- §2.5 Discrete-treatment plots are unaffected (B6) -----------------------
 
 test_that("PAD-001 discrete-treatment plot with explicit xlim still pads", {
+  skip_on_cran()
     # s1: D in {0,1}, X in [-0.4, 6.2]. Pick interior xlim so the test
     # exercises an explicit user xlim on a discrete plot.
     s1 <- load_toy("s1")
@@ -314,6 +325,7 @@ assert_xlim_grid_path2 <- function(g, label, out_obj) {
 # B7 — Path 2 per-estimator -------------------------------------------------
 
 test_that("PAD-001 B7 linear Path 2: plot-time xlim restricts layer grid", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- interflex(estimator = "linear", data = s,
                      Y = "Y", D = "D", X = "X",
@@ -326,6 +338,7 @@ test_that("PAD-001 B7 linear Path 2: plot-time xlim restricts layer grid", {
 })
 
 test_that("PAD-001 B7 kernel Path 2: plot-time xlim restricts layer grid", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- tryCatch(
         interflex(estimator = "kernel", data = s,
@@ -341,6 +354,7 @@ test_that("PAD-001 B7 kernel Path 2: plot-time xlim restricts layer grid", {
 })
 
 test_that("PAD-001 B7 binning Path 2: plot-time xlim restricts layer grid", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- tryCatch(
         interflex(estimator = "binning", data = s,
@@ -356,6 +370,7 @@ test_that("PAD-001 B7 binning Path 2: plot-time xlim restricts layer grid", {
 })
 
 test_that("PAD-001 B7 lasso Path 2: plot-time xlim restricts layer grid", {
+  skip_on_cran()
     skip_if_not_installed("glmnet")
     s <- load_toy(CONT_DS)
     out <- tryCatch(
@@ -372,6 +387,7 @@ test_that("PAD-001 B7 lasso Path 2: plot-time xlim restricts layer grid", {
 })
 
 test_that("PAD-001 B7 DML Path 2: plot-time xlim restricts layer grid", {
+  skip_on_cran()
     skip_if_not_installed("DoubleML")
     skip_if_not_installed("mlr3")
     s <- load_toy(CONT_DS)
@@ -391,6 +407,7 @@ test_that("PAD-001 B7 DML Path 2: plot-time xlim restricts layer grid", {
 # B8 — Idempotence: Path1 and Path1+Path2(same) yield identical layer x ------
 
 test_that("PAD-001 B8 linear: Path 1 + Path 2 idempotence and narrowing", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out1 <- interflex(estimator = "linear", data = s,
                       Y = "Y", D = "D", X = "X",
@@ -431,6 +448,7 @@ test_that("PAD-001 B8 linear: Path 1 + Path 2 idempotence and narrowing", {
 # B9 — default plot(out) with no xlim anywhere -------------------------------
 
 test_that("PAD-001 B9 linear: default plot(out) leaves coord$xlim NULL and full range", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     out <- interflex(estimator = "linear", data = s,
                      Y = "Y", D = "D", X = "X",
@@ -457,6 +475,7 @@ test_that("PAD-001 B9 linear: default plot(out) leaves coord$xlim NULL and full 
 # B10 — Discrete unchanged under plot-time xlim ------------------------------
 
 test_that("PAD-001 B10 discrete: plot-time xlim still pads, no layer filter", {
+  skip_on_cran()
     s1 <- load_toy("s1")
     out <- interflex(estimator = "linear", data = s1,
                      Y = "Y", D = "D", X = "X", na.rm = TRUE)
@@ -472,6 +491,7 @@ test_that("PAD-001 B10 discrete: plot-time xlim still pads, no layer filter", {
 })
 
 test_that("PAD-001 narrow xlim entirely inside data: linear", {
+  skip_on_cran()
     s <- load_toy(CONT_DS)
     narrow_lo <- 1
     narrow_hi <- 2

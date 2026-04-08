@@ -230,7 +230,7 @@ ggarrange(plot(binary.cvnn.cvrf, ylim = c(-1.5, 1)),
 In this section, we compare the performance of DML estimator with previously introduced estimators.
 
 ```{r application1, message=FALSE, warning=FALSE,cache=TRUE}
-out.linear<-interflex(estimator = "binning",Y=Y,D=D,
+out.linear<-interflex(estimator = "linear",Y=Y,D=D,
                     X=X,Z=Z,data=d, Xlabel=Xlabel, 
                     Ylabel=Ylabel, Dlabel=Dlabel,
                     ylim = c(-1.5, 1))
@@ -245,7 +245,7 @@ out.aipw <- interflex(estimator = "lasso", Y=Y,D=D,X=X,data=d,
                      ylim = c(-1.5, 1))
 ```
 
-```{r message=FALSE, warning=FALSE,cache=TRUE, fig.width=9, fig.height=8}
+```{r ch5-comparison, message=FALSE, warning=FALSE,cache=TRUE, fig.width=9, fig.height=8}
 ggarrange(out.linear$figure, out.kernel$figure, 
           out.aipw$figure, binary.cvnn.cvrf$figure, 
           common.legend = TRUE, legend = "none",

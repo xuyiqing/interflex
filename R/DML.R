@@ -44,6 +44,11 @@
     # Default params match sklearn RandomForest: max_features=1.0, min_samples_leaf=1
     if (model_lower %in% c("randomforest", "random forest", "random_forest",
                             "rf", "forest")) {
+        if (!requireNamespace("ranger", quietly = TRUE)) {
+            stop("ml_method = \"randomforest\" requires the 'ranger' package. ",
+                 "Install it with install.packages(\"ranger\").",
+                 call. = FALSE)
+        }
         mapped <- .map_rf_params(param)
         # Set sklearn-matching defaults if user didn't specify
         # sklearn RandomForest: n_estimators=100, min_samples_leaf=1

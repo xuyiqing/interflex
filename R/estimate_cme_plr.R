@@ -259,7 +259,6 @@ estimateCME_PLR <- function(
   if (!requireNamespace("glmnet", quietly = TRUE)) {
     stop("Package 'glmnet' is required for penalized regression.")
   }
-  library(glmnet)
 
   # Generic helper to fit linear, ridge, or lasso, *with optional penalty.factor*
   do_single_fit <- function(y_sub, x_sub, model_type, lambda_use, pf = NULL) {

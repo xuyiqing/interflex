@@ -228,5 +228,11 @@ interflex.raw <- function(data,
         ggsave(file, p1, scale = scale, width = width, height = height)
     }
 
-    return(p1)
+    out <- list(
+        figure = p1,
+        type = "raw",
+        treat.info = treat.info
+    )
+    class(out) <- "interflex"
+    return(out)
 }

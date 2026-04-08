@@ -172,7 +172,6 @@ We report the uniform/simultaneous confidence interval along with pointwise conf
 Note that the variance-covariance matrix of coefficients used by the delta method or the simulation method by default is the robust standard error matrix estimated from the regression. Users can also choose `homoscedastic` or `cluster` standard error by specifying the option `vcov.type`. There are four options for the choice of the `vcov` estimator: `vcov.type = "homoscedastic"`, `"robust"`, `"cluster"`, and `"pcse"`. The default option is `"robust"`.
 
 ```{r ch2-binary-lin-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
-
 linear.out.1 <- interflex(estimator = "linear", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
