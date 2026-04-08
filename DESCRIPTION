@@ -12,7 +12,6 @@ Authors@R: c(person("Jens Hainmueller", role=c("aut")),
 Description: Performs estimation, diagnostics, and visualization of conditional marginal effects and group average treatment effects of a treatment on an outcome across different values of a moderator. Optionally integrates with the 'mlr3extralearners' package for additional machine learning backends. 'mlr3extralearners' is not on CRAN but can be obtained from <https://github.com/mlr-org/mlr3extralearners>.
 URL: https://yiqingxu.org/packages/interflex/, https://github.com/xuyiqing/interflex
 BugReports: https://github.com/xuyiqing/interflex/issues
-Additional_repositories: https://mlr-org.r-universe.dev
 License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         doFuture, doRNG, foreach (>= 1.4.3), mgcv(>= 1.8-16),
@@ -24,7 +23,7 @@ Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
         parallelly,
         cli,
         progressr
-Suggests: mlr3tuning, nnet, mlr3extralearners, lightgbm, xgboost, ranger, testthat (>= 3.0.0)
+Suggests: mlr3tuning, nnet, lightgbm, xgboost, ranger, testthat (>= 3.0.0)
 LazyData: true
 NeedsCompilation: no
 Maintainer: Yiqing Xu <yiqingxu@stanford.edu>
