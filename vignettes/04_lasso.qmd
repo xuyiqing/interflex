@@ -61,7 +61,7 @@ head(aipw.out.1$est.lasso[[1]])
 
 #### Advance options
 
-In AIPW-Lasso estimator, we provide several advanced options, allowing greater flexibility for user to deploy the estimator.
+In AIPW-Lasso estimator, we provide several advanced options, allowing greater flexibility for users to deploy the estimator.
 
 ##### Signals
 

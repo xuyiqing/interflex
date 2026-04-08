@@ -5,7 +5,7 @@ This Quarto book serves as a user manual for the **interflex** package in R, whi
 **interflex** implements a range of estimators and diagnostics for exploring treatment-moderator interactions:
 
 -   `raw`: Scatterplots with LOESS smoothing for initial visual exploration
--   `binning`: A dignsotic method that divides the moderator into bins
+-   `binning`: A diagnostic method that divides the moderator into bins
 -   `kernel`: Kernel-based local regression for smooth marginal effect curves
 -   `linear`: Standard linear interaction models with robust diagnostics
 -   `gam`: Generalized additive models for flexible nonlinear effects
@@ -31,7 +31,7 @@ Understanding conditional relationships is central to social science. Researcher
 
 Consider a study with $n$ units, indexed by $i = 1, 2, \dots, n$. These units are independently and identically distributed (i.i.d.) from an infinite population denoted by $\mathcal{P}$, the super-population. For each unit $i$, we observe the quadruple $(Y_i, D_{i}, X_i, Z_i)$, where $Y_i$ denotes the outcome of interest, $D_{i}$ is the treatment indicator, and $V_i = (X_i, Z_i)$ represents a set of covariates not causally affected by the treatment and comprises two components: the moderator of interest $X_i \in \mathcal{X}$, which can be either discrete or continuous, and the remaining covariates used for identification $Z_i \in \mathcal{Z}$, which can be potentially high-dimensional.
 
-Given a sets of assumption, including random sampling, stable unit treatment value assumption (SUTVA), we define **Conditional Marginal Effect** (CME) with binary treatment as:
+Given a set of assumptions, including random sampling and the stable unit treatment value assumption (SUTVA), we define **Conditional Marginal Effect** (CME) with binary treatment as:
 
 $$
 \theta(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x].

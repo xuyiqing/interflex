@@ -1,6 +1,6 @@
 # Classic: Extensions {#sec-extensions}
 
-In this chapter, we introduce several extending functions of the binning, linear, and kernel estimator. These extending functions do not depend on the data type of treatment, hence they are applicable to almost all settings. To adopt to the flexibility of these extending function, we use simulation data to illustrate the coding implementation.
+In this chapter, we introduce several extending functions of the binning, linear, and kernel estimators. These extending functions do not depend on the data type of treatment, hence they are applicable to almost all settings. To adapt to the flexibility of these extending functions, we use simulation data to illustrate the coding implementation.
 
 ```{r ch3-init, include=FALSE}
 source("init.R")
@@ -203,7 +203,7 @@ Note that discrete outcome with fixed effects is not supported in the package.
 
 ## Multiple treatment arms
 
-Next, we will show how **interflex** can be applied when there are more than two condition. First, we plot the raw data:
+Next, we will show how **interflex** can be applied when there are more than two conditions. First, we plot the raw data:
 
 ```{r ch3-mta-raw-plot, results = "hide", cache=FALSE, message=FALSE, fig.height=4, fig.width=10}
 interflex(estimator = "raw",Y = "Y", D = "D", X = "X", data = s5, ncols = 3)
@@ -245,7 +245,7 @@ s5.kernel <- interflex(Y = "Y", D = "D", X = "X",Z = c("Z1", "Z2"), data = s5,
 s5.kernel$figure
 ```
 
-The function can be applied to discrete outcome settings. For **s9**, the LIE assumption are violated only in group 2. The linear estimator can give a consistent estimation of treatment effects for the group 1, but not group 2.
+The function can be applied to discrete outcome settings. For **s9**, the LIE assumption is violated only in group 2. The linear estimator can give a consistent estimation of treatment effects for the group 1, but not group 2.
 
 ```{r ch3-dmulti-linear-fit, cache=TRUE, results = "hide", message=FALSE}
 s9.linear <- interflex(estimator='linear', data=s9, method='logit',
@@ -275,14 +275,14 @@ s9.binning <- interflex(estimator = 'binning', data = s9, method='logit',
 plot(s9.binning)
 ```
 
-Results of the binning estimator also suggests the violation of LIE for group 2, which can be further verified by checking the test results.
+Results of the binning estimator also suggest the violation of LIE for group 2, which can be further verified by checking the test results.
 
 ```{r ch3-dmulti-bin-tests, cache=TRUE}
 s9.binning$tests$p.wald
 s9.binning$tests$p.lr
 ```
 
-Both of these tests suggest that LIE assumption fails in the model, but it **doesn't** tell us in which group the assumption fails. There is an extra output "sub.test" when there are more than 3 groups in the data, which includes by-group results of the Wald/Likelihood ratio test, which test the linear multiplicative interaction assumption for each group. In this case, the test results suggest that there are not enough evidences to reject the null hypothesis for group 1, but for group 2, the null hypothesis can be safely rejected.
+Both of these tests suggest that LIE assumption fails in the model, but it **doesn't** tell us in which group the assumption fails. There is an extra output "sub.test" when there are more than 3 groups in the data, which includes by-group results of the Wald/Likelihood ratio test, which test the linear multiplicative interaction assumption for each group. In this case, the test results suggest that there is not enough evidence to reject the null hypothesis for group 1, but for group 2, the null hypothesis can be safely rejected.
 
 ```{r ch3-dmulti-bin-subtest, cache=TRUE}
 head(s9.binning$tests$sub.test[[1]])
@@ -297,11 +297,11 @@ s9.kernel <- interflex(estimator = 'kernel', data = s9,
                       nboots = 200, parallel = TRUE, cores = 10)
 ```
 
-```{r ch3-dmulti-kernel-plot, cache=FALSE, fig.width = 10, fig.height = 4}
+```{r ch3-dmulti-kernel-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
 plot(s9.kernel)
 ```
 
-```{r ch3-dmulti-kernel-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=5, fig.width=9}
+```{r ch3-dmulti-kernel-truth-plot, cache=FALSE, results = "hide", message=FALSE, fig.height=4.5, fig.width=9}
 TE1 <- exp(1+x)/(1+exp(1+x))-exp(-x)/(1+exp(-x))
 p1 <- plot(s9.kernel,show.all = T)$`1`+geom_line(aes(x=x,y=TE1),color='red')
 TE2 <- exp(4-x*x-x)/(1+exp(4-x*x-x))-exp(-x)/(1+exp(-x))
@@ -323,7 +323,7 @@ predict(s9.kernel)
 
 ## Predicted outcomes
 
-As we have shown earlier with discrete outcome settings, **interflex** allows users to estimate and visualize predicted outcomes given fixed values of the treatment and moderator based on flexible interaction models. All predictions are made by setting covariates equal to their sample means. The same functino applies to continuous outcome as well.
+As we have shown earlier with discrete outcome settings, **interflex** allows users to estimate and visualize predicted outcomes given fixed values of the treatment and moderator based on flexible interaction models. All predictions are made by setting covariates equal to their sample means. The same function applies to continuous outcome as well.
 
 ```{r ch3-predict-kernel-fit, cache=TRUE, results = "hide", message=FALSE}
 s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"),
@@ -356,7 +356,7 @@ s5.linear <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1","Z2"),
 predict(s5.linear)
 ```
 
-Obviously, the kernel estimator characterizes the data more better than a linear or binning estimator.
+Obviously, the kernel estimator characterizes the data better than a linear or binning estimator.
 
 ------------------------------------------------------------------------
 
@@ -372,10 +372,10 @@ s5.kernel <-interflex(Y = "Y", D = "D", X = "X", Z = c("Z1", "Z2"), data = s5,
 ```
 
 ```{r ch3-effmod-kernel-plot, cache=FALSE, fig.height=4.5, fig.width=9}
-plot(s5.kernel,diff.values = c(-2,0,2))
+plot(s5.kernel, diff.values = c(-2,0,2))
 ```
 
-The difference of marginal effects/treatment effects at different values of the moderator(by default are the 25%, 50%, 75% quantiles of the moderator) are saved in `diff.estimate`.
+The difference of marginal effects/treatment effects at different values of the moderator (by default the 25%, 50%, 75% quantiles of the moderator) are saved in `diff.estimate`.
 
 ```{r ch3-effmod-kernel-diff, message=FALSE}
 s5.kernel$diff.estimate
@@ -395,7 +395,7 @@ plot(s5.linear,diff.values = c(-2,0,2))
 s5.linear$diff.estimate
 ```
 
-**interflex** allows users to compare treatment effects at two or three specific values of the moderator using CME and vcov matrix derived from linear/kernel estimation. Based on GAM model(relies on **mgcv** package), users can approximate treatment effects and their variance using smooth functions without re-estimating the model, hence saving time. In order to do so, users need to pass the output of **interflex** into **t.test** and then specify the values of interest of the moderator. As it is an approximation, the results here are expected to have a little deviance from the output we got by directly specifying `diff.values` when applying **inter.linear** or **inter.kernel**. We also limit the elements passed in diff.values between the minimum and the maximum of the moderator to avoid potential extrapolation bias.
+**interflex** allows users to compare treatment effects at two or three specific values of the moderator using CME and vcov matrix derived from linear/kernel estimation. Based on a GAM model (relies on **mgcv** package), users can approximate treatment effects and their variance using smooth functions without re-estimating the model, hence saving time. In order to do so, users need to pass the output of **interflex** into **t.test** and then specify the values of interest of the moderator. As it is an approximation, the results here are expected to have a little deviance from the output we got by directly specifying `diff.values` when applying **inter.linear** or **inter.kernel**. We also limit the elements passed in diff.values between the minimum and the maximum of the moderator to avoid potential extrapolation bias.
 
 ```{r ch3-effmod-test-kernel, message=FALSE, cache = TRUE}
 inter.test(s5.kernel,diff.values=c(-2,0,2))

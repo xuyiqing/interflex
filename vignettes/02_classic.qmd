@@ -1,12 +1,12 @@
 # Classic: Basics {#sec-classic}
 
-In this chapter, we show how to use **interflex** package to analyze and estimate CME. We begin with visual diagnostics such as subgroup scatterplots, binning plot, and Generalized Additive Models (GAM) plot. We then estimate CME with classic approaches, including linear estimator and kernel estimator; We also show how to use **interflex** package with binning, linear and kernel estimators when users are interested in extension function, such as multiple treatment arms, fixed effect, prediction, and analyzing differences in treatment effects. We illustrates the implementation details using empirical example, with binary treatment settings and continuous treatment settings.
+In this chapter, we show how to use the **interflex** package to analyze and estimate CME. We begin with visual diagnostics such as subgroup scatterplots, binning plots, and Generalized Additive Models (GAM) plots. We then estimate CME with classic approaches, including the linear estimator and kernel estimator. We also show how to use the **interflex** package with binning, linear and kernel estimators when users are interested in extension functions, such as multiple treatment arms, fixed effects, prediction, and analyzing differences in treatment effects. We illustrate the implementation details using empirical examples, with binary treatment settings and continuous treatment settings.
 
 <!-- and 2. outcome-based approach, including IPW estimator, and AIPW estimator. . -->
 
 ## Binary treatment
 
-In this example and through out the whole manual, we will use a consistent notation. $Y$ is the outcome variable, the moderator is $X$, the covariates are $Z$.
+In this example and throughout the whole manual, we will use a consistent notation. $Y$ is the outcome variable, the moderator is $X$, the covariates are $Z$.
 
 The example we are using is from @huddy2015expressive, which explores the effect of the expressive model of partisanship. Drawing on four survey studies, the authors argue that partisan identity drives campaign participation and strong emotional responses to ongoing campaign events. The Conditional Marginal Effect (CME) studied in the paper suggests that strongly identified partisans are more likely to exhibit stronger emotional reactions – such as anger when threatened with electoral loss - compared to those with weaker partisan identities. The variables of interest include:
 
@@ -47,7 +47,7 @@ datatable(d)
 
 #### Raw plots
 
-The first step of the diagnostics is to plot raw data. We supply the function **interflex** with the variable names of the outcome `Y`, the treatment `D`, and the moderator `X`, and covaraites `Z`. You can also supply labels for these variables, such as `Ylabel`, `Dlabel`, and `Xlabel`. If you supply a variable name to the `weights` option, the linear and LOESS fits will be adjusted based on the weights. Note that the correlations between covariates `Z` and `Y` are NOT partialled out.
+The first step of the diagnostics is to plot raw data. We supply the function **interflex** with the variable names of the outcome `Y`, the treatment `D`, and the moderator `X`, and covariates `Z`. You can also supply labels for these variables, such as `Ylabel`, `Dlabel`, and `Xlabel`. If you supply a variable name to the `weights` option, the linear and LOESS fits will be adjusted based on the weights. Note that the correlations between covariates `Z` and `Y` are NOT partialled out.
 
 <!-- We use `main` to add a title to the plot, `cex.main` to adjust its size, and `ylab` to change the y-axis label. -->
 
@@ -78,9 +78,9 @@ interflex(estimator = "raw",data = d, Y = Y,
 
 #### Binning plots
 
-The second diagnostic tool is the binning plot. It will discretizes the moderator $X$ into several bins and create a dummy variable for each bin and picks an evaluation point within each bin, where users want to estimate the CME of $D$ on $Y$. The regression terms includes interactions between the bin dummies and the treatment indicator, the bin dummies and the moderator $X$ minus the evaluation points, as well as the triple interactions.
+The second diagnostic tool is the binning plot. It discretizes the moderator $X$ into several bins and create a dummy variable for each bin and picks an evaluation point within each bin, where users want to estimate the CME of $D$ on $Y$. The regression terms include interactions between the bin dummies and the treatment indicator, the bin dummies and the moderator $X$ minus the evaluation points, as well as the triple interactions.
 
-The histograms at the bottom of the plot depict the distributions of $X$ across treatment (pink) and control (gray) group. If the CME estimates from the binning estimator sit closely to the estimated CME from the linear estimator, then the Linear Interaction Effect (LIE) assumption likely holds
+The histograms at the bottom of the plot depict the distributions of $X$ across treatment (pink) and control (gray) groups. If the CME estimates from the binning estimator sit closely to the estimated CME from the linear estimator, then the Linear Interaction Effect (LIE) assumption likely holds.
 
 The `nbins` option sets the number of bins. The default number of bins is 3, and equal-sized bins are created based on the distribution of the moderator.
 
@@ -96,7 +96,7 @@ bin.out.1 <- interflex(estimator = "binning", data = d,
 bin.out.1$figure
 ```
 
-For fully moderated model, we includes interactions between each covariate $Z$ and the bin dummies and the triple interactions. It can reduce biases when the impact of some covariates to the outcome does not take a linear form of moderator $X$, but sometimes it will also render the estimates unstable when the number of covariates is large.
+For the fully moderated model, we include interactions between each covariate $Z$ and the bin dummies and the triple interactions. It can reduce biases when the impact of some covariates on the outcome does not take a linear form of moderator $X$, but sometimes it will also render the estimates unstable when the number of covariates is large.
 
 ```{r ch2-binary-bin2-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 bin.out.2 <- interflex(estimator = "binning", data = d,
@@ -126,7 +126,7 @@ bin.out.3 <- interflex(estimator = "binning", data = d,
 bin.out.3$figure
 ```
 
-Next, we use `Xunif = TRUE` to transform the moderator into a uniformly distributed random variable (based on the rank order in values of the orginal moderator) before estimating the CME.
+Next, we use `Xunif = TRUE` to transform the moderator into a uniformly distributed random variable (based on the rank order in values of the original moderator) before estimating the CME.
 
 ```{r ch2-binary-bin4-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 bin.out.4 <- interflex(estimator = "binning", data = d,
@@ -142,7 +142,7 @@ bin.out.4$figure
 
 **interflex** will also automatically report a set of statistics when `estimator = "binning"`, including: (1) the binning estimates and their standard errors and 95% confidence intervals, (2) the percentage of observations within each bin, (3) the L-kurtosis of the moderator, and (4) a Wald test to formally test if we can reject the linear multiplicative interaction model by comparing it with a more flexible model of multiple bins.
 
-The CME plot is stored in `object$figure` while the estimates and standard errors are stored in `object$est.bin` (binning). The tests results are stored in `object$tests` (binning).
+The CME plot is stored in `object$figure` while the estimates and standard errors are stored in `object$est.bin` (binning). The test results are stored in `object$tests` (binning).
 
 ```{r ch2-binary-bin-wald-test, message=FALSE, warning=FALSE, cathe = TRUE}
 print(bin.out.1$tests$p.wald)
@@ -151,7 +151,6 @@ print(bin.out.1$tests$p.wald)
 `plot` allows users to adjust graphic options without re-estimating the model. The first entry must be a **interflex** object. Note that we use `bin.labs = FALSE` to hide the label on the top of each bin and `Xdistr = "none` to remove the distribution of the moderator (not recommended), or set `Xdistr = "density` to present the distribution of the moderator with a density plot using option. We use `cex.axis` and `cex.lab` to adjust the font sizes of axis numbers and labels. We address all the plotting options in chapter @sec-plotting.
 
 ```{r ch2-binary-bin-replot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
-
 plot(bin.out.1, Xdistr = "density", bin.labs = FALSE)
 ```
 
@@ -165,7 +164,7 @@ We first discuss classic approaches to estimating and visualizing the CME. We be
 
 **Estimation.** If we want to deploy the linear estimator, we can set `estimator = "linear"`. This method estimates CME with multiplicative interaction model. When the option `full.moderate` is set to `TRUE`, interaction terms between the moderator $X$ and each covariate $Z$ will enter the model, which is the case in Blackwell and Olson (2020). This extension in some cases can reduce the bias of the original model.
 
-**Uncertainty estimation.** Depending on `vartype`, the estimator computes standard errors and confidence intervals in three ways `simu`, `delta`, and `bootstrap`. The option `vartype = "simu"` draws from a multivariate normal distribution multiple times, `vartype = "delta"` uses a matrix derivatives to approximate the variance.
+**Uncertainty estimation.** Depending on `vartype`, the estimator computes standard errors and confidence intervals in three ways `simu`, `delta`, and `bootstrap`. The option `vartype = "simu"` draws from a multivariate normal distribution multiple times, `vartype = "delta"` uses matrix derivatives to approximate the variance.
 
 We report the uniform/simultaneous confidence interval along with pointwise confidence interval. Pointwise CI is estimated by default, and is depicted by gray ribbon; Uniform CI is estimated when setting `vartype = "bootstrap"` and `vartype = "delta"`, as depicted by the dashed lines.
 
@@ -186,7 +185,7 @@ linear.out.2 <- interflex(estimator = "linear", data = d,
                  main = "Fully Moderated Linear model")
 ```
 
-```{r ch2-binary-lin-plot, cache=FALSE, fig.width = 9, fig.height = 5}
+```{r ch2-binary-lin-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
 ggarrange(linear.out.1$figure, linear.out.2$figure)
 ```
 
@@ -262,14 +261,14 @@ plot(linear.uni, show.uniform.CI = FALSE)
 
 To relax functional form assumptions, we then explore the kernel estimator proposed by @hainmueller2019much.
 
-**Estimation.** Similar to other estimator, to deploy the kernel estimator, we can set `estimator = "kernel"`. We also provide `full.moderate` option, allowing moderator $X$ and each covariate $Z$ to fully interact.
+**Estimation.** Similar to other estimators, to deploy the kernel estimator, we can set `estimator = "kernel"`. We also provide `full.moderate` option, allowing moderator $X$ and each covariate $Z$ to fully interact.
 
 **Uncertainty estimation.** Kernel estimator computes standard errors in two ways: `delta` and `bootstrap`. Uniform CI is estimated when setting `vartype = "bootstrap"`.
 
-When the standard errors are produced bootstrapping, we can adjust the number of bootstrap iterations using the `nboots` option, with the default being 200 (set `nboots = 2000` or higher for proper uniform CIs; see the note above). The grid option can either be an integer, which specifies the number of bandwidths to be cross-validated, or a vector of candidate bandwidths -- the default is `grid = 20`. We can also specify a clustered group structure by using the `cl` option, in which case a block bootstrap procedure will be performed.
+When the standard errors are produced by bootstrapping, we can adjust the number of bootstrap iterations using the `nboots` option, with the default being 200 (set `nboots = 2000` or higher for proper uniform CIs; see the note above). The grid option can either be an integer, which specifies the number of bandwidths to be cross-validated, or a vector of candidate bandwidths -- the default is `grid = 20`. We can also specify a clustered group structure by using the `cl` option, in which case a block bootstrap procedure will be performed.
 
 
-The left panel uses the default settings for the kernel estimator; the right panel use fully interacted model, with `nboots = 400`, and we set the estimator to choose bandwidths from `c(0,1,2,3)`
+The left panel uses the default settings for the kernel estimator; the right panel uses a fully interacted model, with `nboots = 400`, and we set the estimator to choose bandwidths from `c(0,1,2,3)`
 
 ```{r ch2-binary-kernel-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 kernel.out.1 <- interflex(estimator = "kernel",
@@ -290,7 +289,7 @@ kernel.out.2 <- interflex(estimator = "kernel",
                  main = "Fully Moderated Kernel model")
 ```
 
-```{r ch2-binary-kernel-plot, cache=FALSE, fig.width = 9, fig.height = 5}
+```{r ch2-binary-kernel-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
 ggarrange(kernel.out.1$figure, kernel.out.2$figure)
 ```
 
@@ -344,7 +343,7 @@ head(kernel.out.1$CV.output)
 
 ## Continuous treatment
 
-@adiguzel2023out examines the impact of incumbent's public health provision on electoral outcomes. The authors use a reform in Turkey that significantly altered the geographic distribution of health clinics. The authors find that reduced congestion levels significantly increased the AKP's vote share, especially in poorer communities which exhibited a more substantial response to the improvements in health care access. The variables of interest are:
+@adiguzel2023out examines the impact of the incumbent's public health provision on electoral outcomes. The authors use a reform in Turkey that significantly altered the geographic distribution of health clinics. The authors find that reduced congestion levels significantly increased the AKP's vote share, especially in poorer communities which exhibited a more substantial response to the improvements in health care access. The variables of interest are:
 
 -   Outcome: Change in the vote share for the incumbent AKP party (continuous, $\in [-33.9, 39.5]$)
 -   Treatment: Change in congestion (continuous, $\in [-28.8, 20.8]$); congestion is measured by the number of patients per doctor at the nearest clinic, with lower congestion indicating improved service quality
@@ -375,7 +374,7 @@ Xlabel<-"Property values (2009)"
 
 #### Raw plots
 
-Similar to the binary treatment settings, we can plot the subgroup scatter plot as first step of diagnostics:
+Similar to the binary treatment settings, we can plot the subgroup scatter plot as a first step of diagnostics:
 
 ```{r ch2-con-raw1-plot, message=FALSE, warning=FALSE, cathe = TRUE, cache=FALSE, fig.width = 6, fig.height = 4.5}
 interflex(estimator = "raw",data = d, Y = Y, 
@@ -398,7 +397,7 @@ interflex(estimator = "raw",data = d, Y = Y,
 
 #### Binning plots
 
-Similar to the binary treatment case, we can also use binning plot for diagnosis.
+Similar to the binary treatment case, we can also use the binning plot for diagnosis.
 
 ```{r ch2-con-bin-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 bin.out.1<-interflex(estimator = "binning",data = d, Y = Y,
@@ -456,7 +455,7 @@ linear.out.2 <- interflex(estimator = "linear", data = d,
                  main = "Fully Moderated Linear model")
 ```
 
-```{r ch2-con-lin-plot, cache=FALSE, fig.width = 9, fig.height = 5}
+```{r ch2-con-lin-plot, cache=FALSE, fig.width = 9, fig.height = 4.5}
 ggarrange(linear.out.1$figure, linear.out.2$figure)
 ```
 
