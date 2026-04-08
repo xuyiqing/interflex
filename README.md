@@ -1,110 +1,127 @@
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 # interflex
 
 <!-- badges: start -->
-
-[![Lifecycle:
-experimental](https://img.shields.io/badge/lifecycle-stable-green.svg)](https://www.tidyverse.org/lifecycle/#stablel)
-[![License:
-MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![downloads:
-CRAN](https://cranlogs.r-pkg.org/badges/grand-total/interflex)](https://www.datasciencemeta.com/rpackages)
+[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-green.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CRAN downloads](https://cranlogs.r-pkg.org/badges/grand-total/interflex)](https://www.datasciencemeta.com/rpackages)
 <!-- badges: end -->
 
-**interflex** estimates, visualizes, and interprets conditional marginal
-effects and performs diagnostics.
+**interflex** performs estimation, diagnostics, and visualization of
+**conditional marginal effects (CME)** and **group average treatment effects
+(GATE)** of a treatment on an outcome across different values of a
+moderator. It supports linear, kernel, binning, lasso, and double/debiased
+machine-learning (DML) estimators, with optional fixed effects, multi-arm
+treatments, and bootstrap or simulation-based inference.
 
-**Authors:** Jens Hainmueller, Jiehan Liu, Licheng Liu, Ziyi Liu,
-Jonathan Mummolo, Tianzhu Qin, and [Yiqing Xu](https://yiqingxu.org/)
-(maintainer)
+**Maintainer:** [Yiqing Xu](https://yiqingxu.org/) (yiqingxu@stanford.edu)
 
-**Date:** Feburary 12, 2025
+**Authors:** Jens Hainmueller, Jonathan Mummolo, Yiqing Xu, Jiehan Liu,
+Ziyi Liu, Licheng Liu, Tianzhu Qin
 
-**Repos:** [Github](https://github.com/xuyiqing/interflex) (1.3.2)
-[CRAN](https://cran.r-project.org/web/packages/interflex/index.html)
-(1.2.6)
+**Repos:** [GitHub](https://github.com/xuyiqing/interflex) ·
+[CRAN](https://CRAN.R-project.org/package=interflex)
 
-**Tutoralis:** See tutorials for cases with
-[continuous](https://yiqingxu.org/packages/interflex/articles/continuous.html)
-and
-[discrete](https://yiqingxu.org/packages/interflex/articles/discrete.html)
-outcomes, as well as a tutorial for double/debiased machine learning
-([DML](https://yiqingxu.org/packages/interflex/articles/dml.html))
-estimators.
+**Documentation:** [User manual (Quarto book)](https://yiqingxu.org/packages/interflex/)
+covering installation, classic estimators, extensions, lasso, DML, discrete
+moderators, and a full plot-options cyclopedia.
 
-**Examples:** R code used in the tutorials can be downloaded from
-[here](examples.R).
+**Reference:** Hainmueller, J., Mummolo, J., & Xu, Y. (2019). [How Much
+Should We Trust Estimates from Multiplicative Interaction Models? Simple
+Tools to Improve Empirical Practice](https://www.cambridge.org/core/journals/political-analysis/article/how-much-should-we-trust-estimates-from-multiplicative-interaction-models-simple-tools-to-improve-empirical-practice/D8CAACB473F9B1EE256F43B38E458706).
+*Political Analysis*, 27(2), 163–192.
 
-**Reference:** [*How Much Should We Trust Estimates from Multiplicative
-Interaction Models? Simple Tools to Improve Empirical
-Practice*](http://bit.ly/HMX2019). Political Analysis, Vol. 27, Iss. 2,
-April 2019, pp. 163–192.
-
-------------------------------------------------------------------------
+---
 
 ## Installation
 
-You can install the **interflex** package from CRAN:
+Install the development version from GitHub:
 
-``` r
-install.packages('interflex', type = "source", 
-                 repos = 'http://cran.us.r-project.org') 
+```r
+# install.packages("devtools")  # if needed
+devtools::install_github("xuyiqing/interflex")
 ```
 
-Or you can install the up-to-date development version from Github:
+Or install the released version from CRAN:
 
-``` r
-# if not already installed
-install.packages('devtools', repos = 'http://cran.us.r-project.org') 
-# install from github
-devtools::install_github('xuyiqing/interflex')
+```r
+install.packages("interflex")
 ```
 
-**interflex** depends on the following packages, which will be installed
-automatically when **interflex** is being installed; if not, please
-install them manually:
+`interflex` depends on a number of CRAN packages that are installed
+automatically. If you need to install them manually:
 
-``` r
-# Function to install packages
-install_all <- function(packages) {
-  installed_pkgs <- installed.packages()[, "Package"]
-  for (pkg in packages) {
-    if (!pkg %in% installed_pkgs) {
-      install.packages(pkg, repos = 'http://cran.us.r-project.org')
-    }
-  }
-}
-
-# Packages to be installed
-packages <- c("Rcpp", "mgcv", "sandwich", "pcse", "fixest", "foreach", "doParallel", 
-              "lfe", "lmtest", "Lmoments", "ggplot2", "plotrix", "grid", 
-              "gridExtra", "ggplotify", "ggpubr", "RColorBrewer", "grDevices", 
-              "gtable", "MASS", "mvtnorm", "pROC", "ModelMetrics", "foreign",
-              "patchwork", "rmarkdown")
-
-# Install the packages
-install_all(packages)
+```r
+pkgs <- c(
+  "Rcpp", "mgcv", "sandwich", "pcse", "foreach", "doParallel", "doFuture",
+  "doRNG", "future.apply", "lfe", "lmtest", "Lmoments", "ggplot2", "ggpubr",
+  "ggplotify", "gridExtra", "RColorBrewer", "MASS", "mvtnorm", "pROC",
+  "ModelMetrics", "patchwork", "xgboost"
+)
+install.packages(setdiff(pkgs, rownames(installed.packages())))
 ```
 
-Mac users who encounter “-lgfortran” or “-lquadmath” error during
-installation, please check out the solution
-[here](http://thecoatlessprofessor.com/programming/rcpp-rcpparmadillo-and-os-x-mavericks-lgfortran-and-lquadmath-error/).
-Typing the following two lines of code in your **Terminal** should solve
-this problem.
+### macOS toolchain notes
 
-``` r
-curl -OL http://r.research.att.com/libs/gfortran-4.8.2-darwin13.tar.bz2
-sudo tar fvxz gfortran-4.8.2-darwin13.tar.bz2 -C /
+If you hit `-lgfortran` / `-lquadmath` errors during compilation, install
+the official R macOS toolchain from
+[CRAN tools](https://cran.r-project.org/bin/macosx/tools/).
+
+If you hit `clang: error: unsupported option '-fopenmp'`, update R and the
+Xcode command-line tools, or install the
+[r-macos-rtools](https://github.com/coatless-mac/r-macos-rtools/releases)
+bundle.
+
+---
+
+## Quick start
+
+```r
+library(interflex)
+data(interflex)
+
+# Linear estimator on simulated data with two covariates
+fit <- interflex(
+  estimator = "linear",
+  data      = s5,
+  Y         = "Y",
+  D         = "D",
+  X         = "X",
+  Z         = c("Z1", "Z2"),
+  vartype   = "bootstrap"
+)
+
+# Visualize the conditional marginal effect curve
+plot(fit)
 ```
 
-Mac users who encounter **clang: error: unsupported option ‘-fopenmp’**,
-please consider (1) updating your R and/or (2) installing new R macro
-tools from
-[Github](https://github.com/rmacoslib/r-macos-rtools/releases/tag/v3.1.0).
+For an empirical example using `app_hma2015`:
 
-## Report bugs
+```r
+fit <- interflex(
+  estimator = "linear",
+  data      = app_hma2015,
+  Y         = "totangry",
+  D         = "threat",
+  X         = "pidentity",
+  Z         = c("issuestr2", "knowledge", "educ", "male", "age10"),
+  Ylabel    = "Anger",
+  Dlabel    = "Threat",
+  Xlabel    = "Partisanship",
+  vartype   = "bootstrap"
+)
 
-Please report bugs to **yiqingxu \[at\] stanford.edu** with your sample
-code and data file. Much appreciated!
+plot(fit, xlim = c(0.25, 1), ylim = c(-0.2, 0.6))
+```
+
+The companion [user manual](https://yiqingxu.org/packages/interflex/) walks
+through every estimator, the diagnostic plots, multi-arm treatments,
+fixed-effect models, lasso and DML, discrete moderators, and the full set
+of plot options.
+
+---
+
+## Reporting bugs
+
+Please open an issue on
+[GitHub](https://github.com/xuyiqing/interflex/issues) with a minimal
+reproducible example, or email **yiqingxu \[at\] stanford.edu**.

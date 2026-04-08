@@ -7,8 +7,6 @@
 \alias{interflex.gam}
 \alias{interflex.raw}
 \alias{vcovCluster} 
-\alias{fastplm}
-\alias{iv_fastplm}
 \alias{createFolds}
 \title{Internal Interflex Functions}
 \description{

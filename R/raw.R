@@ -14,7 +14,7 @@ interflex.raw <- function(data,
                           Ylabel = NULL,
                           Dlabel = NULL,
                           Xlabel = NULL,
-                          theme.bw = FALSE,
+                          theme.bw = TRUE,
                           show.grid = TRUE,
                           cex.main = NULL,
                           cex.lab = NULL,
@@ -28,25 +28,23 @@ interflex.raw <- function(data,
                           xlim = NULL,
                           ylim = NULL) {
     n <- dim(data)[1]
-    treat.type <- treat.info[["treat.type"]]
+    ti <- .extract_treat_info(treat.info)
+    treat.type <- ti$treat.type
     if (treat.type == "discrete") {
-        other.treat <- treat.info[["other.treat"]]
-        other.treat.origin <- names(other.treat)
-        names(other.treat.origin) <- other.treat
-        all.treat <- treat.info[["all.treat"]]
-        all.treat.origin <- names(all.treat)
-        names(all.treat.origin) <- all.treat
-        base <- treat.info[["base"]]
+        other.treat <- ti$other.treat
+        other.treat.origin <- ti$other.treat.origin
+        all.treat <- ti$all.treat
+        all.treat.origin <- ti$all.treat.origin
+        base <- ti$base
     }
     if (treat.type == "continuous") {
-        D.sample <- treat.info[["D.sample"]]
-        label.name <- names(D.sample)
-        # names(label.name) <- D.sample
+        D.sample <- ti$D.sample
+        label.name <- ti$label.name
     }
-    ncols <- treat.info[["ncols"]]
+    ncols <- ti$ncols
 
-    if (is.null(span) == FALSE) {
-        if (is.numeric(span) == FALSE) {
+    if (!is.null(span)) {
+        if (!is.numeric(span)) {
             stop("\"span\" is not numeric.\n")
         } else {
             span <- span[1]
@@ -63,7 +61,7 @@ interflex.raw <- function(data,
             data[which(data[, D] == all.treat[i]), D] <- all.treat.origin[i]
         }
         all.treat <- unique(data[, D])
-        if (is.null(order) == FALSE) {
+        if (!is.null(order)) {
             order <- as.character(order)
             if (length(order) != length(unique(order))) {
                 stop("\"order\" should not contain repeated values.")
@@ -86,7 +84,7 @@ interflex.raw <- function(data,
         data.aug[, "treat"] <- paste("Treatment =", data[, D])
         order.lab <- paste("Treatment =", order)
 
-        if (is.null(subtitles) == TRUE) {
+        if (is.null(subtitles)) {
             subtitles <- order.lab
         }
 
@@ -120,37 +118,37 @@ interflex.raw <- function(data,
         }
 
         ## plotting
-        if (is.null(weights) == TRUE) {
-            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes_string(X, Y))
+        if (is.null(weights)) {
+            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes(.data[[X]], .data[[Y]]))
         } else {
-            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes_string(X, Y, weight = weights))
+            p1 <- ggplot(transform(data.aug, treat = factor(treat, levels = order.lab, labels = subtitles)), aes(.data[[X]], .data[[Y]], weight = .data[[weights]]))
         }
-        if (theme.bw == TRUE) {
+        if (theme.bw) {
             p1 <- p1 + theme_bw()
         }
-        if (show.grid == FALSE) {
+        if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", size = 1)
+        p1 <- p1 + geom_point(na.rm = TRUE) + geom_smooth(method = "lm", formula = y ~ x, se = F, fullrange = T, colour = "steelblue", linewidth = 1, na.rm = TRUE)
 
-        if (is.null(span) == TRUE) {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
+        if (is.null(span)) {
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", na.rm = TRUE)
         } else {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span)
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span, na.rm = TRUE)
         }
         p1 <- p1 + xlab(Xlabel) + ylab(Ylabel)
 
-        p1 <- p1 + geom_line(aes_string(X, "qt90"), size = 1, colour = "grey50", na.rm = TRUE)
-        p1 <- p1 + geom_line(aes_string(X, "qt50"), size = 3, colour = "grey50", na.rm = TRUE)
-        p1 <- p1 + geom_point(aes_string(X, "med"), size = 3, shape = 21, fill = "white", colour = "red", na.rm = TRUE)
+        p1 <- p1 + geom_line(aes(.data[[X]], .data[["qt90"]]), linewidth = 1, colour = "grey50", na.rm = TRUE)
+        p1 <- p1 + geom_line(aes(.data[[X]], .data[["qt50"]]), linewidth = 3, colour = "grey50", na.rm = TRUE)
+        p1 <- p1 + geom_point(aes(.data[[X]], .data[["med"]]), size = 3, shape = 21, fill = "white", colour = "red", na.rm = TRUE)
         p1 <- p1 + facet_wrap(~treat, ncol = ncols)
     } else { # continuous case
-        if (is.numeric(data[, D]) == F) {
+        if (!is.numeric(data[, D])) {
             stop("\"D\" is not a numeric variable")
         }
 
         ## grouping by X
-        if (is.null(cutoffs) == TRUE) {
+        if (is.null(cutoffs)) {
             cutoff <- quantile(data[, X], probs = seq(0, 1, 1 / nbins))
             while (length(unique(cutoff)) != nbins + 1) {
                 nbins <- nbins - 1
@@ -173,34 +171,34 @@ interflex.raw <- function(data,
         data.aug$groupID <- groupID
 
         ## plotting
-        if (is.null(weights) == TRUE) {
-            p1 <- ggplot(data.aug, aes_string(D, Y))
+        if (is.null(weights)) {
+            p1 <- ggplot(data.aug, aes(.data[[D]], .data[[Y]]))
         } else {
-            p1 <- ggplot(data.aug, aes_string(D, Y, weight = weights))
+            p1 <- ggplot(data.aug, aes(.data[[D]], .data[[Y]], weight = .data[[weights]]))
         }
-        if (theme.bw == TRUE) {
+        if (theme.bw) {
             p1 <- p1 + theme_bw()
         }
-        if (show.grid == FALSE) {
+        if (!show.grid) {
             p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
         }
-        p1 <- p1 + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", size = 1)
+        p1 <- p1 + geom_point(na.rm = TRUE) + geom_smooth(formula = y ~ x, method = "lm", se = F, fullrange = T, colour = "steelblue", linewidth = 1, na.rm = TRUE)
 
-        if (is.null(span) == TRUE) {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red")
+        if (is.null(span)) {
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", na.rm = TRUE)
         } else {
-            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span)
+            p1 <- p1 + geom_smooth(method = "loess", formula = y ~ x, se = F, colour = "red", span = span, na.rm = TRUE)
         }
         p1 <- p1 + xlab(Dlabel) + ylab(Ylabel) + facet_wrap(. ~ groupID, ncol = ncols)
     }
 
     ## axis labels
-    if (is.null(cex.lab) == TRUE) {
+    if (is.null(cex.lab)) {
         cex.lab <- 15
     } else {
         cex.lab <- 15 * cex.lab
     }
-    if (is.null(cex.axis) == TRUE) {
+    if (is.null(cex.axis)) {
         cex.axis <- 15
     } else {
         cex.axis <- 15 * cex.axis
@@ -208,28 +206,33 @@ interflex.raw <- function(data,
     p1 <- p1 + theme(axis.text = element_text(size = cex.axis), axis.title = element_text(size = cex.lab))
 
     ## title
-    if (is.null(cex.main) == TRUE) {
+    if (is.null(cex.main)) {
         cex.main <- 18
     } else {
         cex.main <- 18 * cex.main
     }
-    if (is.null(main) == FALSE) {
+    if (!is.null(main)) {
         p1 <- p1 + ggtitle(main) +
             theme(plot.title = element_text(hjust = 0.5, size = cex.main, lineheight = .8, face = "bold"))
     }
 
-    if (is.null(xlim) == FALSE) {
-        p1 <- p1 + xlim(xlim[1], xlim[2])
-    }
-
-    if (is.null(ylim) == FALSE) {
-        p1 <- p1 + ylim(ylim[1], ylim[2])
+    if (!is.null(xlim) || !is.null(ylim)) {
+        p1 <- p1 + coord_cartesian(
+            xlim = if (!is.null(xlim)) .pad_xlim(xlim) else NULL,
+            ylim = ylim
+        )
     }
 
     ## save to file
-    if (is.null(file) == FALSE) {
+    if (!is.null(file)) {
         ggsave(file, p1, scale = scale, width = width, height = height)
     }
 
-    return(p1)
+    out <- list(
+        figure = p1,
+        type = "raw",
+        treat.info = treat.info
+    )
+    class(out) <- "interflex"
+    return(out)
 }

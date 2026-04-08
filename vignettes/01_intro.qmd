@@ -1,0 +1,93 @@
+# Get Started {#sec-introduction}
+
+## Installation
+
+To install **interflex** from CRAN, run the code chunk below:
+
+```{r install-cran, eval=FALSE, message=FALSE, warning=FALSE}
+install.packages("interflex")
+```
+
+We recommend users to install the most up-to-date, stable version of **interflex** from GitHub using:
+
+```{r install-github-main, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("xuyiqing/interflex")
+```
+
+We fix bugs in the `dev` branch before merging into the main branch; therefore, it is often more up to date.
+
+```{r install-github-dev, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("xuyiqing/interflex@dev")
+```
+
+After installation, check **interflex** version to make sure the package is up-to-date.
+
+```{r ch1-check-version}
+installed.packages()["interflex", "Version"]
+```
+
+**interflex** depends on the following packages, which should be installed automatically when **interflex** is being installed. You can also install them manually.
+
+```{r install-dependencies, eval=FALSE}
+install_all <- function(packages) {
+  installed_pkgs <- installed.packages()[, "Package"]
+  for (pkg in packages) {
+    if (!pkg %in% installed_pkgs) {
+      install.packages(pkg)
+    }
+  }
+}
+packages <- c("Rcpp", "RcppArmadillo", "ggplot2", "sandwich", "Lmoments",
+              "doParallel", "foreach", "mgcv", "lfe", "gridExtra", "grid",
+              "ggplotify", "fixest", "RColorBrewer", "pcse", "gtable",
+              "MASS", "mvtnorm", "pROC", "ModelMetrics", "lmtest", "AER",
+              "future", "glmnet", "grf", "DoubleML", "mlr3", "mlr3learners", 
+              "data.table", "paradox", "ranger", "xgboost")
+install_all(packages)
+```
+
+::: {.callout-note}
+## xgboost and mlr3 compatibility
+
+The DML estimator's histogram-based gradient boosting option (`model.y = "hgb"`) requires **xgboost**. Starting with **xgboost** ≥ 3.0, you need **mlr3** ≥ 1.6.0 and **mlr3learners** ≥ 0.14.0. If you encounter an error like `ALTLIST classes must provide a Set_elt method`, update both:
+
+```r
+install.packages(c("mlr3", "mlr3learners"))
+```
+:::
+
+
+To use additional `dml` estimators, **interflex** suggests the additional **mlr3extralearners** package, which is not on CRAN but can be installed from GitHub:
+```{r install-mlr3extra, eval=FALSE, message=FALSE, warning=FALSE}
+devtools::install_github("mlr-org/mlr3extralearners")
+```
+
+## Datasets
+
+The **interflex** package incorporates several datasets, all accessible via `data()`:
+
+```{r ch1-load-data}
+library(interflex)
+data(interflex)
+ls()
+```
+
+### Simulation datasets
+
+- **`s1`**: Dichotomous treatment, linear CME. Used in @sec-extensions (fixed effects, multiple arms, predictions, treatment effect differences).
+- **`s2`**: Continuous treatment, linear CME. Used in @sec-extensions.
+- **`s3`**: Dichotomous treatment, nonlinear (quadratic) CME. Used in @sec-extensions.
+- **`s4`**: Dichotomous treatment, nonlinear CME with two-way fixed effects. Used in @sec-extensions (fixed effects demos).
+- **`s5`**: Discrete treatment (3 arms: A, B, C), nonlinear CME. Used in @sec-extensions (multiple treatment arms, predictions, treatment effect differences).
+- **`s6`–`s9`**: Discrete outcome (binary $Y$) simulation datasets with various DGPs. Used in @sec-discrete-outcome.
+
+### Empirical datasets
+
+- **`app_hma2015`**: Data from @huddy2015expressive. Binary treatment, continuous moderator. Used in @sec-classic (binary treatment demos).
+- **`app_vernby2013`**: Data from @vernby2013inclusion. Continuous treatment, continuous moderator. Used in @sec-classic (continuous treatment demos).
+- **`app_adiguzel2023`**: Data from @adiguzel2023out. Continuous treatment (change in clinic congestion), continuous moderator (log property value). Used in @sec-classic, @sec-lasso, and @sec-dml (continuous treatment demos).
+- **`app_bb2024`**: Data from @beiser2024pocketbook. Binary treatment, discrete moderator (income categories). Used in @sec-extensions (GATE with discrete moderator).
+- **`app_et2023`**: Data from @egerod2023extremists. Binary treatment, continuous moderator. Used in @sec-discrete-outcome.
+
+
+

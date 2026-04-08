@@ -6,8 +6,10 @@ interflex.grf <- function(data,
                           diff.info,
                           Z = NULL, # covariates
                           weights = NULL, # weighting variable
+                          gate = FALSE,
                           num.trees = 4000,
                           figure = TRUE,
+                          show.uniform.CI = TRUE,
                           CI = CI,
                           order = NULL,
                           subtitles = NULL,
@@ -21,7 +23,7 @@ interflex.grf <- function(data,
                           ylab = NULL,
                           xlim = NULL,
                           ylim = NULL,
-                          theme.bw = FALSE,
+                          theme.bw = TRUE,
                           show.grid = TRUE,
                           cex.main = NULL,
                           cex.sub = NULL,
@@ -41,76 +43,27 @@ interflex.grf <- function(data,
     length.covariates <- length(covariates)
 
     diff.values.plot <- diff.info[["diff.values.plot"]]
-    treat.type <- treat.info[["treat.type"]]
+    ti <- .extract_treat_info(treat.info)
+    treat.type <- ti$treat.type
+    all.treat <- all.treat.origin <- NULL
     if (treat.type == "discrete") {
-        other.treat <- treat.info[["other.treat"]]
-        other.treat.origin <- names(other.treat)
-        names(other.treat.origin) <- other.treat
-        all.treat <- treat.info[["all.treat"]]
-        all.treat.origin <- names(all.treat)
-        names(all.treat.origin) <- all.treat
+        other.treat <- ti$other.treat
+        other.treat.origin <- ti$other.treat.origin
+        all.treat <- ti$all.treat
+        all.treat.origin <- ti$all.treat.origin
     }
     if (treat.type == "continuous") {
-        D.sample <- treat.info[["D.sample"]]
-        label.name <- names(D.sample)
-        # names(label.name) <- D.sample
+        D.sample <- ti$D.sample
+        label.name <- ti$label.name
     }
-    if (TRUE) {
-        if (treat.type == "discrete") {
-            if (is.null(weights) == TRUE) {
-                de <- density(data[, X])
-            } else {
-                suppressWarnings(de <- density(data[, X], weights = data[, "WEIGHTS"]))
-            }
-
-            treat_den <- list()
-            for (char in all.treat) {
-                if (is.null(weights) == TRUE) {
-                    de.tr <- density(data[data[, D] == char, X])
-                } else {
-                    suppressWarnings(de.tr <- density(data[data[, D] == char, X], weights = data[data[, D] == char, "WEIGHTS"]))
-                }
-                treat_den[[all.treat.origin[char]]] <- de.tr
-            }
-
-            if (is.null(weights) == TRUE) {
-                hist.out <- hist(data[, X], breaks = 80, plot = FALSE)
-            } else {
-                suppressWarnings(hist.out <- hist(data[, X], data[, "WEIGHTS"],
-                    breaks = 80, plot = FALSE
-                ))
-            }
-            n.hist <- length(hist.out$mids)
-
-            treat.hist <- list()
-            for (char in all.treat) {
-                count1 <- rep(0, n.hist)
-                treat_index <- which(data[, D] == char)
-                for (i in 1:n.hist) {
-                    count1[i] <- sum(data[treat_index, X] >= hist.out$breaks[i] &
-                        data[treat_index, X] < hist.out$breaks[(i + 1)])
-                }
-                count1[n.hist] <- sum(data[treat_index, X] >= hist.out$breaks[n.hist] &
-                    data[treat_index, X] <= hist.out$breaks[n.hist + 1])
-
-                treat.hist[[all.treat.origin[char]]] <- count1
-            }
-        }
-        if (treat.type == "continuous") { ## continuous D
-            if (is.null(weights) == TRUE) {
-                de <- density(data[, X])
-            } else {
-                suppressWarnings(de <- density(data[, X], weights = data[, "WEIGHTS"]))
-            }
-            if (is.null(weights) == TRUE) {
-                hist.out <- hist(data[, X], breaks = 80, plot = FALSE)
-            } else {
-                suppressWarnings(hist.out <- hist(data[, X], data[, "WEIGHTS"],
-                    breaks = 80, plot = FALSE
-                ))
-            }
-            de.tr <- NULL
-        }
+    dens <- .compute_density(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+    de <- dens$de
+    treat_den <- dens$treat_den
+    hists <- .compute_histograms(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+    hist.out <- hists$hist.out
+    treat.hist <- hists$treat.hist
+    if (treat.type == "continuous") {
+        de.tr <- NULL
     }
 
     treat.base <- treat.info[["base"]]
@@ -121,7 +74,7 @@ interflex.grf <- function(data,
             data_part <- data[data[[D]] %in% c(treat.base, char), ]
             data_part[data_part[[D]] == treat.base, D] <- 0L
             data_part[data_part[[D]] == char, D] <- 1L
-            data_part$D <- as.numeric(data_part$D)
+            data_part[[D]] <- as.numeric(data_part[[D]])
             causal.forest <- causal_forest(data_part[covariates], data_part[[Y]], data_part[[D]], num.trees = num.trees)
             X.test <- matrix(0, 50, length.covariates)
             X.test[, 1] <- seq(min(data_part[[X]]), max(data_part[[X]]), length.out = 50)
@@ -155,8 +108,58 @@ interflex.grf <- function(data,
         )
     }
 
+    # GATE estimation
+    if (isTRUE(gate)) {
+        gate.list <- list()
+
+        for (char in other.treat) {
+            data_part <- data[data[[D]] %in% c(treat.base, char), ]
+            data_part[data_part[[D]] == treat.base, D] <- 0L
+            data_part[data_part[[D]] == char, D] <- 1L
+            data_part$D_num <- as.numeric(data_part[[D]])
+
+            # Fit causal forest (reuse same specification as the smooth CATE)
+            cf <- causal_forest(
+                data_part[covariates],
+                data_part[[Y]],
+                data_part$D_num,
+                num.trees = num.trees
+            )
+
+            # Individual CATEs
+            cate_i <- predict(cf)$predictions
+            var_i <- predict(cf, estimate.variance = TRUE)$variance.estimates
+
+            # Aggregate by X group
+            X_vals <- data_part[[X]]
+            groups <- sort(unique(X_vals))
+
+            gate_est <- numeric(length(groups))
+            gate_se <- numeric(length(groups))
+            for (k in seq_along(groups)) {
+                idx <- which(X_vals == groups[k])
+                gate_est[k] <- mean(cate_i[idx])
+                # SE via delta method: SE(mean) = sqrt(mean(var_i) / n_group)
+                gate_se[k] <- sqrt(mean(var_i[idx]) / length(idx))
+            }
+
+            res <- data.frame(
+                X                       = groups,
+                ME                      = gate_est,
+                sd                      = gate_se,
+                `lower CI(95%)`         = gate_est - 1.96 * gate_se,
+                `upper CI(95%)`         = gate_est + 1.96 * gate_se,
+                check.names = FALSE
+            )
+
+            gate.list[[other.treat.origin[char]]] <- res
+        }
+
+        final.output$g.est <- gate.list
+    }
+
     # Plot
-    if (figure == TRUE) {
+    if (figure) {
         class(final.output) <- "interflex"
         figure.output <- plot.interflex(
             x = final.output,
@@ -189,6 +192,7 @@ interflex.grf <- function(data,
             legend.title = legend.title,
             color = color,
             show.all = show.all,
+            show.uniform.CI = show.uniform.CI,
             scale = scale,
             height = height,
             width = width

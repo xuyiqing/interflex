@@ -1,25 +1,30 @@
 Package: interflex
 Type: Package
-Version: 1.3.2
-Title: Multiplicative Interaction Models Diagnostics and Visualization
-Date: 2024-08-08
+Version: 1.4.0
+Title: Estimation, Diagnostics and Visualization of Conditional Marginal Effects
+Date: 2026-04-05
 Authors@R: c(person("Jens Hainmueller", role=c("aut")),
 	     person("Jonathan Mummolo", role=c("aut")),
 	     person("Tianzhu Qin", role=c("aut")),
 	     person("Jiehan Liu", role=c("aut")),
 	     person("Ziyi Liu", role=c("aut")),
 	     person("Yiqing Xu", role=c("aut","cre"), email = "yiqingxu@stanford.edu"))
-Description: Performs diagnostic tests of multiplicative interaction models and plots non-linear marginal effects of a treatment on an outcome across different values of a moderator.
-URL: https://yiqingxu.org/packages/interflex/
+Description: Performs estimation, diagnostics, and visualization of conditional marginal effects and group average treatment effects of a treatment on an outcome across different values of a moderator. Optionally integrates with the 'mlr3extralearners' package for additional machine learning backends. 'mlr3extralearners' is not on CRAN but can be obtained from <https://github.com/mlr-org/mlr3extralearners>.
+URL: https://yiqingxu.org/packages/interflex/, https://github.com/xuyiqing/interflex
 License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
-        doParallel (>= 1.0.10), foreach (>= 1.4.3), mgcv(>= 1.8-16),
+        doFuture, doRNG, foreach (>= 1.4.3), mgcv(>= 1.8-16),
         lfe (>= 2.6-2291), gridExtra, grid, ggplotify, fixest,
-        RColorBrewer,pcse, gtable, MASS, mvtnorm, pROC,
-        ModelMetrics, Rcpp, lmtest, AER, future, reticulate, grf
-LinkingTo: Rcpp, RcppArmadillo
+        RColorBrewer, pcse, gtable, MASS, mvtnorm, pROC,
+        ModelMetrics, lmtest, AER, future,
+        splines, glmnet, grf,
+        DoubleML, mlr3, mlr3learners, data.table, paradox,
+        parallelly,
+        cli,
+        progressr
+Suggests: mlr3tuning, nnet, mlr3extralearners, lightgbm, xgboost, ranger, testthat (>= 3.0.0)
 LazyData: true
-NeedsCompilation: yes
+NeedsCompilation: no
 Maintainer: Yiqing Xu <yiqingxu@stanford.edu>
 Packaged: 2024-08-08 13:25:46 UTC; BEIJING-c024
 Depends: R (>= 3.5.0)

@@ -1,0 +1,147 @@
+# Welcome! {.unnumbered}
+
+This Quarto book serves as a user manual for the **interflex** package in R, which estimates, visualizes, and interprets conditional marginal effects of a treatment on an outcome across different values of a moderator, and performs diagnostic tests of multiplicative interaction models.
+
+**interflex** implements a range of estimators and diagnostics for exploring treatment-moderator interactions:
+
+-   `raw`: Scatterplots with LOESS smoothing for initial visual exploration
+-   `binning`: A diagnostic method that divides the moderator into bins
+-   `kernel`: Kernel-based local regression for smooth marginal effect curves
+-   `linear`: Standard linear interaction models with robust diagnostics
+-   `gam`: Generalized additive models for flexible nonlinear effects
+-   `lasso`: AIPW-Lasso and Partial-Out Lasso estimators for doubly robust inference
+-   `dml`: Double/debiased machine learning estimators for high-dimensional settings
+-   `grf`: Causal forest estimators via generalized random forests
+
+For methodological details, see:
+
+-   Liu, Liu, and Xu (2025). [A Practical Guide to Estimating Conditional Marginal Effects: Modern Approaches](https://arxiv.org/abs/2504.01355). *arXiv preprint arXiv:2504.01355*.
+
+-   Hainmueller, Mummolo, and Xu (2019). [How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice](http://bit.ly/HMX2019). *Political Analysis*, 27(2), 163--192.
+
+::: {.callout-note appearance="simple"}
+### Source Code
+
+For those interested in exploring the algorithms used in **interflex**, please visit the source [GitHub Repo](https://github.com/xuyiqing/interflex) for further details.
+:::
+
+## Estimands {.unnumbered}
+
+Understanding conditional relationships is central to social science. Researchers are particularly interested in how the effect of a treatment $D$ on an outcome $Y$ changes with the value of a pre-determined covariate $X$, known as the moderator, which is unaffected by $D$. To formalize this problem, we introduce the setup and estimand using the Neyman-Rubin potential outcome framework and notation.
+
+Consider a study with $n$ units, indexed by $i = 1, 2, \dots, n$. These units are independently and identically distributed (i.i.d.) from an infinite population denoted by $\mathcal{P}$, the super-population. For each unit $i$, we observe the quadruple $(Y_i, D_{i}, X_i, Z_i)$, where $Y_i$ denotes the outcome of interest, $D_{i}$ is the treatment indicator, and $V_i = (X_i, Z_i)$ represents a set of covariates not causally affected by the treatment and comprises two components: the moderator of interest $X_i \in \mathcal{X}$, which can be either discrete or continuous, and the remaining covariates used for identification $Z_i \in \mathcal{Z}$, which can be potentially high-dimensional.
+
+Given a set of assumptions, including random sampling and the stable unit treatment value assumption (SUTVA), we define **Conditional Marginal Effect** (CME) with binary treatment as:
+
+$$
+\theta(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x].
+$$
+
+And CME with continuous treatment:
+
+$$
+\theta(x)\;=\;\mathbb{E}\!\big[\,\mu_d(D,X,Z)\ \big|\ X=x\big].
+$$
+where the dose–response function $\mu(d,x,z) = \mathbb{E}\left[Y(d) \mid X = x, Z = z\right]$ describes how the expected potential outcome varies with the treatment level $d$, conditional on the covariates. The CME, $\theta(x)$, averages the unit-specific rates of change across units with the same value of the moderator $x$.
+
+We further assume *unconfoundedness* and *strict overlap* as identification assumptions, which turn CME from causal estimand to statistical estimand for estimation in the coming chapters.
+
+When the moderator $X$ is discrete, the CME reduces to the **Group Average Treatment Effect** (GATE):
+$$
+\theta(x) = \mathbb{E}[Y_i(1) - Y_i(0) \mid X_i = x], \quad x \in \{x_1, x_2, \dots, x_K\}.
+$$
+GATE is simply the treatment effect averaged within each group defined by the moderator values. Conceptually, it is equivalent to a binning estimator where the bins are the moderator levels themselves. The distinction between CME and GATE is purely about the nature of $X$: when $X$ is continuous, we estimate a smooth curve $\theta(x)$; when $X$ is discrete, we estimate a finite set of group-specific effects $\{\theta(x_1), \dots, \theta(x_K)\}$.
+
+
+## Estimators {.unnumbered}
+
+Every estimator in **interflex** can be understood as combining two independent choices:
+
+1. *Nuisance estimation*: How do we model the relationship between outcome $Y$, treatment $D$, and covariates $(X, Z)$?
+2. *Aggregation*: How do we summarize heterogeneous effects across values of the moderator $X$?
+
+### Nuisance estimation {.unnumbered}
+
+The nuisance estimation step removes confounding variation to isolate the causal effect of $D$. **interflex** offers several approaches:
+
+- *Linear (OLS)*: A parametric model $Y \sim D \cdot X + Z$, where the CME is read directly from coefficients. Simple and interpretable, but assumes linearity.
+- *Kernel*: Local linear regression that adapts to the data nonparametrically. Flexible but computationally intensive.
+- *Lasso*: Penalized regression that handles high-dimensional covariates through regularization and basis expansion. Balances flexibility with discipline.
+- *Double Machine Learning (DML)*: Uses machine learning models (random forests, neural networks, gradient boosting) for nuisance estimation while maintaining valid statistical inference through cross-fitting and Neyman orthogonal scores.
+- *Generalized Random Forest (GRF)*: Estimates individual-level treatment effects $\hat\tau(X_i)$ via honest causal forests, then aggregates.
+
+### Aggregation {.unnumbered}
+
+Given estimated individual-level treatment effect signals, the aggregation step summarizes them as a function of the moderator $X$:
+
+- *Smooth curve* (kernel smoothing or spline projection): Projects effect signals onto a smooth function of $X$. Appropriate when $X$ is continuous — produces a CME curve $\hat\theta(x)$.
+- *Group average* (binning by moderator): Averages effect signals within each level of $X$. Appropriate when $X$ is discrete — produces GATE point estimates $\hat\theta(x_k)$ for each group $k$.
+
+### Correspondence to interflex estimators {.unnumbered}
+
+The table below maps these two dimensions to the estimators available in **interflex**:
+
+```{=html}
+<table style="width:100%; border-collapse:collapse; margin:1em 0;">
+<thead>
+<tr style="border-bottom:2px solid #ccc;">
+  <th style="width:20%; text-align:left; padding:6px;"></th>
+  <th style="width:40%; text-align:left; padding:6px;"><strong>Smooth CME</strong> (continuous <em>X</em>)</th>
+  <th style="width:40%; text-align:left; padding:6px;"><strong>GATE</strong> (discrete <em>X</em>)</th>
+</tr>
+</thead>
+<tbody>
+<tr><td style="padding:4px 6px;"><strong>Linear</strong></td><td style="padding:4px 6px;"><code>estimator = 'linear'</code></td><td style="padding:4px 6px;"><code>estimator = 'linear', gate = TRUE</code></td></tr>
+<tr><td style="padding:4px 6px;"><strong>Lasso</strong></td><td style="padding:4px 6px;"><code>estimator = 'lasso'</code></td><td style="padding:4px 6px;"><code>estimator = 'lasso', gate = TRUE</code></td></tr>
+<tr><td style="padding:4px 6px;"><strong>DML</strong></td><td style="padding:4px 6px;"><code>estimator = 'dml'</code></td><td style="padding:4px 6px;"><code>estimator = 'dml', gate = TRUE</code></td></tr>
+<tr><td style="padding:4px 6px;"><strong>GRF</strong></td><td style="padding:4px 6px;"><code>estimator = 'grf'</code></td><td style="padding:4px 6px;"><code>estimator = 'grf', gate = TRUE</code></td></tr>
+<tr><td style="padding:4px 6px;"><strong>Kernel</strong></td><td style="padding:4px 6px;"><code>estimator = 'kernel'</code></td><td style="padding:4px 6px;"><code>estimator = 'kernel', gate = TRUE</code></td></tr>
+<tr><td style="padding:4px 6px;"><strong>Binning</strong></td><td style="padding:4px 6px;"><code>estimator = 'binning'</code></td><td style="padding:4px 6px;">—</td></tr>
+</tbody>
+</table>
+```
+
+Note that `binning` is a "fused" estimator where nuisance estimation and aggregation are inseparable. The `kernel` estimator supports `gate = TRUE` by evaluating only at the observed discrete moderator levels rather than fitting a smooth curve. The semiparametric estimators (`lasso`, `dml`, `grf`) and the `linear` estimator with `gate = TRUE` cleanly separate nuisance estimation from aggregation.
+
+The `binning` estimator deserves special mention: it is itself a form of aggregation (averaging within bins of $X$). When $X$ is continuous, binning discretizes $X$ into researcher-specified intervals. GATE with a discrete moderator is the natural limiting case where the "bins" are the moderator values themselves — no discretization is needed.
+
+
+## Organization {.unnumbered}
+
+The user guide is structured into the following chapters:
+
+-   @sec-introduction: Installing **interflex** and an overview of the datasets used throughout this manual.
+
+-   @sec-classic: Classical CME estimators (binning, linear, kernel) for binary and continuous treatments.
+
+-   @sec-extensions: Extensions including fixed effects, multiple treatment arms, predicted outcomes, effect modification, and Group Average Treatment Effects (GATE) with discrete moderators.
+
+-   @sec-lasso: Estimating CME with AIPW-Lasso and "Partialling out"-Lasso estimator.
+
+-   @sec-dml: Estimating CME with the Double Machine Learning framework.
+
+-   @sec-discrete-outcome: Diagnose, visualize, and estimate CME with discrete outcomes, using multiple link functions and various estimators.
+
+-   @sec-plotting: Customizing **interflex** plots.
+
+## Contributors
+
+The following individuals have contributed to **interflex**:
+
+-   [Yiqing Xu](https://yiqingxu.org/) (maintainer)
+-   [Jens Hainmueller](https://web.stanford.edu/~jhain/)
+-   [Jonathan Mummolo](https://www.jonathanmummolo.com/)
+-   [Tianzhu Qin](https://tianzhuqin.github.io/)
+-   Jiehan Liu (Stanford)
+-   Ziyi Liu (UC Berkeley)
+
+
+## Report Bugs
+
+Please report any bugs by submitting an issue on [GitHub](https://github.com/xuyiqing/interflex/issues) or emailing the maintainer (yiqingxu [at] stanford.edu). We would appreciate it if you can include a minimally reproducible example. Your feedback is highly valued!
+
+<!-- badges: start -->
+
+**interflex**: [![Lifecycle: stable](https://lifecycle.r-lib.org/articles/figures/lifecycle-stable.svg)](https://www.tidyverse.org/lifecycle/#stable) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [<img src="https://www.r-pkg.org/badges/version/interflex" alt="CRAN status"/>](https://CRAN.R-project.org/package=interflex) [<img src="https://cranlogs.r-pkg.org/badges/grand-total/interflex" alt="CRAN downloads"/>](https://cran.r-project.org/web/packages/interflex/index.html)
+
+<!-- badges: end -->

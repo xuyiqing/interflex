@@ -1,0 +1,42 @@
+project:
+  type: book
+
+book:
+  title: "interflex -- User Manual"
+  sidebar:
+    style: docked
+    background: light
+  chapters:
+    - index.qmd
+    - 01_intro.qmd
+    - 02_classic.qmd
+    - 03_extension.qmd
+    - 04_lasso.qmd
+    - 05_dml.qmd
+    - 06_discrete.qmd
+    - 07_plot.qmd
+    - changelog.qmd
+    - references.qmd
+
+initial-block:
+  language: r
+  file: "init.R"
+
+bibliography: references.bib
+
+format:
+  html:
+    theme: cosmo
+    code-fold: false
+    code-tools: true
+    code-link: true
+    toc: true
+    toc-depth: 3
+    toc-expand: 4
+
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+
+editor: visual

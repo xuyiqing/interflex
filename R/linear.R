@@ -20,11 +20,12 @@ interflex.linear <- function(data,
                              nboots = 200,
                              nsimu = 1000,
                              parallel = TRUE,
-                             cores = 4,
+                             cores = NULL,
                              cl = NULL, # variable to be clustered on
                              # predict = FALSE,
                              Z.ref = NULL, # same length as Z, set the value of Z when estimating marginal effects/predicted value
                              figure = TRUE,
+                             show.uniform.CI = TRUE,
                              CI = CI,
                              order = NULL,
                              subtitles = NULL,
@@ -38,7 +39,8 @@ interflex.linear <- function(data,
                              ylab = NULL,
                              xlim = NULL,
                              ylim = NULL,
-                             theme.bw = FALSE,
+                             user_xlim_explicit = FALSE,
+                             theme.bw = TRUE,
                              show.grid = TRUE,
                              cex.main = NULL,
                              cex.sub = NULL,
@@ -53,36 +55,36 @@ interflex.linear <- function(data,
                              show.all = FALSE,
                              scale = 1.1,
                              height = 7,
-                             width = 10) {
+                             width = 10,
+                             gate = FALSE) {
     WEIGHTS <- NULL
     n <- dim(data)[1]
     diff.values.plot <- diff.info[["diff.values.plot"]]
     diff.values <- diff.info[["diff.values"]]
     difference.name <- diff.info[["difference.name"]]
 
-    treat.type <- treat.info[["treat.type"]]
+    ti <- .extract_treat_info(treat.info)
+    treat.type <- ti$treat.type
+    all.treat <- all.treat.origin <- NULL
     if (treat.type == "discrete") {
-        other.treat <- treat.info[["other.treat"]]
-        other.treat.origin <- names(other.treat)
-        names(other.treat.origin) <- other.treat
-        all.treat <- treat.info[["all.treat"]]
-        all.treat.origin <- names(all.treat)
-        names(all.treat.origin) <- all.treat
-        base <- treat.info[["base"]]
+        other.treat <- ti$other.treat
+        other.treat.origin <- ti$other.treat.origin
+        all.treat <- ti$all.treat
+        all.treat.origin <- ti$all.treat.origin
+        base <- ti$base
     }
     if (treat.type == "continuous") {
-        D.sample <- treat.info[["D.sample"]]
-        label.name <- names(D.sample)
-        # names(label.name) <- D.sample
+        D.sample <- ti$D.sample
+        label.name <- ti$label.name
     }
-    ncols <- treat.info[["ncols"]]
+    ncols <- ti$ncols
 
-    if (is.null(cl) == FALSE) { ## find clusters
+    if (!is.null(cl)) { ## find clusters
         clusters <- unique(data[, cl])
         id.list <- split(1:n, data[, cl])
     }
 
-    if (is.null(FE) == TRUE) {
+    if (is.null(FE)) {
         use_fe <- 0
     } else {
         use_fe <- 1
@@ -95,10 +97,27 @@ interflex.linear <- function(data,
     }
 
     # evaluation points
-    X.eval0 <- X.eval
-    X.eval <- seq(min(data[, X]), max(data[, X]), length.out = neval)
-    X.eval <- sort(c(X.eval, X.eval0))
-    neval <- length(X.eval)
+    #X.eval0 <- X.eval
+    #X.eval <- seq(min(data[, X]), max(data[, X]), length.out = neval)
+    #X.eval <- sort(c(X.eval, X.eval0))
+    #neval <- length(X.eval)
+    if(is.null(X.eval)){
+       ## PAD-001: when user explicitly supplied xlim on a continuous-treatment
+       ## plot, restrict the prediction grid to [xlim[1], xlim[2]] so that the
+       ## visible curve ends inside the panel and .pad_xlim's 4% breathing room
+       ## remains visible. Falls back to full data range otherwise.
+       if (isTRUE(user_xlim_explicit) && treat.type == "continuous" &&
+           !is.null(xlim) && length(xlim) == 2L &&
+           all(is.finite(xlim)) && xlim[2] > xlim[1]) {
+           X.eval <- seq(xlim[1], xlim[2], length.out = neval)
+       } else {
+           X.eval <- seq(min(data[,X]), max(data[,X]), length.out = neval)
+       }
+    }
+    else{
+        neval <- length(X.eval)
+    }
+
 
     # construct the formula
     formula <- paste0(Y, "~", X)
@@ -113,9 +132,9 @@ interflex.linear <- function(data,
         formula <- paste0(formula, "+", D, "+DX")
     }
 
-    if (is.null(Z) == FALSE) {
+    if (!is.null(Z)) {
         formula <- paste0(formula, "+", paste0(Z, collapse = "+"))
-        if (full.moderate == TRUE) {
+        if (full.moderate) {
             formula <- paste0(formula, "+", paste0(Z.X, collapse = "+"))
         }
     }
@@ -137,9 +156,9 @@ interflex.linear <- function(data,
                 formula.iv <- paste0(formula.iv, "+", sub.iv)
                 formula.iv <- paste0(formula.iv, "+", paste0(X, ".", sub.iv))
             }
-            if (is.null(Z) == FALSE) {
+            if (!is.null(Z)) {
                 formula.iv <- paste0(formula.iv, "+", paste0(Z, collapse = "+"))
-                if (full.moderate == TRUE) {
+                if (full.moderate) {
                     formula.iv <- paste0(formula.iv, "+", paste0(Z.X, collapse = "+"))
                 }
             }
@@ -150,10 +169,10 @@ interflex.linear <- function(data,
             formula <- paste0(Y, "~", X)
             formula.iv <- ""
             name.update <- c(X)
-            if (is.null(Z) == FALSE) {
+            if (!is.null(Z)) {
                 formula <- paste0(formula, "+", paste0(Z, collapse = "+"))
                 name.update <- c(name.update, Z)
-                if (full.moderate == TRUE) {
+                if (full.moderate) {
                     formula <- paste0(formula, "+", paste0(Z.X, collapse = "+"))
                     name.update <- c(name.update, Z.X)
                 }
@@ -186,7 +205,7 @@ interflex.linear <- function(data,
     }
 
     formula <- as.formula(formula)
-    if (is.null(weights) == TRUE) {
+    if (is.null(weights)) {
         w <- rep(1, n)
     } else {
         w <- data[, weights]
@@ -245,7 +264,7 @@ interflex.linear <- function(data,
     }
 
     if (use_fe == 0) {
-        if (model$converged == FALSE) {
+        if (!model$converged) {
             stop("Linear estimator can't converge.")
         }
     }
@@ -291,8 +310,18 @@ interflex.linear <- function(data,
     }
 
     model.df <- model$df.residual
-    model.coef[which(is.na(model.coef))] <- 0
-    model.vcov[which(is.na(model.vcov))] <- 0
+    na.coef <- which(is.na(model.coef))
+    if (length(na.coef) > 0) {
+        warning("NA coefficients detected in linear estimator (",
+                paste(names(model.coef)[na.coef], collapse = ", "),
+                "); replacing with 0.")
+        model.coef[na.coef] <- 0
+    }
+    na.vcov <- which(is.na(model.vcov))
+    if (length(na.vcov) > 0) {
+        warning("NA values detected in variance-covariance matrix of linear estimator; replacing with 0.")
+        model.vcov[na.vcov] <- 0
+    }
     model.vcov.all <- matrix(0, nrow = length(model.coef), ncol = length(model.coef))
     colnames(model.vcov.all) <- names(model.coef)
     rownames(model.vcov.all) <- names(model.coef)
@@ -302,15 +331,21 @@ interflex.linear <- function(data,
         }
     }
 
-    if (isSymmetric.matrix(model.vcov.all, tol = 1e-6) == FALSE) {
-        warning(paste0("Option vcov.type==", vcov.type, "leads to unstable standard error in linear estimator, by default use homoscedastic standard error as an alternative.\n"))
+    if (!isSymmetric.matrix(model.vcov.all, tol = 1e-6)) {
+        warning("Option vcov.type=='", vcov.type,
+                "' leads to non-symmetric variance-covariance matrix in linear estimator. ",
+                "Falling back to homoscedastic standard errors.")
         model.vcov.all <- vcov(model)
         if (!is.null(IV)) {
             if (use_fe == 1) {
                 rownames(model.vcov.all) <- colnames(model.vcov.all) <- name.update
             }
         }
-        model.vcov.all[which(is.na(model.vcov.all))] <- 0
+        na.vcov.fb <- which(is.na(model.vcov.all))
+        if (length(na.vcov.fb) > 0) {
+            warning("NA values in fallback variance-covariance matrix; replacing with 0.")
+            model.vcov.all[na.vcov.fb] <- 0
+        }
     }
     model.vcov <- model.vcov.all
 
@@ -322,10 +357,10 @@ interflex.linear <- function(data,
     # 4, output: marginal effects/treatment effects/E.pred/E.base/diff.estimate
 
     gen.general.TE <- function(model.coef, char = NULL, D.ref = NULL, diff.values = NULL) {
-        if (is.null(char) == TRUE) {
+        if (is.null(char)) {
             treat.type <- "continuous"
         }
-        if (is.null(D.ref) == TRUE) {
+        if (is.null(D.ref)) {
             treat.type <- "discrete"
         }
 
@@ -334,12 +369,12 @@ interflex.linear <- function(data,
             if (treat.type == "discrete") {
                 link.1 <- model.coef["(Intercept)"] + X.eval * model.coef[X] + 1 * model.coef[paste0("D.", char)] + X.eval * model.coef[paste0("DX.", char)]
                 link.0 <- model.coef["(Intercept)"] + X.eval * model.coef[X]
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     for (a in Z) {
                         target.Z <- Z.ref[a]
                         link.1 <- link.1 + target.Z * model.coef[a]
                         link.0 <- link.0 + target.Z * model.coef[a]
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             link.1 <- link.1 + target.Z * model.coef[paste0(a, ".X")] * X.eval
                             link.0 <- link.0 + target.Z * model.coef[paste0(a, ".X")] * X.eval
                         }
@@ -381,11 +416,11 @@ interflex.linear <- function(data,
 
             if (treat.type == "continuous") {
                 link <- model.coef["(Intercept)"] + X.eval * model.coef[X] + model.coef[D] * D.ref + model.coef["DX"] * X.eval * D.ref
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     for (a in Z) {
                         target.Z <- Z.ref[a]
                         link <- link + target.Z * model.coef[a]
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             link <- link + target.Z * model.coef[paste0(a, ".X")] * X.eval
                         }
                     }
@@ -439,7 +474,7 @@ interflex.linear <- function(data,
             gen.TE.output <- gen.TE.fe(model.coef = model.coef, X.eval = X.eval)
         }
 
-        if (is.null(diff.values) == FALSE) {
+        if (!is.null(diff.values)) {
             if (use_fe == 0) {
                 gen.TE.diff <- gen.TE(model.coef = model.coef, X.eval = diff.values)
             }
@@ -504,11 +539,11 @@ interflex.linear <- function(data,
     # 6, input: model.coef; model.vcov; char(discrete)/D.ref(continuous);diff.values
     # 7, output: sd of TE/ME; sd of diff.values; vcov of ME/TE
     gen.delta.TE <- function(model.coef, model.vcov, char = NULL, D.ref = NULL, diff.values = NULL, vcov = FALSE) {
-        if (is.null(char) == TRUE) {
+        if (is.null(char)) {
             treat.type <- "continuous"
             flag <- 1
         }
-        if (is.null(D.ref) == TRUE) {
+        if (is.null(D.ref)) {
             treat.type <- "discrete"
             if (char == base) {
                 flag <- 0
@@ -525,7 +560,7 @@ interflex.linear <- function(data,
                 vec.0 <- c(0, 0)
                 vec <- vec.1 - vec.0
                 temp.vcov.matrix <- model.vcov[target.slice, target.slice]
-                if (to.diff == TRUE) {
+                if (to.diff) {
                     return(list(vec = vec, temp.vcov.matrix = temp.vcov.matrix))
                 }
                 delta.sd <- sqrt((t(vec) %*% temp.vcov.matrix %*% vec)[1, 1])
@@ -536,7 +571,7 @@ interflex.linear <- function(data,
                 target.slice <- c(D, "DX")
                 vec <- c(1, x)
                 temp.vcov.matrix <- model.vcov[target.slice, target.slice]
-                if (to.diff == TRUE) {
+                if (to.diff) {
                     return(list(vec = vec, temp.vcov.matrix = temp.vcov.matrix))
                 }
 
@@ -546,32 +581,32 @@ interflex.linear <- function(data,
         }
 
         gen.sd <- function(x, to.diff = FALSE) {
-            if (use_fe == TRUE) {
+            if (use_fe == 1) {
                 return(gen.sd.fe(x = x, to.diff = to.diff))
             }
 
             if (treat.type == "discrete") {
                 link.1 <- model.coef["(Intercept)"] + x * model.coef[X] + 1 * model.coef[paste0("D.", char)] + x * model.coef[paste0("DX.", char)]
                 link.0 <- model.coef["(Intercept)"] + x * model.coef[X]
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     for (a in Z) {
                         target.Z <- Z.ref[a]
                         link.1 <- link.1 + target.Z * model.coef[a]
                         link.0 <- link.0 + target.Z * model.coef[a]
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             link.1 <- link.1 + target.Z * model.coef[paste0(a, ".X")] * x
                             link.0 <- link.0 + target.Z * model.coef[paste0(a, ".X")] * x
                         }
                     }
                 }
 
-                if (is.null(Z) == FALSE) {
-                    if (full.moderate == FALSE) {
+                if (!is.null(Z)) {
+                    if (!full.moderate) {
                         vec.1 <- c(1, x, 1, x, Z.ref)
                         vec.0 <- c(1, x, 0, 0, Z.ref)
                         target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char), Z)
                     }
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         vec.1 <- c(1, x, 1, x, Z.ref, x * Z.ref)
                         vec.0 <- c(1, x, 0, 0, Z.ref, x * Z.ref)
                         target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char), Z, Z.X)
@@ -594,7 +629,7 @@ interflex.linear <- function(data,
                 if (method == "linear") {
                     vec <- vec.1 - vec.0
                 }
-                if (to.diff == TRUE) {
+                if (to.diff) {
                     return(list(vec = vec, temp.vcov.matrix = temp.vcov.matrix))
                 }
 
@@ -604,23 +639,23 @@ interflex.linear <- function(data,
 
             if (treat.type == "continuous") {
                 link <- model.coef["(Intercept)"] + x * model.coef[X] + model.coef[D] * D.ref + model.coef["DX"] * x * D.ref
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     for (a in Z) {
                         target.Z <- Z.ref[a]
                         link <- link + target.Z * model.coef[a]
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             link <- link + x * target.Z * model.coef[paste0(a, ".X")]
                         }
                     }
                 }
 
-                if (is.null(Z) == FALSE) {
-                    if (full.moderate == FALSE) {
+                if (!is.null(Z)) {
+                    if (!full.moderate) {
                         vec1 <- c(1, x, D.ref, D.ref * x, Z.ref)
                         vec0 <- c(0, 0, 1, x, rep(0, length(Z)))
                         target.slice <- c("(Intercept)", X, D, "DX", Z)
                     }
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         vec1 <- c(1, x, D.ref, D.ref * x, Z.ref, Z.ref * x)
                         vec0 <- c(0, 0, 1, x, rep(0, 2 * length(Z)))
                         target.slice <- c("(Intercept)", X, D, "DX", Z, Z.X)
@@ -646,7 +681,7 @@ interflex.linear <- function(data,
                     vec <- vec0
                 }
 
-                if (to.diff == TRUE) {
+                if (to.diff) {
                     return(list(vec = vec, temp.vcov.matrix = temp.vcov.matrix))
                 }
 
@@ -661,7 +696,7 @@ interflex.linear <- function(data,
             TE.sd <- NULL
         }
 
-        if (treat.type == "discrete" & is.null(TE.sd) == FALSE) {
+        if (treat.type == "discrete" & !is.null(TE.sd)) {
             names(TE.sd) <- rep(paste0("sd.", char), neval)
         }
 
@@ -672,8 +707,8 @@ interflex.linear <- function(data,
         # sd for linear predictor
         gen.link.sd <- function(x, base = FALSE) {
             if (treat.type == "discrete") {
-                if (is.null(Z) == FALSE) {
-                    if (base == FALSE) {
+                if (!is.null(Z)) {
+                    if (!base) {
                         vec <- c(1, x, 1, x, Z.ref)
                         target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char), Z)
                     } else {
@@ -681,12 +716,12 @@ interflex.linear <- function(data,
                         target.slice <- c("(Intercept)", X, Z)
                     }
 
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         vec <- c(vec, Z.ref * x)
                         target.slice <- c(target.slice, Z.X)
                     }
                 } else {
-                    if (base == FALSE) {
+                    if (!base) {
                         vec <- c(1, x, 1, x)
                         target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char))
                     } else {
@@ -700,10 +735,10 @@ interflex.linear <- function(data,
             }
 
             if (treat.type == "continuous") {
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     vec <- c(1, x, D.ref, D.ref * x, Z.ref)
                     target.slice <- c("(Intercept)", X, D, "DX", Z)
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         vec <- c(vec, Z.ref * x)
                         target.slice <- c(target.slice, Z.X)
                     }
@@ -722,7 +757,7 @@ interflex.linear <- function(data,
             return(0)
         }
 
-        if (use_fe == FALSE) {
+        if (use_fe == 0) {
             if (treat.type == "discrete") {
                 if (char == base) {
                     link.sd <- c(sapply(X.eval, function(x) gen.link.sd(x, base = TRUE)))
@@ -740,24 +775,24 @@ interflex.linear <- function(data,
         # sd for predicted value
         gen.predict.sd <- function(x, base = FALSE) {
             if (treat.type == "discrete") {
-                if (base == FALSE) {
+                if (!base) {
                     link <- model.coef["(Intercept)"] + x * model.coef[X] + 1 * model.coef[paste0("D.", char)] + x * model.coef[paste0("DX.", char)]
                 }
-                if (base == TRUE) {
+                if (base) {
                     link <- model.coef["(Intercept)"] + x * model.coef[X]
                 }
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     for (a in Z) {
                         target.Z <- Z.ref[a]
                         link <- link + target.Z * model.coef[a]
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             link <- link + target.Z * model.coef[paste0(a, ".X")] * x
                         }
                     }
                 }
 
-                if (is.null(Z) == FALSE) {
-                    if (base == FALSE) {
+                if (!is.null(Z)) {
+                    if (!base) {
                         vec <- c(1, x, 1, x, Z.ref)
                         target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char), Z)
                     } else {
@@ -765,12 +800,12 @@ interflex.linear <- function(data,
                         target.slice <- c("(Intercept)", X, Z)
                     }
 
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         vec <- c(vec, Z.ref * x)
                         target.slice <- c(target.slice, Z.X)
                     }
                 } else {
-                    if (base == FALSE) {
+                    if (!base) {
                         vec <- c(1, x, 1, x)
                         target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char))
                     } else {
@@ -798,20 +833,20 @@ interflex.linear <- function(data,
 
             if (treat.type == "continuous") {
                 link <- model.coef["(Intercept)"] + x * model.coef[X] + model.coef[D] * D.ref + model.coef["DX"] * x * D.ref
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     for (a in Z) {
                         target.Z <- Z.ref[a]
                         link <- link + target.Z * model.coef[a]
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             link <- link + target.Z * model.coef[paste0(a, ".X")] * x
                         }
                     }
                 }
 
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     vec <- c(1, x, D.ref, D.ref * x, Z.ref)
                     target.slice <- c("(Intercept)", X, D, "DX", Z)
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         vec <- c(vec, Z.ref * x)
                         target.slice <- c(target.slice, Z.X)
                     }
@@ -842,7 +877,7 @@ interflex.linear <- function(data,
             return(0)
         }
 
-        if (use_fe == FALSE) {
+        if (use_fe == 0) {
             if (treat.type == "discrete") {
                 if (char == base) {
                     predict.sd <- c(sapply(X.eval, function(x) gen.predict.sd(x, base = TRUE)))
@@ -864,7 +899,7 @@ interflex.linear <- function(data,
         }
 
         # sd for diff.estimates
-        if (is.null(diff.values) == FALSE & flag == 1) {
+        if (!is.null(diff.values) & flag == 1) {
             if (length(diff.values) == 2) {
                 vec.list2 <- gen.sd(x = diff.values[2], to.diff = TRUE)
                 vec.list1 <- gen.sd(x = diff.values[1], to.diff = TRUE)
@@ -906,7 +941,7 @@ interflex.linear <- function(data,
         }
 
         # vcov matrix
-        if (flag == 1 & vcov == TRUE) {
+        if (flag == 1 & vcov) {
             gen.cov.element <- function(x1, x2) {
                 vec.list1 <- gen.sd(x1, to.diff = TRUE)
                 vec.list2 <- gen.sd(x2, to.diff = TRUE)
@@ -963,7 +998,7 @@ interflex.linear <- function(data,
             weights <- data[data[, D] == char, "WEIGHTS"]
             TE <- model.coef[paste0("D.", char)] + sub.data[, X] * model.coef[paste0("DX.", char)]
             ATE <- weighted.mean(TE, weights, na.rm = TRUE)
-            if (delta == FALSE) {
+            if (!delta) {
                 return(ATE)
             }
         }
@@ -972,11 +1007,11 @@ interflex.linear <- function(data,
             weights <- data[, "WEIGHTS"]
             ME <- model.coef[D] + model.coef["DX"] * data[, X]
             AME <- weighted.mean(ME, weights, na.rm = TRUE)
-            if (delta == FALSE) {
+            if (!delta) {
                 return(AME)
             }
         }
-        if (delta == TRUE) {
+        if (delta) {
             gen.ATE.sd.vec <- function(index) {
                 if (treat.type == "discrete") {
                     x <- sub.data[index, X]
@@ -1020,7 +1055,7 @@ interflex.linear <- function(data,
 
 
     gen.ATE <- function(data, model.coef, model.vcov, char = NULL, delta = FALSE) {
-        if (use_fe == TRUE) {
+        if (use_fe == 1) {
             return(gen.ATE.fe(data = data, model.coef = model.coef, model.vcov = model.vcov, char = char, delta = delta))
         }
 
@@ -1030,12 +1065,12 @@ interflex.linear <- function(data,
             link.1 <- model.coef["(Intercept)"] + sub.data[, X] * model.coef[X] +
                 model.coef[paste0("D.", char)] + sub.data[, X] * model.coef[paste0("DX.", char)]
             link.0 <- model.coef["(Intercept)"] + sub.data[, X] * model.coef[X]
-            if (is.null(Z) == FALSE) {
+            if (!is.null(Z)) {
                 for (a in Z) {
                     target.Z <- sub.data[, a]
                     link.1 <- link.1 + target.Z * model.coef[a]
                     link.0 <- link.0 + target.Z * model.coef[a]
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         link.1 <- link.1 + target.Z * model.coef[paste0(a, ".X")] * sub.data[, X]
                         link.0 <- link.0 + target.Z * model.coef[paste0(a, ".X")] * sub.data[, X]
                     }
@@ -1063,7 +1098,7 @@ interflex.linear <- function(data,
                 TE <- E.y.1 - E.y.0
             }
             ATE <- weighted.mean(TE, weights, na.rm = TRUE)
-            if (delta == FALSE) {
+            if (!delta) {
                 return(ATE)
             }
         }
@@ -1071,11 +1106,11 @@ interflex.linear <- function(data,
         if (treat.type == "continuous") {
             weights <- data[, "WEIGHTS"]
             link <- model.coef["(Intercept)"] + data[, X] * model.coef[X] + model.coef[D] * data[, D] + model.coef["DX"] * data[, X] * data[, D]
-            if (is.null(Z) == FALSE) {
+            if (!is.null(Z)) {
                 for (a in Z) {
                     target.Z <- data[, a]
                     link <- link + target.Z * model.coef[a]
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         link <- link + target.Z * model.coef[paste0(a, ".X")] * data[, X]
                     }
                 }
@@ -1094,33 +1129,33 @@ interflex.linear <- function(data,
                 ME <- exp(link) * (model.coef[D] + model.coef["DX"] * data[, X])
             }
             AME <- weighted.mean(ME, weights, na.rm = TRUE)
-            if (delta == FALSE) {
+            if (!delta) {
                 return(AME)
             }
         }
 
-        if (delta == TRUE) {
+        if (delta) {
             gen.ATE.sd.vec <- function(index) {
                 if (treat.type == "discrete") {
                     x <- sub.data[index, X]
                     link.1 <- model.coef["(Intercept)"] + x * model.coef[X] + 1 * model.coef[paste0("D.", char)] + x * model.coef[X] * model.coef[paste0("DX.", char)]
                     link.0 <- model.coef["(Intercept)"] + x * model.coef[X]
-                    if (is.null(Z) == FALSE) {
+                    if (!is.null(Z)) {
                         for (a in Z) {
                             target.Z <- sub.data[index, a]
                             link.1 <- link.1 + target.Z * model.coef[a]
                             link.0 <- link.0 + target.Z * model.coef[a]
-                            if (full.moderate == TRUE) {
+                            if (full.moderate) {
                                 link.1 <- link.1 + target.Z * model.coef[paste0(a, ".X")] * x
                                 link.0 <- link.0 + target.Z * model.coef[paste0(a, ".X")] * x
                             }
                         }
                     }
-                    if (is.null(Z) == FALSE) {
+                    if (!is.null(Z)) {
                         vec.1 <- c(1, x, 1, x, as.matrix(sub.data[index, Z]))
                         vec.0 <- c(1, x, 0, 0, as.matrix(sub.data[index, Z]))
                         target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char), Z)
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             vec.1 <- c(vec.1, as.matrix(sub.data[index, Z] * x))
                             vec.0 <- c(vec.0, as.matrix(sub.data[index, Z] * x))
                             target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char), Z, Z.X)
@@ -1148,21 +1183,21 @@ interflex.linear <- function(data,
 
                 if (treat.type == "continuous") {
                     link <- model.coef["(Intercept)"] + data[index, X] * model.coef[X] + model.coef[D] * data[index, D] + model.coef["DX"] * data[index, X] * data[index, D]
-                    if (is.null(Z) == FALSE) {
+                    if (!is.null(Z)) {
                         for (a in Z) {
                             target.Z <- data[index, a]
                             link <- link + target.Z * model.coef[a]
-                            if (full.moderate == TRUE) {
+                            if (full.moderate) {
                                 link <- link + target.Z * model.coef[paste0(a, ".X")] * data[index, X]
                             }
                         }
                     }
 
-                    if (is.null(Z) == FALSE) {
+                    if (!is.null(Z)) {
                         vec1 <- c(1, data[index, X], data[index, D], data[index, D] * data[index, X], as.matrix(data[index, Z]))
                         vec0 <- c(0, 0, 1, data[index, X], rep(0, length(Z)))
                         target.slice <- c("(Intercept)", X, D, "DX", Z)
-                        if (full.moderate == TRUE) {
+                        if (full.moderate) {
                             vec1 <- c(vec1, as.matrix(data[index, Z] * data[index, X]))
                             vec0 <- c(vec0, rep(0, length(Z)))
                             target.slice <- c(target.slice, Z.X)
@@ -1196,9 +1231,9 @@ interflex.linear <- function(data,
                 index.all <- c(1:dim(sub.data)[1])
                 vec.all <- sapply(index.all, function(x) gen.ATE.sd.vec(x))
                 vec.mean <- apply(vec.all, 1, function(x) weighted.mean(x, weights))
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     target.slice <- c("(Intercept)", X, paste0("D.", char), paste0("DX.", char), Z)
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         target.slice <- c(target.slice, Z.X)
                     }
                 } else {
@@ -1214,9 +1249,9 @@ interflex.linear <- function(data,
                 index.all <- c(1:dim(data)[1])
                 vec.all <- sapply(index.all, function(x) gen.ATE.sd.vec(x))
                 vec.mean <- apply(vec.all, 1, function(x) weighted.mean(x, weights))
-                if (is.null(Z) == FALSE) {
+                if (!is.null(Z)) {
                     target.slice <- c("(Intercept)", X, D, "DX", Z)
-                    if (full.moderate == TRUE) {
+                    if (full.moderate) {
                         target.slice <- c(target.slice, Z.X)
                     }
                 } else {
@@ -1668,7 +1703,7 @@ interflex.linear <- function(data,
         }
 
         one.boot <- function() {
-            if (is.null(cl) == TRUE) {
+            if (is.null(cl)) {
                 smp <- sample(1:n, n, replace = TRUE)
             } else { ## block bootstrap
                 cluster.boot <- sample(clusters, length(clusters), replace = TRUE)
@@ -1712,11 +1747,11 @@ interflex.linear <- function(data,
                         )
                     }
                     ## check converge...
-                    if (model.boot$converged == FALSE) {
+                    if (!model.boot$converged) {
                         return(boot.out)
                     }
                 }
-                if (use_fe == TRUE) {
+                if (use_fe == 1) {
                     w.boot <- data.boot[, "WEIGHTS"]
                     model.boot <- felm(formula, data = data.boot, weights = w.boot)
                 }
@@ -1796,36 +1831,45 @@ interflex.linear <- function(data,
             return(boot.out)
         }
 
-        if (parallel == TRUE) {
-            requireNamespace("doParallel")
-            ## require(iterators)
-            maxcores <- detectCores()
+        if (parallel) {
+            maxcores <- parallelly::availableCores()
             cores <- min(maxcores, cores)
-            pcl <- future::makeClusterPSOCK(cores)
-            doParallel::registerDoParallel(pcl)
-            cat("Parallel computing with", cores, "cores...\n")
+            pcfg <- .parallel_config(nboots, cores)
+            if (pcfg$use_parallel) {
+              .setup_parallel(cores)
+              on.exit(future::plan(future::sequential), add = TRUE)
+            }
+            `%op%` <- pcfg$op
+            ## message already printed by interflex()
 
             suppressWarnings(
-                bootout <- foreach(
-                    i = 1:nboots, .combine = cbind,
-                    .export = c("one.boot"), .packages = c("lfe", "AER"),
-                    .inorder = FALSE
-                ) %dopar% {
-                    one.boot()
-                }
+                bootout <- progressr::with_progress({
+                    p <- progressr::progressor(steps = nboots)
+                    foreach(
+                        i = 1:nboots, .combine = cbind,
+                        .export = c("one.boot", "p"),
+                        .packages = c("lfe", "AER"),
+                        .inorder = FALSE,
+                        .options.future = list(seed = TRUE)
+                    ) %op% {
+                        result <- one.boot()
+                        p()
+                        result
+                    }
+                }, handlers = .progress_handler("Bootstrap"))
             )
-            suppressWarnings(stopCluster(pcl))
-            cat("\r")
         } else {
             bootout <- matrix(NA, all.length, 0)
+            cli::cli_progress_bar("Bootstrap", total = nboots,
+                                  clear = TRUE)
             for (i in 1:nboots) {
                 tempdata <- one.boot()
-                if (is.null(tempdata) == FALSE) {
+                if (!is.null(tempdata)) {
                     bootout <- cbind(bootout, tempdata)
                 }
-                if (i %% 50 == 0) cat(i) else cat(".")
+                cli::cli_progress_update()
             }
-            cat("\r")
+            cli::cli_progress_done()
         }
 
         if (treat.type == "discrete") {
@@ -2047,69 +2091,15 @@ interflex.linear <- function(data,
     }
 
 
-    if (TRUE) { # density or histogram
-        if (treat.type == "discrete") { ## discrete D
-            # density
-            if (is.null(weights) == TRUE) {
-                de <- density(data[, X])
-            } else {
-                suppressWarnings(de <- density(data[, X], weights = data[, "WEIGHTS"]))
-            }
-
-            treat_den <- list()
-            for (char in all.treat) {
-                de.name <- paste0("den.", char)
-                if (is.null(weights) == TRUE) {
-                    de.tr <- density(data[data[, D] == char, X])
-                } else {
-                    suppressWarnings(de.tr <- density(data[data[, D] == char, X],
-                        weights = data[data[, D] == char, "WEIGHTS"]
-                    ))
-                }
-                treat_den[[all.treat.origin[char]]] <- de.tr
-            }
-
-            # histogram
-            if (is.null(weights) == TRUE) {
-                hist.out <- hist(data[, X], breaks = 80, plot = FALSE)
-            } else {
-                suppressWarnings(hist.out <- hist(data[, X], data[, "WEIGHTS"],
-                    breaks = 80, plot = FALSE
-                ))
-            }
-            n.hist <- length(hist.out$mids)
-
-            # count the number of treated
-            treat.hist <- list()
-            for (char in all.treat) {
-                count1 <- rep(0, n.hist)
-                treat_index <- which(data[, D] == char)
-                for (i in 1:n.hist) {
-                    count1[i] <- sum(data[treat_index, X] >= hist.out$breaks[i] &
-                        data[treat_index, X] < hist.out$breaks[(i + 1)])
-                }
-                count1[n.hist] <- sum(data[treat_index, X] >= hist.out$breaks[n.hist] &
-                    data[treat_index, X] <= hist.out$breaks[n.hist + 1])
-
-                treat.hist[[all.treat.origin[char]]] <- count1
-            }
-        }
-
-        if (treat.type == "continuous") { ## continuous D
-            if (is.null(weights) == TRUE) {
-                de <- density(data[, X])
-            } else {
-                suppressWarnings(de <- density(data[, X], weights = data[, "WEIGHTS"]))
-            }
-            if (is.null(weights) == TRUE) {
-                hist.out <- hist(data[, X], breaks = 80, plot = FALSE)
-            } else {
-                suppressWarnings(hist.out <- hist(data[, X], data[, "WEIGHTS"],
-                    breaks = 80, plot = FALSE
-                ))
-            }
-            de.co <- de.tr <- NULL
-        }
+    # density or histogram
+    dens <- .compute_density(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+    de <- dens$de
+    treat_den <- dens$treat_den
+    hists <- .compute_histograms(data, X, D, weights, treat.type, all.treat, all.treat.origin)
+    hist.out <- hists$hist.out
+    treat.hist <- hists$treat.hist
+    if (treat.type == "continuous") {
+        de.co <- de.tr <- NULL
     }
 
 
@@ -2201,8 +2191,74 @@ interflex.linear <- function(data,
         )
     }
 
+    # GATE estimation
+    if (isTRUE(gate)) {
+        gate.list <- list()
+
+        if (treat.type == "discrete") {
+            # Binary treatment: use bootstrapGTE with linear nuisance
+            for (char in other.treat) {
+                data_part <- data[data[[D]] %in% c(treat.info[["base"]], char), ]
+                # Recode to 0/1
+                base_val <- treat.info[["base"]]
+                data_part[[paste0(D, "_bin")]] <- ifelse(data_part[[D]] == base_val, 0, 1)
+
+                gate_result <- bootstrapGTE(
+                    data = data_part,
+                    Y = Y,
+                    D = paste0(D, "_bin"),
+                    X = X,
+                    Z = Z,
+                    FE = FE,
+                    signal = "outcome",
+                    outcome_model_type = "linear",
+                    ps_model_type = "linear",
+                    B = nboots,
+                    alpha = 0.05,
+                    CI = CI,
+                    cores = cores,
+                    verbose = FALSE
+                )
+
+                # Rename columns to match DML gate_df format
+                res <- gate_result$results
+                colnames(res) <- .standardize_gate_columns(colnames(res), "GTE")
+                gate.list[[other.treat.origin[char]]] <- res
+            }
+        }
+
+        if (treat.type == "continuous") {
+            # Continuous treatment: use bootstrapGATE_PLR with linear nuisance
+            gate_result <- bootstrapGATE_PLR(
+                data = data,
+                Y = Y,
+                D = D,
+                X = X,
+                Z = Z,
+                FE = FE,
+                outcome_model_type = "linear",
+                treatment_model_type = "linear",
+                B = nboots,
+                alpha = 0.05,
+                CI = CI,
+                cores = cores,
+                verbose = FALSE
+            )
+
+            res <- gate_result$results
+            colnames(res) <- .standardize_gate_columns(colnames(res), "GATE")
+
+            # Use label naming consistent with continuous treatment labeling
+            for (label in label.name) {
+                gate.list[[label]] <- res
+            }
+        }
+
+        final.output$g.est <- gate.list
+    }
+
     # Plot
-    if (figure == TRUE) {
+    if (figure) {
         class(final.output) <- "interflex"
         figure.output <- plot.interflex(
             x = final.output,
@@ -2235,6 +2291,7 @@ interflex.linear <- function(data,
             legend.title = legend.title,
             color = color,
             show.all = show.all,
+            show.uniform.CI = show.uniform.CI,
             scale = scale,
             height = height,
             width = width

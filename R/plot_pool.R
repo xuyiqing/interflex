@@ -16,8 +16,9 @@ interflex.plot.pool <- function(
     ylab = NULL,
     xlim = NULL,
     ylim = NULL,
-    theme.bw = FALSE,
+    theme.bw = TRUE,
     show.grid = TRUE,
+    show.uniform.CI = TRUE,
     cex.main = NULL,
     cex.lab = NULL,
     cex.axis = NULL,
@@ -58,7 +59,7 @@ interflex.plot.pool <- function(
     r <- NULL
 
 
-    if (!class(out) %in% c("interflex")) {
+    if (!inherits(out, "interflex")) {
         stop("Not an \"interflex\" object.")
     }
 
@@ -80,8 +81,8 @@ interflex.plot.pool <- function(
     count.tr <- out$count.tr
     estimator <- out$estimator
 
-    if (is.null(show.subtitles) == FALSE) {
-        if (is.logical(show.subtitles) == FALSE & is.numeric(show.subtitles) == FALSE) {
+    if (!is.null(show.subtitles)) {
+        if (!is.logical(show.subtitles) & !is.numeric(show.subtitles)) {
             stop("\"show.subtitles\" is not a logical flag.")
         }
     } else {
@@ -89,25 +90,25 @@ interflex.plot.pool <- function(
     }
 
     # CI
-    if (is.null(CI) == FALSE) {
-        if (is.logical(CI) == FALSE & is.numeric(CI) == FALSE) {
+    if (!is.null(CI)) {
+        if (!is.logical(CI) & !is.numeric(CI)) {
             stop("\"CI\" is not a logical flag.")
         }
         if (estimator == "kernel") {
-            if (CI == TRUE & out$CI == FALSE) {
+            if (isTRUE(CI) & isFALSE(out$CI)) {
                 stop("Confidence intervals are not estimated, please set CI to FALSE.")
             }
         }
     }
 
     if (estimator == "kernel") {
-        if (is.null(CI) == TRUE) {
+        if (is.null(CI)) {
             CI <- out$CI
         }
     }
 
-    if (estimator == "binning" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
-        if (is.null(CI) == TRUE) {
+    if (estimator == "binning" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "aipw") {
+        if (is.null(CI)) {
             CI <- TRUE
         }
     }
@@ -118,15 +119,15 @@ interflex.plot.pool <- function(
     }
 
     # main
-    if (is.null(main) == FALSE) {
+    if (!is.null(main)) {
         main <- as.character(main)[1]
     }
 
     # Ylabel
-    if (is.null(Ylabel) == TRUE) {
+    if (is.null(Ylabel)) {
         Ylabel <- out$Ylabel
     } else {
-        if (is.character(Ylabel) == FALSE) {
+        if (!is.character(Ylabel)) {
             stop("\"Ylabel\" is not a string.")
         } else {
             Ylabel <- Ylabel[1]
@@ -134,10 +135,10 @@ interflex.plot.pool <- function(
     }
 
     # Dlabel
-    if (is.null(Dlabel) == TRUE) {
+    if (is.null(Dlabel)) {
         Dlabel <- out$Dlabel
     } else {
-        if (is.character(Dlabel) == FALSE) {
+        if (!is.character(Dlabel)) {
             stop("\"Dlabel\" is not a string.")
         } else {
             Dlabel <- Dlabel[1]
@@ -145,10 +146,10 @@ interflex.plot.pool <- function(
     }
 
     # Xlabel
-    if (is.null(Xlabel) == TRUE) {
+    if (is.null(Xlabel)) {
         Xlabel <- out$Xlabel
     } else {
-        if (is.character(Xlabel) == FALSE) {
+        if (!is.character(Xlabel)) {
             stop("\"Xlabel\" is not a string.")
         } else {
             Xlabel <- Xlabel[1]
@@ -156,35 +157,35 @@ interflex.plot.pool <- function(
     }
 
     ## axis labels
-    if (is.null(xlab) == FALSE) {
-        if (is.character(xlab) == FALSE) {
+    if (!is.null(xlab)) {
+        if (!is.character(xlab)) {
             stop("\"xlab\" is not a string.")
         }
     }
-    if (is.null(ylab) == FALSE) {
-        if (is.character(ylab) == FALSE) {
+    if (!is.null(ylab)) {
+        if (!is.character(ylab)) {
             stop("\"ylab\" is not a string.")
         }
     }
 
-    if (is.null(xlab) == TRUE) {
+    if (is.null(xlab)) {
         xlab <- c(paste("Moderator: ", Xlabel, sep = ""))
     } else {
-        if (is.character(xlab) == FALSE) {
+        if (!is.character(xlab)) {
             stop("\"xlab\" is not a string.")
         }
     }
-    if (is.null(ylab) == TRUE) {
-        ylab <- c(paste("Marginal Effect of ", Dlabel, " on ", Ylabel, sep = ""))
+    if (is.null(ylab)) {
+        ylab <- paste("CME of ", Dlabel, " on ", Ylabel, sep = "")
     } else {
-        if (is.character(ylab) == FALSE) {
+        if (!is.character(ylab)) {
             stop("\"ylab\" is not a string.")
         }
     }
 
     ## xlim ylim
-    if (is.null(xlim) == FALSE) {
-        if (is.numeric(xlim) == FALSE) {
+    if (!is.null(xlim)) {
+        if (!is.numeric(xlim)) {
             stop("Some element in \"xlim\" is not numeric.")
         } else {
             if (length(xlim) != 2) {
@@ -193,8 +194,8 @@ interflex.plot.pool <- function(
         }
     }
 
-    if (is.null(ylim) == FALSE) {
-        if (is.numeric(ylim) == FALSE) {
+    if (!is.null(ylim)) {
+        if (!is.numeric(ylim)) {
             stop("Some element in \"ylim\" is not numeric.")
         } else {
             if (length(ylim) != 2) {
@@ -204,58 +205,58 @@ interflex.plot.pool <- function(
     }
 
     ## theme.bw
-    if (is.logical(theme.bw) == FALSE & is.numeric(theme.bw) == FALSE) {
+    if (!is.logical(theme.bw) & !is.numeric(theme.bw)) {
         stop("\"theme.bw\" is not a logical flag.")
     }
 
     ## show.grid
-    if (is.logical(show.grid) == FALSE & is.numeric(show.grid) == FALSE) {
+    if (!is.logical(show.grid) & !is.numeric(show.grid)) {
         stop("\"show.grid\" is not a logical flag.")
     }
 
     ## font size
-    if (is.null(cex.main) == FALSE) {
-        if (is.numeric(cex.main) == FALSE) {
+    if (!is.null(cex.main)) {
+        if (!is.numeric(cex.main)) {
             stop("\"cex.main\" is not numeric.")
         }
     }
-    if (is.null(cex.sub) == FALSE) {
-        if (is.numeric(cex.sub) == FALSE) {
+    if (!is.null(cex.sub)) {
+        if (!is.numeric(cex.sub)) {
             stop("\"cex.sub\" is not numeric.")
         }
     }
-    if (is.null(cex.lab) == FALSE) {
-        if (is.numeric(cex.lab) == FALSE) {
+    if (!is.null(cex.lab)) {
+        if (!is.numeric(cex.lab)) {
             stop("\"cex.lab\" is not numeric.")
         }
     }
-    if (is.null(cex.axis) == FALSE) {
-        if (is.numeric(cex.axis) == FALSE) {
+    if (!is.null(cex.axis)) {
+        if (!is.numeric(cex.axis)) {
             stop("\"cex.axis\" is not numeric.")
         }
     }
 
     ## bin.labs
-    if (is.logical(bin.labs) == FALSE & is.numeric(bin.labs) == FALSE) {
+    if (!is.logical(bin.labs) & !is.numeric(bin.labs)) {
         stop("\"bin.labs\" is not a logical flag.")
     }
 
     ## interval
-    if (is.null(interval) == FALSE) {
-        if (is.numeric(interval) == FALSE) {
+    if (!is.null(interval)) {
+        if (!is.numeric(interval)) {
             stop("Some element in \"interval\" is not numeric.")
         }
     }
 
     ## file
-    if (is.null(file) == FALSE) {
-        if (is.character(file) == FALSE) {
+    if (!is.null(file)) {
+        if (!is.character(file)) {
             stop("Wrong file name.")
         }
     }
 
     ## color
-    if (is.null(color) == FALSE) {
+    if (!is.null(color)) {
         color <- as.character(color)
         color.in <- c()
         for (char in color) {
@@ -269,7 +270,7 @@ interflex.plot.pool <- function(
         color <- color.in
     }
 
-    if (is.null(legend.title) == FALSE) {
+    if (!is.null(legend.title)) {
         legend.title <- as.character(legend.title)[1]
     }
 
@@ -282,6 +283,9 @@ interflex.plot.pool <- function(
     if (treat.type == "discrete" & estimator == "grf") {
         tempxx <- out$est.grf[[other.treat[1]]][, "X"]
     }
+    if (treat.type == "discrete" & estimator == "aipw") {
+        tempxx <- out$est.aipw[[other.treat[1]]][, "X"]
+    }
     if (treat.type == "discrete" & estimator == "kernel") {
         tempxx <- out$est.kernel[[other.treat[1]]][, "X"]
     }
@@ -290,6 +294,9 @@ interflex.plot.pool <- function(
     }
     if (treat.type == "continuous" & estimator == "dml") {
         tempxx <- out$est.dml[[label.name[1]]][, "X"]
+    }
+    if (treat.type == "continuous" & estimator == "aipw") {
+        tempxx <- out$est.aipw[[label.name[1]]][, "X"]
     }
     if (treat.type == "continuous" & estimator == "kernel") {
         tempxx <- out$est.kernel[[label.name[1]]][, "X"]
@@ -300,7 +307,7 @@ interflex.plot.pool <- function(
     ## order/subtitles
     if (treat.type == "discrete") {
         other.treat <- sort(all.treat[which(all.treat != base)])
-        if (is.null(order) == FALSE) {
+        if (!is.null(order)) {
             order <- as.character(order)
             if (length(order) != length(unique(order))) {
                 stop("\"order\" should not contain repeated values.")
@@ -316,17 +323,17 @@ interflex.plot.pool <- function(
             other.treat <- order
         }
 
-        if (is.null(show.subtitles) == TRUE) {
+        if (is.null(show.subtitles)) {
             show.subtitles <- TRUE
         }
 
-        if (is.null(subtitles) == FALSE) {
+        if (!is.null(subtitles)) {
             if (length(subtitles) != length(all.treat)) {
                 stop("The number of elements in \"subtitles\" should be m(m is the number of different treatment arms including the baseline group).")
             }
         }
 
-        if (is.null(subtitles) == TRUE) {
+        if (is.null(subtitles)) {
             base.name <- paste0("Base Group (", base, ")")
             subtitles <- c(base.name, other.treat)
         } else {
@@ -338,8 +345,8 @@ interflex.plot.pool <- function(
     }
 
     if (treat.type == "continuous") {
-        if (is.null(order) == FALSE) {
-            if (is.numeric(order) == FALSE) {
+        if (!is.null(order)) {
+            if (!is.numeric(order)) {
                 stop("\"order\" should be numeric.")
             }
             if (length(order) != length(unique(order))) {
@@ -358,28 +365,28 @@ interflex.plot.pool <- function(
             label.name <- label.name.order
         }
 
-        if (is.null(show.subtitles) == TRUE) {
+        if (is.null(show.subtitles)) {
             show.subtitles <- TRUE
         }
 
-        if (is.null(subtitles) == FALSE) {
+        if (!is.null(subtitles)) {
             if (length(subtitles) != length(label.name)) {
                 stop("The number of elements in \"subtitles\" should equal to the number of values in D.ref.")
             }
         }
 
-        if (is.null(subtitles) == TRUE) {
+        if (is.null(subtitles)) {
             subtitles <- label.name
         }
 
         subtitles.all <- subtitles
     }
 
-    if (is.null(diff.values) == FALSE) {
+    if (!is.null(diff.values)) {
         if (estimator == "binning") {
             stop("\"diff.values\" can only work after linear or kernel model is applied.")
         }
-        if (is.numeric(diff.values) == FALSE) {
+        if (!is.numeric(diff.values)) {
             stop("\"diff.values\" is not numeric.")
         }
         if (length(diff.values) < 2) {
@@ -394,6 +401,9 @@ interflex.plot.pool <- function(
         if (treat.type == "discrete" & (estimator == "grf")) {
             tempxx <- out$est.grf[[other.treat[1]]][, "X"]
         }
+        if (treat.type == "discrete" & (estimator == "aipw")) {
+            tempxx <- out$est.aipw[[other.treat[1]]][, "X"]
+        }
         if (treat.type == "discrete" & estimator == "kernel") {
             tempxx <- out$est.kernel[[other.treat[1]]][, "X"]
         }
@@ -401,7 +411,10 @@ interflex.plot.pool <- function(
             tempxx <- out$est.lin[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "dml") {
-            tempxx <- out$est.lin[[label.name[1]]][, "X"]
+            tempxx <- out$est.dml[[label.name[1]]][, "X"]
+        }
+        if (treat.type == "continuous" & estimator == "aipw") {
+            tempxx <- out$est.aipw[[label.name[1]]][, "X"]
         }
         if (treat.type == "continuous" & estimator == "kernel") {
             tempxx <- out$est.kernel[[label.name[1]]][, "X"]
@@ -432,22 +445,23 @@ interflex.plot.pool <- function(
             est.bin3 <- list() ## missing part
             yrange <- c(0)
             for (char in other.treat) {
-                est.bin2[[char]] <- as.matrix(est.bin[[char]][which(is.na(est.bin[[char]][, 2]) == FALSE), ])
-                est.bin3[[char]] <- as.matrix(est.bin[[char]][which(is.na(est.bin[[char]][, 2]) == TRUE), ])
+                est.bin2[[char]] <- as.matrix(est.bin[[char]][which(!is.na(est.bin[[char]][, 2])), ])
+                est.bin3[[char]] <- as.matrix(est.bin[[char]][which(is.na(est.bin[[char]][, 2])), ])
                 if (dim(est.bin2[[char]])[2] == 1) {
                     est.bin2[[char]] <- t(est.bin2[[char]])
                 }
                 if (dim(est.bin3[[char]])[2] == 1) {
                     est.bin3[[char]] <- t(est.bin3[[char]])
                 }
-                if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)], est.bin[[char]][, c(4, 5)]))))
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.lin[[char]])
+                    yrange <- .append_yrange_ci(yrange, est.bin[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2], est.bin[[char]][, 2]))))
                 }
             }
 
-            if (is.null(ylim) == FALSE) {
+            if (!is.null(ylim)) {
                 yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
             }
             X.lvls <- est.lin[[other.treat[1]]][, 1]
@@ -463,16 +477,17 @@ interflex.plot.pool <- function(
             est.bin3 <- list() ## missing part
             yrange <- c(0)
             for (label in label.name) {
-                est.bin2[[label]] <- as.matrix(est.bin[[label]][which(is.na(est.bin[[label]][, 2]) == FALSE), ])
-                est.bin3[[label]] <- as.matrix(est.bin[[label]][which(is.na(est.bin[[label]][, 2]) == TRUE), ])
+                est.bin2[[label]] <- as.matrix(est.bin[[label]][which(!is.na(est.bin[[label]][, 2])), ])
+                est.bin3[[label]] <- as.matrix(est.bin[[label]][which(is.na(est.bin[[label]][, 2])), ])
                 if (dim(est.bin2[[label]])[2] == 1) {
                     est.bin2[[label]] <- t(est.bin2[[label]])
                 }
                 if (dim(est.bin3[[label]])[2] == 1) {
                     est.bin3[[label]] <- t(est.bin3[[label]])
                 }
-                if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)], est.bin[[label]][, c(4, 5)]))))
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.lin[[label]])
+                    yrange <- .append_yrange_ci(yrange, est.bin[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2], est.bin[[label]][, 2]))))
                 }
@@ -480,7 +495,7 @@ interflex.plot.pool <- function(
 
             X.lvls <- est.lin[[label.name[1]]][, 1]
             errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-            if (is.null(ylim) == FALSE) {
+            if (!is.null(ylim)) {
                 yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
             }
             maxdiff <- (max(yrange) - min(yrange))
@@ -494,11 +509,8 @@ interflex.plot.pool <- function(
             est.dml <- out$est.dml
             yrange <- c(0)
             for (char in other.treat) {
-                if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(4, 5)]))))
-                    if (ncol(est.dml[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, c(6, 7)]))))
-                    }
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.dml[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[char]][, 2]))))
                 }
@@ -509,11 +521,8 @@ interflex.plot.pool <- function(
             est.dml <- out$est.dml
             yrange <- c(0)
             for (label in label.name) {
-                if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(4, 5)]))))
-                    if (ncol(est.dml[[label]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, c(6, 7)]))))
-                    }
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.dml[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.dml[[label]][, 2]))))
                 }
@@ -521,7 +530,7 @@ interflex.plot.pool <- function(
             X.lvls <- est.dml[[label.name[1]]][, 1]
         }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         maxdiff <- (max(yrange) - min(yrange))
@@ -533,11 +542,8 @@ interflex.plot.pool <- function(
             est.grf <- out$est.grf
             yrange <- c(0)
             for (char in other.treat) {
-                if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(4, 5)]))))
-                    if (ncol(est.grf[[char]]) > 5) {
-                        yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, c(6, 7)]))))
-                    }
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.grf[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.grf[[char]][, 2]))))
                 }
@@ -545,7 +551,40 @@ interflex.plot.pool <- function(
             X.lvls <- est.grf[[other.treat[1]]][, 1]
         }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
+            yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
+        }
+        maxdiff <- (max(yrange) - min(yrange))
+        pos <- max(yrange) - maxdiff / 20
+    }
+
+    if (estimator == "aipw") {
+        if (treat.type == "discrete") {
+            est.aipw <- out$est.aipw
+            yrange <- c(0)
+            for (char in other.treat) {
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.aipw[[char]])
+                } else {
+                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[char]][, 2]))))
+                }
+            }
+            X.lvls <- est.aipw[[other.treat[1]]][, 1]
+        }
+        if (treat.type == "continuous") {
+            est.aipw <- out$est.aipw
+            yrange <- c(0)
+            for (label in label.name) {
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.aipw[[label]])
+                } else {
+                    yrange <- c(yrange, na.omit(unlist(c(est.aipw[[label]][, 2]))))
+                }
+            }
+            X.lvls <- est.aipw[[label.name[1]]][, 1]
+        }
+        errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         maxdiff <- (max(yrange) - min(yrange))
@@ -557,8 +596,8 @@ interflex.plot.pool <- function(
             est.lin <- out$est.lin
             yrange <- c(0)
             for (char in other.treat) {
-                if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, c(4, 5)]))))
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.lin[[char]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[char]][, 2]))))
                 }
@@ -570,8 +609,8 @@ interflex.plot.pool <- function(
             est.lin <- out$est.lin
             yrange <- c(0)
             for (label in label.name) {
-                if (CI == TRUE) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, c(4, 5)]))))
+                if (isTRUE(CI)) {
+                    yrange <- .append_yrange_ci(yrange, est.lin[[label]])
                 } else {
                     yrange <- c(yrange, na.omit(unlist(c(est.lin[[label]][, 2]))))
                 }
@@ -580,7 +619,7 @@ interflex.plot.pool <- function(
         }
 
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         maxdiff <- (max(yrange) - min(yrange))
@@ -591,7 +630,7 @@ interflex.plot.pool <- function(
     if (estimator == "kernel") {
         est.kernel <- out$est.kernel
         yrange <- c(0)
-        if (CI == FALSE) {
+        if (isFALSE(CI)) {
             if (treat.type == "discrete") {
                 for (char in other.treat) {
                     yrange <- c(yrange, na.omit(unlist(c(est.kernel[[char]][, 2]))))
@@ -607,23 +646,23 @@ interflex.plot.pool <- function(
             }
         }
 
-        if (CI == TRUE) {
+        if (isTRUE(CI)) {
             if (treat.type == "discrete") {
                 for (char in other.treat) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.kernel[[char]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.kernel[[char]])
                 }
                 X.lvls <- est.kernel[[other.treat[1]]][, 1]
             }
 
             if (treat.type == "continuous") {
                 for (label in label.name) {
-                    yrange <- c(yrange, na.omit(unlist(c(est.kernel[[label]][, c(4, 5)]))))
+                    yrange <- .append_yrange_ci(yrange, est.kernel[[label]])
                 }
                 X.lvls <- est.kernel[[label.name[1]]][, 1]
             }
         }
 
-        if (is.null(ylim) == FALSE) {
+        if (!is.null(ylim)) {
             yrange <- c(ylim[2], ylim[1] + (ylim[2] - ylim[1]) * 1 / 8)
         }
         errorbar.width <- (max(X.lvls) - min(X.lvls)) / 20
@@ -637,11 +676,11 @@ interflex.plot.pool <- function(
     requireNamespace("RColorBrewer")
     platte <- brewer.pal(n = 8, "Set2")
 
-    if (is.null(color) == TRUE) {
+    if (is.null(color)) {
         base.color <- "gray50"
     }
 
-    if (is.null(color) == FALSE) {
+    if (!is.null(color)) {
         if (treat.type == "discrete") {
             base.color <- color[1]
             if (length(color) == 1) {
@@ -669,23 +708,25 @@ interflex.plot.pool <- function(
     p1 <- ggplot()
 
     ## black white theme and mark zero
-    if (theme.bw == FALSE) {
-        p1 <- p1 + geom_hline(yintercept = 0, colour = "white", size = 2)
+    if (!theme.bw) {
+        p1 <- p1 + geom_hline(yintercept = 0, colour = "white", linewidth = 2)
     } else {
-        p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", size = 2)
+        p1 <- p1 + theme_bw() + geom_hline(yintercept = 0, colour = "#AAAAAA50", linewidth = 2)
     }
 
-    if (show.grid == FALSE) {
+    if (!show.grid) {
         p1 <- p1 + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
     }
 
-    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf") {
+    if (estimator == "kernel" | estimator == "linear" | estimator == "dml" | estimator == "grf" | estimator == "aipw") {
         if (estimator == "kernel") {
             est <- est.kernel
         } else if (estimator == "dml") {
             est <- est.dml
         } else if (estimator == "grf") {
             est <- est.grf
+        } else if (estimator == "aipw") {
+            est <- est.aipw
         } else {
             est <- est.lin
         }
@@ -693,7 +734,7 @@ interflex.plot.pool <- function(
         if (treat.type == "discrete") {
             for (char in other.treat) {
                 est.touse <- est[[char]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     if (estimator == "dml") {
                         colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                     } else {
@@ -704,7 +745,7 @@ interflex.plot.pool <- function(
                         }
                     }
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     est.touse <- est.touse[, c(1, 2)]
                     colnames(est.touse) <- c("X", "TE")
                 }
@@ -721,11 +762,11 @@ interflex.plot.pool <- function(
             tempest$Treatment <- factor(tempest$Treatment, levels = other.treat)
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = TE, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
-            if (CI == TRUE) {
+            if (isTRUE(CI)) {
                 # if(estimator!='dml'){
                 p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
-                if ("CI_uniform_lower" %in% colnames(tempest)) {
+                if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI) {
                     p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2, alpha = 0, show.legend = F)
                     p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
                 }
@@ -736,7 +777,7 @@ interflex.plot.pool <- function(
                 # }
             }
 
-            if (is.null(diff.values) == FALSE) {
+            if (!is.null(diff.values)) {
                 k <- 1
                 for (char in other.treat) {
                     tempest <- est[[char]]
@@ -749,13 +790,13 @@ interflex.plot.pool <- function(
                         label2 <- which.min(Xnew)
                         if (d1 == 0) {
                             est.mark <- tempest[label1, 2]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label1, 4]
                                 ub.mark <- tempest[label1, 5]
                             }
                         } else if (d2 == 0) {
                             est.mark <- tempest[label2, 2]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label2, 4]
                                 ub.mark <- tempest[label2, 5]
                             }
@@ -763,7 +804,7 @@ interflex.plot.pool <- function(
                             est.mark1 <- tempest[label1, 2]
                             est.mark2 <- tempest[label2, 2]
                             est.mark <- ((est.mark1 * d2 + est.mark2 * d1) / (d1 + d2))
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark1 <- tempest[label1, 4]
                                 ub.mark1 <- tempest[label1, 5]
                                 lb.mark2 <- tempest[label2, 4]
@@ -774,8 +815,8 @@ interflex.plot.pool <- function(
                         }
 
                         p1 <- p1 + annotate("point", x = target.value, y = est.mark, size = 1, colour = platte[k])
-                        if (CI == TRUE) {
-                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], size = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
+                        if (isTRUE(CI)) {
+                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], linewidth = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
                         }
                     }
                     k <- k + 1
@@ -786,7 +827,7 @@ interflex.plot.pool <- function(
         if (treat.type == "continuous") {
             for (label in label.name) {
                 est.touse <- est[[label]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     if (dim(est.touse)[2] == 5) {
                         if (estimator == "dml") {
                             colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
@@ -797,7 +838,7 @@ interflex.plot.pool <- function(
                         colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper", "CI_uniform_lower", "CI_uniform_upper")
                     }
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     est.touse <- est.touse[, c(1, 2)]
                     colnames(est.touse) <- c("X", "ME")
                 }
@@ -815,11 +856,11 @@ interflex.plot.pool <- function(
             tempest$Treatment <- factor(tempest$Treatment, levels = label.name)
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = ME, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
-            if (CI == TRUE) {
+            if (isTRUE(CI)) {
                 # if(estimator!='dml'){
                 p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
-                if ("CI_uniform_lower" %in% colnames(tempest)) {
+                if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI) {
                     p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2, alpha = 0, show.legend = F)
                     p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
                 }
@@ -830,7 +871,7 @@ interflex.plot.pool <- function(
                 # }
             }
 
-            if (is.null(diff.values) == FALSE) {
+            if (!is.null(diff.values)) {
                 k <- 1
                 for (label in label.name) {
                     tempest <- est[[label]]
@@ -843,13 +884,13 @@ interflex.plot.pool <- function(
                         label2 <- which.min(Xnew)
                         if (d1 == 0) {
                             est.mark <- tempest[label1, 2]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label1, 4]
                                 ub.mark <- tempest[label1, 5]
                             }
                         } else if (d2 == 0) {
                             est.mark <- tempest[label2, 2]
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark <- tempest[label2, 4]
                                 ub.mark <- tempest[label2, 5]
                             }
@@ -857,7 +898,7 @@ interflex.plot.pool <- function(
                             est.mark1 <- tempest[label1, 2]
                             est.mark2 <- tempest[label2, 2]
                             est.mark <- ((est.mark1 * d2 + est.mark2 * d1) / (d1 + d2))
-                            if (CI == TRUE) {
+                            if (isTRUE(CI)) {
                                 lb.mark1 <- tempest[label1, 4]
                                 ub.mark1 <- tempest[label1, 5]
                                 lb.mark2 <- tempest[label2, 4]
@@ -868,8 +909,8 @@ interflex.plot.pool <- function(
                         }
 
                         p1 <- p1 + annotate("point", x = target.value, y = est.mark, size = 1, colour = platte[k])
-                        if (CI == TRUE) {
-                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], size = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
+                        if (isTRUE(CI)) {
+                            p1 <- p1 + annotate("errorbar", x = target.value, ymin = lb.mark, ymax = ub.mark, colour = platte[k], linewidth = 0.5, width = (max(tempxx) - min(tempxx)) / 20)
                         }
                     }
                     k <- k + 1
@@ -883,10 +924,10 @@ interflex.plot.pool <- function(
         if (treat.type == "discrete") {
             for (char in other.treat) {
                 est.touse <- est.lin[[char]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     colnames(est.touse) <- c("X", "TE", "sd", "CI_lower", "CI_upper")
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     est.touse <- est.touse[, c(1, 2)]
                     colnames(est.touse) <- c("X", "TE")
                 }
@@ -902,7 +943,7 @@ interflex.plot.pool <- function(
             tempest$Treatment <- factor(tempest$Treatment, levels = other.treat)
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = TE, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
-            if (CI == TRUE) {
+            if (isTRUE(CI)) {
                 p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = FALSE)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
             }
@@ -927,10 +968,10 @@ interflex.plot.pool <- function(
         if (treat.type == "continuous") {
             for (label in label.name) {
                 est.touse <- est.lin[[label]]
-                if (CI == TRUE) {
+                if (isTRUE(CI)) {
                     colnames(est.touse) <- c("X", "ME", "sd", "CI_lower", "CI_upper")
                 }
-                if (CI == FALSE) {
+                if (isFALSE(CI)) {
                     est.touse <- est.touse[, c(1, 2)]
                     colnames(est.touse) <- c("X", "ME")
                 }
@@ -946,7 +987,7 @@ interflex.plot.pool <- function(
             tempest$Treatment <- factor(tempest$Treatment, levels = label.name)
             p1 <- p1 + geom_line(data = tempest, aes(x = X, y = ME, color = Treatment), show.legend = FALSE)
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
-            if (CI == TRUE) {
+            if (isTRUE(CI)) {
                 p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = FALSE)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
             }
@@ -969,7 +1010,7 @@ interflex.plot.pool <- function(
             }
         }
 
-        if (bin.labs == TRUE) {
+        if (bin.labs) {
             if (treat.type == "discrete") {
                 char0 <- other.treat[1]
             }
@@ -1031,7 +1072,7 @@ interflex.plot.pool <- function(
             ## color
             p1 <- p1 + geom_ribbon(
                 data = deX.co, aes(x = x, ymax = y, ymin = deX.ymin), color = base.color,
-                fill = base.color, alpha = 0.0, size = 0.3
+                fill = base.color, alpha = 0.0, linewidth = 0.3
             )
             k <- 1
             char0 <- other.treat[1]
@@ -1045,12 +1086,12 @@ interflex.plot.pool <- function(
 
                 p1 <- p1 + geom_ribbon(
                     data = dex.tr.plot, aes(x = x, ymax = end_level, ymin = start_level), color = platte[k],
-                    alpha = 0.0, fill = platte[k], size = 0.3
+                    alpha = 0.0, fill = platte[k], linewidth = 0.3
                 )
 
                 k <- k + 1
             }
-            p1 <- p1 + geom_line(data = dex.tr.plot, aes(x = x, y = ymin), color = "gray50", size = 0.3)
+            p1 <- p1 + geom_line(data = dex.tr.plot, aes(x = x, y = ymin), color = "gray50", linewidth = 0.3)
         }
 
         if (treat.type == "continuous") {
@@ -1085,7 +1126,7 @@ interflex.plot.pool <- function(
 
             p1 <- p1 + geom_rect(
                 data = hist.col, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = count1), fill = base.color, color = "gray50",
-                alpha = 0.3, size = 0.5
+                alpha = 0.3, linewidth = 0.5
             )
 
             k <- 1
@@ -1102,7 +1143,7 @@ interflex.plot.pool <- function(
 
                 p1 <- p1 + geom_rect(
                     data = hist.treat, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax), fill = platte[k], color = "gray50",
-                    alpha = 0.5, size = 0.5
+                    alpha = 0.5, linewidth = 0.5
                 )
                 k <- k + 1
             }
@@ -1127,23 +1168,23 @@ interflex.plot.pool <- function(
 
 
     ## other properties
-    if (is.null(legend.title) == FALSE) {
+    if (!is.null(legend.title)) {
         p1 <- p1 + labs(fill = legend.title, color = legend.title)
     }
 
     ## mark the original interval (in replicated papers)
-    if (is.null(interval) == FALSE) {
-        p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, size = 1.5)
+    if (!is.null(interval)) {
+        p1 <- p1 + geom_vline(xintercept = interval, colour = "steelblue", linetype = 2, linewidth = 1.5)
     }
 
     ## Other universal options
     ## axis labels
-    if (is.null(cex.lab) == TRUE) {
+    if (is.null(cex.lab)) {
         cex.lab <- 15
     } else {
         cex.lab <- 15 * cex.lab
     }
-    if (is.null(cex.axis) == TRUE) {
+    if (is.null(cex.axis)) {
         cex.axis <- 15
     } else {
         cex.axis <- 15 * cex.axis
@@ -1152,19 +1193,19 @@ interflex.plot.pool <- function(
         theme(axis.text = element_text(size = cex.axis), axis.title = element_text(size = cex.lab))
 
     ## title
-    if (is.null(cex.main) == TRUE) {
+    if (is.null(cex.main)) {
         cex.main <- 18
     } else {
         cex.main <- 18 * cex.main
     }
 
-    if (is.null(cex.sub) == TRUE) {
+    if (is.null(cex.sub)) {
         cex.sub <- 10
     } else {
         cex.sub <- 10 * cex.sub
     }
 
-    if (is.null(main) == FALSE) {
+    if (!is.null(main)) {
         p1 <- p1 + ggtitle(main) +
             theme(plot.title = element_text(
                 hjust = 0.5, size = cex.main,
@@ -1173,21 +1214,21 @@ interflex.plot.pool <- function(
     }
 
     ## xlim and ylim
-    if (is.null(ylim) == FALSE) {
+    if (!is.null(ylim)) {
         ylim2 <- c(ylim[1] - (ylim[2] - ylim[1]) * 0.25 / 6, ylim[2] + (ylim[2] - ylim[1]) * 0.4 / 6)
     }
-    if (is.null(xlim) == FALSE & is.null(ylim) == FALSE) {
-        p1 <- p1 + coord_cartesian(xlim = xlim, ylim = ylim2)
+    if (!is.null(xlim) & !is.null(ylim)) {
+        p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
     }
-    if (is.null(xlim) == TRUE & is.null(ylim) == FALSE) {
+    if (is.null(xlim) & !is.null(ylim)) {
         p1 <- p1 + coord_cartesian(ylim = ylim2)
     }
-    if (is.null(xlim) == FALSE & is.null(ylim) == TRUE) {
-        p1 <- p1 + coord_cartesian(xlim = xlim)
+    if (!is.null(xlim) & is.null(ylim)) {
+        p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim))
     }
 
     # legend
-    if (show.subtitles == TRUE) {
+    if (show.subtitles) {
         if (treat.type == "discrete") {
             p1_table <- ggplot_gtable(ggplot_build(p1))
             data.touse3 <- data.frame(X = rep(1, length(all.treat)), ymin = -1, ymax = 1, D = all.treat)
@@ -1201,7 +1242,7 @@ interflex.plot.pool <- function(
                 values = c(base.color, platte[1:length(other.treat)]),
                 labels = as.character(subtitles.all)
             )
-            if (is.null(legend.title) == FALSE) {
+            if (!is.null(legend.title)) {
                 p0 <- p0 + labs(fill = legend.title, color = legend.title)
             } else {
                 p0 <- p0 + labs(fill = "Treatment", color = "Treatment")
@@ -1214,24 +1255,24 @@ interflex.plot.pool <- function(
 
             p0 <- p0 + xlab(xlab) + ylab(ylab) + theme(axis.text = element_text(size = cex.axis), axis.title = element_text(size = cex.lab))
 
-            if (is.null(main) == FALSE) {
+            if (!is.null(main)) {
                 p0 <- p0 + ggtitle(main) + theme(plot.title = element_text(
                     hjust = 0.5, size = cex.main,
                     lineheight = .8, face = "bold"
                 ))
             }
 
-            if (is.null(ylim) == FALSE) {
+            if (!is.null(ylim)) {
                 ylim2 <- c(ylim[1] - (ylim[2] - ylim[1]) * 0.25 / 6, ylim[2] + (ylim[2] - ylim[1]) * 0.4 / 6)
             }
-            if (is.null(xlim) == FALSE & is.null(ylim) == FALSE) {
-                p0 <- p0 + coord_cartesian(xlim = xlim, ylim = ylim2)
+            if (!is.null(xlim) & !is.null(ylim)) {
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
             }
-            if (is.null(xlim) == TRUE & is.null(ylim) == FALSE) {
+            if (is.null(xlim) & !is.null(ylim)) {
                 p0 <- p0 + coord_cartesian(ylim = ylim2)
             }
-            if (is.null(xlim) == FALSE & is.null(ylim) == TRUE) {
-                p0 <- p0 + coord_cartesian(xlim = xlim)
+            if (!is.null(xlim) & is.null(ylim)) {
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim))
             }
             y.limits <- layer_scales(p1)$y$range$range
             x.limits <- layer_scales(p1)$x$range$range
@@ -1241,7 +1282,10 @@ interflex.plot.pool <- function(
             xminmin <- x.limits[1]
 
             suppressWarnings(
-                p0 <- p0 + ylim(c(yminmin, ymaxmax)) + xlim(c(xminmin, xmaxmax))
+                p0 <- p0 + coord_cartesian(
+                    xlim = c(xminmin, xmaxmax),
+                    ylim = c(yminmin, ymaxmax)
+                )
             )
             suppressWarnings(
                 p0 <- ggplot_gtable(ggplot_build(p0))
@@ -1273,7 +1317,7 @@ interflex.plot.pool <- function(
                 values = platte[1:length(label.name)],
                 labels = as.character(subtitles.all)
             )
-            if (is.null(legend.title) == FALSE) {
+            if (!is.null(legend.title)) {
                 p0 <- p0 + labs(fill = legend.title, color = legend.title)
             } else {
                 p0 <- p0 + labs(fill = "Treatment", color = "Treatment")
@@ -1286,7 +1330,7 @@ interflex.plot.pool <- function(
 
             p0 <- p0 + xlab(xlab) + ylab(ylab) + theme(axis.text = element_text(size = cex.axis), axis.title = element_text(size = cex.lab))
 
-            if (is.null(main) == FALSE) {
+            if (!is.null(main)) {
                 p0 <- p0 + ggtitle(main) + theme(plot.title = element_text(
                     hjust = 0.5, size = cex.main,
                     lineheight = .8, face = "bold"
@@ -1294,17 +1338,17 @@ interflex.plot.pool <- function(
             }
 
             ## xlim and ylim
-            if (is.null(ylim) == FALSE) {
+            if (!is.null(ylim)) {
                 ylim2 <- c(ylim[1] - (ylim[2] - ylim[1]) * 0.25 / 6, ylim[2] + (ylim[2] - ylim[1]) * 0.4 / 6)
             }
-            if (is.null(xlim) == FALSE & is.null(ylim) == FALSE) {
-                p0 <- p0 + coord_cartesian(xlim = xlim, ylim = ylim2)
+            if (!is.null(xlim) & !is.null(ylim)) {
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim), ylim = ylim2)
             }
-            if (is.null(xlim) == TRUE & is.null(ylim) == FALSE) {
+            if (is.null(xlim) & !is.null(ylim)) {
                 p0 <- p0 + coord_cartesian(ylim = ylim2)
             }
-            if (is.null(xlim) == FALSE & is.null(ylim) == TRUE) {
-                p0 <- p0 + coord_cartesian(xlim = xlim)
+            if (!is.null(xlim) & is.null(ylim)) {
+                p0 <- p0 + coord_cartesian(xlim = .pad_xlim(xlim))
             }
             y.limits <- layer_scales(p1)$y$range$range
             x.limits <- layer_scales(p1)$x$range$range
@@ -1313,7 +1357,10 @@ interflex.plot.pool <- function(
             xmaxmax <- x.limits[2]
             xminmin <- x.limits[1]
             suppressWarnings(
-                p0 <- p0 + ylim(c(yminmin, ymaxmax)) + xlim(c(xminmin, xmaxmax))
+                p0 <- p0 + coord_cartesian(
+                    xlim = c(xminmin, xmaxmax),
+                    ylim = c(yminmin, ymaxmax)
+                )
             )
             suppressWarnings(
                 p0 <- ggplot_gtable(ggplot_build(p0))
@@ -1334,7 +1381,7 @@ interflex.plot.pool <- function(
     }
 
     ## save to file
-    if (is.null(file) == FALSE) {
+    if (!is.null(file)) {
         ggsave(file, p1, scale = scale, width = width, height = height)
     }
 

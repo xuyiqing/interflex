@@ -4,24 +4,24 @@ inter.test <- function(out,
                        diff.values,
                        percentile = FALSE,
                        k = 16) {
-    if (!class(out) %in% c("interflex")) {
+    if (!inherits(out, "interflex")) {
         stop("Not an \"interflex\" object.")
     }
 
     requireNamespace("mgcv")
 
-    if (is.numeric(k) == FALSE) {
+    if (!is.numeric(k)) {
         stop("\"k\" is not numeric.")
     }
 
-    if (is.numeric(diff.values) == FALSE) {
+    if (!is.numeric(diff.values)) {
         stop("\"diff.values\" is not numeric.")
     }
     if (length(diff.values) != 3 & length(diff.values) != 2) {
         stop("\"diff.values\" must be of length 2 or 3.")
     }
 
-    if (is.logical(percentile) == FALSE & is.numeric(percentile) == FALSE) {
+    if (!is.logical(percentile) & !is.numeric(percentile)) {
         stop("\"percentile\" is not a logical flag.")
     }
 
@@ -34,40 +34,36 @@ inter.test <- function(out,
         stop("\"k\" should be a positive integer larger than 1.")
     }
 
-    if (percentile == TRUE) {
+    if (percentile) {
         for (a in diff.values) {
             if (a < 0 | a > 1) {
-                stop("Elements in \"diff.values\" should be between 0 and 1 when percentile==TRUE.")
+                stop("Elements in \"diff.values\" should be between 0 and 1 when percentile.")
             }
         }
     }
 
     treat.info <- out$treat.info
-    treat.type <- treat.info[["treat.type"]]
+    ti <- .extract_treat_info(treat.info)
+    treat.type <- ti$treat.type
     if (treat.type == "discrete") {
-        other.treat <- treat.info[["other.treat"]]
-        other.treat.origin <- names(other.treat)
-        other.treat <- other.treat.origin
-        all.treat <- treat.info[["all.treat"]]
-        all.treat.origin <- names(all.treat)
-        all.treat <- all.treat.origin
-        base <- treat.info[["base"]]
+        other.treat <- ti$other.treat.origin
+        all.treat <- names(ti$all.treat)
+        base <- ti$base
     }
     if (treat.type == "continuous") {
-        D.sample <- treat.info[["D.sample"]]
-        label.name <- names(D.sample)
-        # names(label.name) <- D.sample
+        D.sample <- ti$D.sample
+        label.name <- ti$label.name
     }
 
     estimator <- out$estimator
 
     if (estimator == "kernel") {
-        if (out$CI == FALSE) {
-            stop("ttest() can't work without vcov matrix.")
+        if (isFALSE(out$CI) | length(out$vcov.matrix) == 0) {
+            stop("ttest() can't work without vcov matrix. You may try set vartype as bootstrap for kernel method.")
         }
     }
 
-    if (estimator == "binning") {
+    if (estimator == "binning" | estimator == "dml") {
         stop("ttest() can only work after linear or kernel estimations.")
     }
 
@@ -87,7 +83,7 @@ inter.test <- function(out,
     min.XX <- min(data.x)
     max.XX <- max(data.x)
 
-    if (percentile == TRUE) {
+    if (percentile) {
         diff.pc <- diff.values
         diff.values <- quantile(data.x, probs = diff.values)
     }
@@ -107,14 +103,14 @@ inter.test <- function(out,
     vcov.matrix <- out$vcov.matrix
 
     if (length(diff.values) == 3) {
-        if (percentile == FALSE) {
+        if (!percentile) {
             diff.name <- c(
                 paste0(round(diff.values[2], 3), " vs ", round(diff.values[1], 3)),
                 paste0(round(diff.values[3], 3), " vs ", round(diff.values[2], 3)),
                 paste0(round(diff.values[3], 3), " vs ", round(diff.values[1], 3))
             )
         }
-        if (percentile == TRUE) {
+        if (percentile) {
             diff.name <- c(
                 paste0(round(100 * diff.pc[2], 3), "%", " vs ", round(100 * diff.pc[1], 3), "%"),
                 paste0(round(100 * diff.pc[3], 3), "%", " vs ", round(100 * diff.pc[2], 3), "%"),
@@ -123,10 +119,10 @@ inter.test <- function(out,
         }
     }
     if (length(diff.values) == 2) {
-        if (percentile == FALSE) {
+        if (!percentile) {
             diff.name <- c(paste0(round(diff.values[2], 3), " vs ", round(diff.values[1], 3)))
         }
-        if (percentile == TRUE) {
+        if (percentile) {
             diff.name <- c(paste0(round(100 * diff.pc[2], 3), "%", " vs ", round(100 * diff.pc[1], 3), "%"))
         }
     }
