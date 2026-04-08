@@ -13,7 +13,7 @@ Description: Performs estimation, diagnostics, and visualization of conditional 
 URL: https://yiqingxu.org/packages/interflex/, https://github.com/xuyiqing/interflex
 License: MIT + file LICENSE
 Imports: ggplot2 (>= 2.1.0), sandwich (>= 2.3-4), Lmoments (>= 1.2-3),
-        doParallel (>= 1.0.10), doFuture, doRNG, foreach (>= 1.4.3), mgcv(>= 1.8-16),
+        doFuture, doRNG, foreach (>= 1.4.3), mgcv(>= 1.8-16),
         lfe (>= 2.6-2291), gridExtra, grid, ggplotify, fixest,
         RColorBrewer, pcse, gtable, MASS, mvtnorm, pROC,
         ModelMetrics, lmtest, AER, future,
