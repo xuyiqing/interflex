@@ -154,7 +154,7 @@ endpoints and the panel edges. Two independent guarantees enforce this:
 
 ## Overview
 
-**interflex** is an R package (v1.3.5) for diagnosing and visualizing multiplicative interaction models. It estimates non-linear marginal effects of a treatment (D) on an outcome (Y) across values of a moderator (X), supporting both discrete and continuous treatments. The package provides eight estimation strategies (linear, binning, kernel, GAM, raw, GRF, DML, lasso), unified behind a single `interflex()` entry point. Key external dependencies include ggplot2 (plotting), mgcv (GAM), grf (causal forests), glmnet (lasso/ridge), DoubleML/mlr3 (DML estimation), and Rcpp/RcppArmadillo (C++ linear algebra stubs).
+**interflex** is an R package (v1.4.0) for diagnosing and visualizing multiplicative interaction models. It estimates non-linear marginal effects of a treatment (D) on an outcome (Y) across values of a moderator (X), supporting both discrete and continuous treatments. The package provides eight estimation strategies (linear, binning, kernel, GAM, raw, GRF, DML, lasso), unified behind a single `interflex()` entry point. Key external dependencies include ggplot2 (plotting), mgcv (GAM), grf (causal forests), glmnet (lasso/ridge), and DoubleML/mlr3 (DML estimation). The package is pure R (`NeedsCompilation: no`) — no compiled code.
 
 **GATE (Group Average Treatment Effects)**: When `gate = TRUE` is specified with a discrete moderator X, estimators compute group-level average treatment effects instead of (or in addition to) smooth conditional marginal effect curves. GATE is supported by `linear`, `grf`, `dml`, and `lasso` estimators. The unified output field `g.est` holds GATE results across all estimators, with standardized column names (`X`, `ME`, `sd`, `lower CI(95%)`, `upper CI(95%)`).
 
@@ -170,7 +170,7 @@ graph TD
         PLT["plot.R -- S3 plot method"]
         PRD["predict.R -- S3 predict"]
         TST["inter_test.R -- t-tests"]
-        TST2["ttest.R -- t-tests (bs)"]
+        PRT["print.R -- S3 print"]
     end
 
     subgraph Estimators["Estimator Layer"]
@@ -283,7 +283,7 @@ graph TD
 | `R/plot.R` | API | S3 `plot.interflex()` method; renders marginal effect plots with density/histogram overlays; supports `by.group` via unified `g.est` | `plot.interflex()` | **yes** |
 | `R/predict.R` | API | S3 `predict.interflex()` method; computes predicted marginal effects at new X values | `predict.interflex()` | no |
 | `R/inter_test.R` | API | Post-estimation t-test for difference in marginal effects (dml style) | `inter.test()` | no |
-| `R/ttest.R` | API | Post-estimation t-test for difference in marginal effects (bs copy) | `inter.test()` | no |
+| `R/print.R` | API | S3 `print.interflex()` — auto-prints the figure attached to an interflex object | `print.interflex()` | yes |
 | `R/linear.R` | Estimator | Linear interaction model with delta/bootstrap/simulation variance; GATE via `bootstrapGTE`/`bootstrapGATE_PLR` | `interflex.linear()` | **yes** |
 | `R/binning.R` | Estimator | Binning estimator: splits X into bins, estimates within-bin effects | `interflex.binning()` | no |
 | `R/kernel.R` | Estimator | Kernel estimator: local polynomial regression with bandwidth selection | `interflex.kernel()` | no |
@@ -294,16 +294,15 @@ graph TD
 | `R/lasso.R` | Estimator | Lasso/ridge DML for continuous moderators; calls CME/GTE sub-estimators | `interflex.lasso()` | no |
 | `R/lasso_discrete.R` | Estimator | Lasso/ridge DML for discrete moderators (<5 unique X values); adds `g.est` output field | `interflex.lasso_discrete()` | **yes** |
 | `R/gate_utils.R` | GATE Utils | Column name standardization for bootstrap GATE returns to unified format | `.standardize_gate_columns()` | **new** |
-| `R/estimate_cme_irm.R` | DML Sub | CME estimation via AIPW-Lasso (binary treatment, IRM) | `estimateCME_IRM()` | no |
+| `R/estimate_cme_irm.R` | DML Sub | CME estimation via AIPW-Lasso (binary treatment, IRM) | `estimateCME()` | no |
 | `R/estimate_cme_plr.R` | DML Sub | CME estimation via PO-Lasso (continuous treatment, PLRM) | `estimateCME_PLR()` | no |
-| `R/estimate_gte_irm.R` | DML Sub | Group treatment effects via AIPW-Lasso (binary treatment, discrete X); `bootstrapGTE()` | `estimateGTE_IRM()`, `bootstrapGTE()` | no |
+| `R/estimate_gte_irm.R` | DML Sub | Group treatment effects via AIPW-Lasso (binary treatment, discrete X); `bootstrapGTE()` | `estimateGTE()`, `bootstrapGTE()` | no |
 | `R/estimate_gte_plr.R` | DML Sub | Group treatment effects via PO-Lasso (continuous treatment, discrete X); `bootstrapGATE_PLR()` | `estimateGATE_PLR()`, `bootstrapGATE_PLR()` | no |
 | `R/plot_pool.R` | Output | Pooled multi-treatment plot with overlaid CIs | `interflex.plot.pool()` | no |
 | `R/utils.R` | Utils | Shared internal helpers: treat.info extraction, density, histograms | (internal: dot-prefixed) | no |
 | `R/uniform.R` | Utils | Uniform confidence interval quantiles via bootstrap/delta method | `calculate_uniform_quantiles()`, `calculate_delta_uniformCI()` | no |
 | `R/vcluster.R` | Utils | Cluster-robust variance-covariance matrix computation | `vcovCluster()` | no |
-| `R/RcppExports.R` | Utils | Auto-generated Rcpp bindings (do not edit) | `rcpparma_hello_world()`, etc. | no |
-| `DESCRIPTION` | Config | Package metadata; Imports, Depends, LinkingTo | N/A | no |
+| `DESCRIPTION` | Config | Package metadata; Imports, Depends | N/A | no |
 | `NAMESPACE` | Config | Export pattern, S3 methods, importFrom declarations | N/A | no |
 
 ---
@@ -377,7 +376,7 @@ graph TD
     OUT["interflex output object"] --> PLOT["plot.interflex()"]
     OUT --> PRED["predict.interflex()"]
     OUT --> TEST["inter.test() (inter_test.R)"]
-    OUT --> TEST2["inter.test() (ttest.R)"]
+    OUT --> PRT["print.interflex() (print.R)"]
     PLOT --> BYGRP{{"by.group?"}}
     BYGRP -- yes --> GEST["Read out$g.est"]
     BYGRP -- no --> POOL{{"pool = TRUE?"}}
@@ -562,7 +561,7 @@ When `CI = FALSE`, only `X` and `ME` columns are present.
 | Package | Role | Import Type |
 | --- | --- | --- |
 | `doFuture` | Future-based foreach backend; registers via `registerDoFuture()` | Imports |
-| `doRNG` | Ensures L'Ecuyer-CMRG streams with `.options.future = list(seed = TRUE)` | Imports |
+| `doRNG` | Provides `%dorng%` for reproducible parallel RNG in bootstrap loops (used in `R/utils.R`) | Imports |
 | `future` | Plan-based parallel execution (`plan(multisession)`) | Imports (pre-existing) |
 | `parallelly` | `availableCores()` for robust core detection in legacy files | Imports (pre-existing) |
 
@@ -620,6 +619,4 @@ When `CI = FALSE`, only `X` and `ME` columns are present.
 - **Previous run (parallel RNG migration, 2026-04-03)**: 7 R files modified (8 parallel blocks). Replaced `doParallel` with `doFuture` for reproducible parallel RNG.
 - **Previous run (GATE generalization, 2026-04-04)**: 7 R files modified, 1 new file (`gate_utils.R`), 1 new test file (`test-gate.R` with 49 tests). Generalized GATE support from DML-only to linear, grf, dml, and lasso estimators. Unified output field `g.est` with backward-compatible `g.est.dml` alias. Added input validation for `gate` parameter. Fixed 4 bugs during builder respawn (DML.R encoding, linear.R treatment label mismatch, grf.R column access, lasso_discrete.R type coercion).
 - **This run (BOOK-003, 2026-04-07)**: Plot-layer cleanup and ch6 vignette restructure. Files modified: `R/plot.R`, `R/plot_pool.R`, `R/raw.R`, `R/predict.R`, `R/interflex.R`, `vignettes/06_discrete.qmd`, plus new test file `tests/testthat/test-plot-limits.R` (16 tests, all PASS). Three new internal helpers in `R/plot.R`: `.pad_xlim()` (2% symmetric padding for user xlim), `.append_yrange_ci()` (defensive yrange CI column accumulation), `.rename_est_ci()` (defensive colnames assignment for narrow estimator tables). Migrated all `xlim()`/`ylim()`/`scale_*_continuous(limits=)` calls in plot builders to `coord_cartesian()` so visual clipping no longer drops underlying ribbon data. Group-equalization loops in `plot.interflex` and `predict.interflex` collapsed to a single authoritative `coord_cartesian` per panel (one-coord rule). Added user-vs-default sentinel: `interflex()` sets `interflex.user_xlim_explicit` / `interflex.user_ylim_explicit` options at entry (8-line additive block in `R/interflex.R`); `plot.interflex()` reads them, snapshots `.user_xlim_in`/`.user_ylim_in`, and stamps them as attributes on the returned graph for cross-call recovery. This was required because the auto-trim feature added in commit d9b3075 makes raw `xlim` indistinguishable from user input inside `plot.interflex`. ch6 of the Quarto book split nine `dis_out_*` chunks into `ch6-*-fit` (`cache=TRUE`, fit only) + `ch6-*-plot` (`cache=FALSE`, plotting only) pairs, mirroring the ch2 pattern; second-render time drops from ~18 minutes to ~64 seconds (~17x speedup). Three builder respawns were needed: (1) xlim/ylim threading + write-surface expansion to `R/interflex.R`, (2) `.rename_est_ci` helper for narrow-DML colnames defect surfaced by Check 10b, (3) one-character em-dash → `--` cleanup on `R/plot.R:52` to unblock `devtools::load_all` and clear a new `R CMD check` non-ASCII finding. Test-spec was revised mid-run from `ggplot_build($figure)` grob introspection (which inspects the wrapped canvas, not the inner ME plot) to a proper testthat unit-test file using `plot.interflex(out, show.all = TRUE)` to access the raw inner ggplot list `p.group` directly — this is reusable regression coverage for any future plot-layer change.
-- **Duplicate ttest files**: Both `R/ttest.R` and `R/inter_test.R` exist and both export `inter.test()`. A future cleanup should remove the duplicate.
 - **No formal test suite prior to this run**: The package did not have tests under `tests/` before the DML migration. Test files have been added incrementally.
-- **`doRNG` in Imports but unused**: Listed in DESCRIPTION Imports but never called directly via `::`. Minor DESCRIPTION hygiene issue.
