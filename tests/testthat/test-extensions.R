@@ -1,4 +1,5 @@
 test_that("fixed effects work with binning estimator", {
+  skip_on_cran()
   set.seed(1234)
   n <- 500
   d4 <- sample(c(0, 1), n, replace = TRUE)
@@ -49,6 +50,7 @@ test_that("fixed effects work with kernel estimator", {
 })
 
 test_that("multiple treatment arms work with binning estimator", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = s5,
@@ -60,6 +62,7 @@ test_that("multiple treatment arms work with binning estimator", {
 })
 
 test_that("multiple treatment arms work with base group option", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = s5,
@@ -70,6 +73,7 @@ test_that("multiple treatment arms work with base group option", {
 })
 
 test_that("multiple treatment arms work with linear estimator", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = s5,
@@ -81,6 +85,7 @@ test_that("multiple treatment arms work with linear estimator", {
 })
 
 test_that("predict method works on binning output", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "binning", data = s5,
@@ -94,6 +99,7 @@ test_that("predict method works on binning output", {
 })
 
 test_that("predict method works on linear output", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = s5,
@@ -107,6 +113,7 @@ test_that("predict method works on linear output", {
 })
 
 test_that("inter.test works on linear output", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = s5,
@@ -120,6 +127,7 @@ test_that("inter.test works on linear output", {
 })
 
 test_that("inter.test works with percentile = TRUE", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = s5,
@@ -133,6 +141,7 @@ test_that("inter.test works with percentile = TRUE", {
 })
 
 test_that("diff.values option works in linear estimator", {
+  skip_on_cran()
   data(interflex)
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = s5,

@@ -1,4 +1,5 @@
 test_that("binning estimator works with logit method", {
+  skip_on_cran()
   set.seed(110)
   n <- 500
   x <- runif(n, -3, 3)
@@ -20,6 +21,7 @@ test_that("binning estimator works with logit method", {
 })
 
 test_that("linear estimator works with logit method", {
+  skip_on_cran()
   set.seed(110)
   n <- 500
   x <- runif(n, -3, 3)
@@ -40,6 +42,7 @@ test_that("linear estimator works with logit method", {
 })
 
 test_that("linear estimator works with probit method", {
+  skip_on_cran()
   set.seed(110)
   n <- 500
   x <- runif(n, -3, 3)
@@ -81,6 +84,7 @@ test_that("kernel estimator works with logit method", {
 })
 
 test_that("linear estimator works with poisson method (count outcome)", {
+  skip_on_cran()
   set.seed(42)
   n <- 500
   x <- runif(n, -2, 2)
@@ -100,6 +104,7 @@ test_that("linear estimator works with poisson method (count outcome)", {
 })
 
 test_that("linear estimator works with nbinom method (count outcome)", {
+  skip_on_cran()
   set.seed(42)
   n <- 500
   x <- runif(n, -2, 2)

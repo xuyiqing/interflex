@@ -1,4 +1,5 @@
 test_that("linear estimator works with binary treatment (delta)", {
+  skip_on_cran()
   data(interflex, envir = environment())
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = app_hma2015,
@@ -12,6 +13,7 @@ test_that("linear estimator works with binary treatment (delta)", {
 })
 
 test_that("linear estimator works with simu vartype", {
+  skip_on_cran()
   data(interflex, envir = environment())
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = app_hma2015,
@@ -37,6 +39,7 @@ test_that("linear estimator works with bootstrap vartype", {
 })
 
 test_that("linear estimator works with full.moderate", {
+  skip_on_cran()
   data(interflex, envir = environment())
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "linear", data = app_hma2015,
@@ -48,6 +51,7 @@ test_that("linear estimator works with full.moderate", {
 })
 
 test_that("linear estimator works with continuous treatment", {
+  skip_on_cran()
   set.seed(1234)
   n <- 200
   d2 <- rnorm(n, 3, 1)

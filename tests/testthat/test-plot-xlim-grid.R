@@ -199,13 +199,12 @@ test_that("PAD-001 lasso: layer x grid is restricted to user xlim", {
   skip_on_cran()
     skip_if_not_installed("glmnet")
     s <- load_toy(CONT_DS)
-    out <- tryCatch(
+    out <- suppressWarnings(suppressMessages(
         interflex(estimator = "lasso", data = s,
                   Y = "Y", D = "D", X = "X",
                   treat.type = "continuous", na.rm = TRUE,
-                  B = 0,
-                  xlim = c(LO, HI)),
-        error = function(e) { skip(paste("lasso build failed:", conditionMessage(e))) })
+                  nboots = 2,
+                  xlim = c(LO, HI))))
     inner <- get_inner_ggplots(out)
     expect_true(length(inner) >= 1L)
     for (g in inner) assert_xlim_grid(g, "lasso")
@@ -215,12 +214,11 @@ test_that("PAD-001 lasso: default (no xlim) leaves coord$xlim NULL", {
   skip_on_cran()
     skip_if_not_installed("glmnet")
     s <- load_toy(CONT_DS)
-    out <- tryCatch(
+    out <- suppressWarnings(suppressMessages(
         interflex(estimator = "lasso", data = s,
                   Y = "Y", D = "D", X = "X",
                   treat.type = "continuous", na.rm = TRUE,
-                  B = 0),
-        error = function(e) { skip(paste("lasso build failed:", conditionMessage(e))) })
+                  nboots = 2)))
     inner <- get_inner_ggplots(out)
     for (g in inner) assert_default_xlim_null(g, "lasso default")
 })
@@ -232,13 +230,12 @@ test_that("PAD-001 DML: layer x grid is restricted to user xlim", {
     skip_if_not_installed("DoubleML")
     skip_if_not_installed("mlr3")
     s <- load_toy(CONT_DS)
-    out <- tryCatch(
-        interflex(estimator = "DML", data = s,
+    out <- suppressWarnings(suppressMessages(
+        interflex(estimator = "dml", data = s,
                   Y = "Y", D = "D", X = "X",
                   treat.type = "continuous", na.rm = TRUE,
-                  ml_method = "linear",
-                  xlim = c(LO, HI)),
-        error = function(e) { skip(paste("DML build failed:", conditionMessage(e))) })
+                  model.y = "linear", model.t = "linear",
+                  xlim = c(LO, HI))))
     inner <- get_inner_ggplots(out)
     expect_true(length(inner) >= 1L)
     for (g in inner) assert_xlim_grid(g, "DML")
