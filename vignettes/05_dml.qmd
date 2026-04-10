@@ -222,7 +222,8 @@ binary.cvhgb.cvhgb <- interflex(estimator="dml",  data = d,
 ggarrange(plot(binary.cvnn.cvrf, ylim = c(-1.5, 1)),
           plot(binary.cvnn.cvhgb, ylim = c(-1.5, 1)),
           plot(binary.cvrf.cvrf, ylim = c(-1.5, 1)),
-          plot(binary.cvhgb.cvhgb, ylim = c(-1.5, 1)))
+          plot(binary.cvhgb.cvhgb, ylim = c(-1.5, 1)),
+          labels = c("NN-RF", "NN-HGB", "RF-RF", "HGB-HGB"))
 ```
 
 ### Comparison of estimators

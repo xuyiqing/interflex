@@ -126,7 +126,7 @@ The user guide is structured into the following chapters:
 
 ## Contributors
 
-The following individuals have contributed to **interflex**:
+The following individuals and AI have contributed to **interflex**:
 
 -   [Yiqing Xu](https://yiqingxu.org/) (maintainer)
 -   [Jens Hainmueller](https://web.stanford.edu/~jhain/)
@@ -134,6 +134,7 @@ The following individuals have contributed to **interflex**:
 -   [Tianzhu Qin](https://tianzhuqin.github.io/)
 -   Jiehan Liu (Stanford)
 -   Ziyi Liu (UC Berkeley)
+-   [StatsClaw](https://statsclaw.ai/) (Collaborative AI for Stats Packages)
 
 
 ## Report Bugs
