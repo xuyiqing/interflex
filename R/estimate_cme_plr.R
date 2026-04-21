@@ -445,7 +445,7 @@ estimateCME_PLR <- function(
         X.eval = x.eval,
         CV     = TRUE,
         parallel = TRUE,
-        cores    = parallelly::availableCores(omit = 1),
+        cores    = max(1L, min(parallelly::availableCores(omit = 2L), 8L)),
         verbose  = verbose
       )
     } else {
