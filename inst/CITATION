@@ -1,0 +1,33 @@
+## R-style CITATION file. Used by citation("interflex").
+## Cite both the methodological paper (preferred for substantive work)
+## and the package itself (for software credit).
+
+bibentry(
+  bibtype  = "Article",
+  title    = "How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice",
+  author   = c(person("Jens", "Hainmueller"),
+               person("Jonathan", "Mummolo"),
+               person("Yiqing", "Xu")),
+  journal  = "Political Analysis",
+  year     = "2019",
+  volume   = "27",
+  number   = "2",
+  pages    = "163-192",
+  doi      = "10.1017/pan.2018.46",
+  header   = "To cite the underlying methodology, use:"
+)
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "interflex: Estimation, Diagnostics and Visualization of Conditional Marginal Effects",
+  author   = c(person("Jens", "Hainmueller"),
+               person("Jonathan", "Mummolo"),
+               person("Tianzhu", "Qin"),
+               person("Jiehan", "Liu"),
+               person("Ziyi", "Liu"),
+               person("Yiqing", "Xu")),
+  year     = sub("-.*", "", meta$Date),
+  note     = sprintf("R package version %s", meta$Version),
+  url      = "https://CRAN.R-project.org/package=interflex",
+  header   = "To cite the R package, use:"
+)
