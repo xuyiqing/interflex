@@ -5,6 +5,13 @@ interflex.kernel <- function(data,
                              treat.info,
                              diff.info,
                              bw = NULL,
+                             bw.select = c("cv.min", "cv.1se", "cv.1se.ess", "ess"),
+                             cv.balance = NULL,
+                             bw.se.mult = 1,
+                             bw.ess.min = NULL,
+                             bw.varD.min = NULL,
+                             bw.ess.quantile = 0,
+                             bw.cv.bins = 10,
                              kfold = 10,
                              grid = 30,
                              metric = "MSE",
@@ -59,6 +66,19 @@ interflex.kernel <- function(data,
                              verbose = TRUE) {
     WEIGHTS <- NULL
     uniform.coverage <- NULL
+    if (length(bw.select) != 1L) bw.select <- bw.select[1L]
+    bw.select <- match.arg(bw.select, c("cv.min", "cv.1se", "cv.1se.ess", "ess"))
+    if (is.null(cv.balance)) {
+        cv.balance <- bw.select == "cv.1se.ess"
+    }
+    cv.balance <- isTRUE(cv.balance)
+    bw.se.mult <- as.numeric(bw.se.mult)
+    if (!is.finite(bw.se.mult) || bw.se.mult < 0) bw.se.mult <- 1
+    bw.ess.quantile <- as.numeric(bw.ess.quantile)
+    if (!is.finite(bw.ess.quantile)) bw.ess.quantile <- 0
+    bw.ess.quantile <- min(max(bw.ess.quantile, 0), 1)
+    bw.cv.bins <- as.integer(bw.cv.bins)
+    if (!is.finite(bw.cv.bins) || bw.cv.bins < 2) bw.cv.bins <- 10L
     n <- dim(data)[1]
 
     binary <- FALSE
@@ -130,6 +150,185 @@ interflex.kernel <- function(data,
 
     # Xdensity
     suppressWarnings(Xdensity <- density(data[, X], weights = w))
+
+    ## Bandwidth-selection support diagnostics and balanced-loss helpers.
+    weighted.var.local <- function(v, wt) {
+        ok <- is.finite(v) & is.finite(wt) & wt > 0
+        if (sum(ok) <= 1 || sum(wt[ok]) <= 0) return(NA_real_)
+        mu <- sum(wt[ok] * v[ok]) / sum(wt[ok])
+        sum(wt[ok] * (v[ok] - mu)^2) / sum(wt[ok])
+    }
+
+    adaptive.bw.at <- function(x, bw.cand, Xdensity.object) {
+        yd <- Xdensity.object$y
+        xd <- Xdensity.object$x
+        positive.density <- yd[is.finite(yd) & yd > 0]
+        if (length(positive.density) == 0) return(NA_real_)
+        density.mean <- exp(mean(log(positive.density)))
+        temp.density <- yd[which.min(abs(xd - x))]
+        if (!is.finite(temp.density) || temp.density <= 0) {
+            temp.density <- min(positive.density)
+        }
+        bw.out <- bw.cand * sqrt(density.mean / temp.density)
+        if (!is.finite(bw.out) || bw.out <= 0) return(NA_real_)
+        bw.out
+    }
+
+    effective.sample.size <- function(w.local) {
+        ok <- is.finite(w.local) & w.local > 0
+        if (!any(ok)) return(0)
+        sw <- sum(w.local[ok])
+        sw2 <- sum(w.local[ok]^2)
+        if (!is.finite(sw) || !is.finite(sw2) || sw2 <= 0) return(0)
+        (sw^2) / sw2
+    }
+
+    balanced.mean.loss <- function(loss, x, n.bins = bw.cv.bins) {
+        ok <- is.finite(loss) & is.finite(x)
+        loss <- loss[ok]
+        x <- x[ok]
+        if (length(loss) == 0) return(NA_real_)
+        n.bins <- min(max(2L, as.integer(n.bins)), length(unique(x)))
+        if (n.bins < 2L) return(mean(loss, na.rm = TRUE))
+        breaks <- unique(stats::quantile(x, probs = seq(0, 1, length.out = n.bins + 1), na.rm = TRUE, type = 7))
+        if (length(breaks) < 3L) return(mean(loss, na.rm = TRUE))
+        xb <- cut(x, breaks = breaks, include.lowest = TRUE)
+        bin.loss <- tapply(loss, xb, mean, na.rm = TRUE)
+        mean(bin.loss, na.rm = TRUE)
+    }
+
+    balanced.auc <- function(true, pred, x, n.bins = bw.cv.bins) {
+        ok <- is.finite(true) & is.finite(pred) & is.finite(x)
+        true <- true[ok]
+        pred <- pred[ok]
+        x <- x[ok]
+        if (length(true) < 3 || length(unique(true)) <= 1) return(NA_real_)
+        n.bins <- min(max(2L, as.integer(n.bins)), length(unique(x)))
+        if (n.bins < 2L) {
+            auc.out <- tryCatch({
+                suppressMessages(roc.y <- roc(true, pred, levels = c(0, 1)))
+                as.numeric(roc.y$auc)
+            }, error = function(e) NA_real_)
+            return(auc.out)
+        }
+        breaks <- unique(stats::quantile(x, probs = seq(0, 1, length.out = n.bins + 1), na.rm = TRUE, type = 7))
+        if (length(breaks) < 3L) {
+            auc.out <- tryCatch({
+                suppressMessages(roc.y <- roc(true, pred, levels = c(0, 1)))
+                as.numeric(roc.y$auc)
+            }, error = function(e) NA_real_)
+            return(auc.out)
+        }
+        xb <- cut(x, breaks = breaks, include.lowest = TRUE)
+        auc.by.bin <- tapply(seq_along(true), xb, function(ii) {
+            if (length(ii) < 3 || length(unique(true[ii])) <= 1) return(NA_real_)
+            tryCatch({
+                suppressMessages(roc.y <- roc(true[ii], pred[ii], levels = c(0, 1)))
+                as.numeric(roc.y$auc)
+            }, error = function(e) NA_real_)
+        })
+        mean(as.numeric(auc.by.bin), na.rm = TRUE)
+    }
+
+    local.ncoef <- 2
+    if (treat.type == "discrete") {
+        local.ncoef <- local.ncoef + 2 * length(other.treat)
+    } else {
+        local.ncoef <- local.ncoef + 2
+    }
+    if (!is.null(Z)) {
+        local.ncoef <- local.ncoef + length(Z)
+        if (full.moderate) local.ncoef <- local.ncoef + length(Z)
+    }
+    if (is.null(bw.ess.min)) {
+        if (treat.type == "discrete") {
+            bw.ess.min <- max(20, 5 * local.ncoef)
+        } else {
+            bw.ess.min <- max(30, 8 * local.ncoef)
+        }
+    }
+    bw.ess.min <- as.numeric(bw.ess.min)
+    if (!is.finite(bw.ess.min) || bw.ess.min < 0) bw.ess.min <- 0
+
+    if (treat.type == "continuous" && is.null(bw.varD.min)) {
+        bw.varD.min <- 0.01 * weighted.var.local(data[, D], w)
+        if (!is.finite(bw.varD.min)) bw.varD.min <- 0
+    }
+    if (treat.type != "continuous") bw.varD.min <- NA_real_
+
+    support.diagnostics.for.bw <- function(bw.cand,
+                                           X.points = X.eval,
+                                           data.support = data,
+                                           weights.support = w,
+                                           Xdensity.support = Xdensity) {
+        if (length(X.points) == 0) return(data.frame())
+        if (treat.type == "discrete") {
+            arms <- if (!is.null(all.treat)) all.treat else unique(data.support[, D])
+            out <- lapply(X.points, function(x0) {
+                h0 <- adaptive.bw.at(x0, bw.cand, Xdensity.support)
+                if (!is.finite(h0) || h0 <= 0) {
+                    arm.ess <- rep(0, length(arms))
+                } else {
+                    kw <- dnorm((data.support[, X] - x0) / h0) * weights.support
+                    arm.ess <- sapply(arms, function(dlev) {
+                        effective.sample.size(kw * as.numeric(data.support[, D] == dlev))
+                    })
+                }
+                names(arm.ess) <- paste0("ESS.", make.names(as.character(arms)))
+                c(X = x0, min.ESS = min(arm.ess, na.rm = TRUE), arm.ess)
+            })
+            out <- as.data.frame(do.call(rbind, out))
+            rownames(out) <- NULL
+            return(out)
+        } else {
+            out <- lapply(X.points, function(x0) {
+                h0 <- adaptive.bw.at(x0, bw.cand, Xdensity.support)
+                if (!is.finite(h0) || h0 <= 0) {
+                    n.eff <- 0
+                    varD <- NA_real_
+                } else {
+                    kw <- dnorm((data.support[, X] - x0) / h0) * weights.support
+                    n.eff <- effective.sample.size(kw)
+                    varD <- weighted.var.local(data.support[, D], kw)
+                }
+                c(X = x0, n.eff = n.eff, varD = varD)
+            })
+            out <- as.data.frame(do.call(rbind, out))
+            rownames(out) <- NULL
+            return(out)
+        }
+    }
+
+    summarize.support.for.bw <- function(bw.cand, X.points = X.eval) {
+        diag <- support.diagnostics.for.bw(bw.cand, X.points = X.points)
+        if (treat.type == "discrete") {
+            ess.stat <- suppressWarnings(as.numeric(stats::quantile(diag$min.ESS, probs = bw.ess.quantile, na.rm = TRUE, type = 7)))
+            min.ess <- suppressWarnings(min(diag$min.ESS, na.rm = TRUE))
+            admissible <- is.finite(ess.stat) && ess.stat >= bw.ess.min
+            return(data.frame(
+                bw = bw.cand,
+                support.ESS.stat = ess.stat,
+                support.min.ESS = min.ess,
+                support.admissible = admissible
+            ))
+        } else {
+            ess.stat <- suppressWarnings(as.numeric(stats::quantile(diag$n.eff, probs = bw.ess.quantile, na.rm = TRUE, type = 7)))
+            varD.stat <- suppressWarnings(as.numeric(stats::quantile(diag$varD, probs = bw.ess.quantile, na.rm = TRUE, type = 7)))
+            min.ess <- suppressWarnings(min(diag$n.eff, na.rm = TRUE))
+            min.varD <- suppressWarnings(min(diag$varD, na.rm = TRUE))
+            admissible <- is.finite(ess.stat) && ess.stat >= bw.ess.min &&
+                is.finite(varD.stat) && varD.stat >= bw.varD.min
+            return(data.frame(
+                bw = bw.cand,
+                support.ESS.stat = ess.stat,
+                support.min.ESS = min.ess,
+                support.varD.stat = varD.stat,
+                support.min.varD = min.varD,
+                support.admissible = admissible
+            ))
+        }
+    }
+
     # fixed effects
     if (is.null(FE)) {
         use_fe <- 0
@@ -545,19 +744,140 @@ interflex.kernel <- function(data,
         }
     }
 
-    # Function # Cross-Validation
-    if (is.null(bw)) {
-        CV <- TRUE
-        cat("Cross-validating bandwidth ... \n")
+    # Function # Cross-Validation / bandwidth selection
+    need.select.bw <- is.null(bw)
+    bw.support.grid <- NULL
+    support.diagnostics <- NULL
+
+    choose.ess.bandwidth <- function(support.table) {
+        valid <- which(support.table$support.admissible & is.finite(support.table$bw))
+        if (length(valid) == 0) {
+            warning("No bandwidth satisfies the local ESS/rank constraint; using the largest grid bandwidth.")
+            return(max(support.table$bw, na.rm = TRUE))
+        }
+        min(support.table$bw[valid], na.rm = TRUE)
+    }
+
+    choose.cv.bandwidth <- function(Error, support.table = NULL) {
+        Error <- as.data.frame(Error)
+        select.metric <- metric
+        if (cv.balance) {
+            bal.metric <- paste0(metric, ".bal")
+            if (bal.metric %in% colnames(Error) && !all(is.na(Error[, bal.metric]))) {
+                select.metric <- bal.metric
+            } else {
+                warning(paste0("Balanced CV metric '", bal.metric, "' is unavailable; falling back to '", metric, "'."))
+            }
+        }
+        if (!(select.metric %in% colnames(Error)) || all(is.na(Error[, select.metric]))) {
+            fallback <- if ("MSE" %in% colnames(Error) && !all(is.na(Error[, "MSE"]))) "MSE" else "MAE"
+            warning(paste0("CV metric '", select.metric, "' is unavailable; falling back to '", fallback, "'."))
+            select.metric <- fallback
+        }
+
+        se.metric <- paste0(select.metric, ".se")
+        metric.se <- if (se.metric %in% colnames(Error)) Error[, se.metric] else rep(0, nrow(Error))
+        metric.se[!is.finite(metric.se)] <- 0
+        maximize <- grepl("^AUC", select.metric)
+
+        if (!cv.balance && bw.select %in% c("cv.min", "cv.1se")) {
+            # Legacy scale: the old selector used mean fold metric divided by mean
+            # number of effective evaluation points; AUC used the product.
+            if (maximize) {
+                objective <- Error[, select.metric] * Error[, "Num.Eff.Points"]
+                objective.se <- metric.se * Error[, "Num.Eff.Points"]
+            } else {
+                objective <- Error[, select.metric] / Error[, "Num.Eff.Points"]
+                objective.se <- metric.se / Error[, "Num.Eff.Points"]
+            }
+        } else {
+            # New selectors use the CV loss directly; local support is handled by
+            # the admissibility constraint rather than by scaling with grid size.
+            objective <- Error[, select.metric]
+            objective.se <- metric.se
+        }
+        objective[!is.finite(objective)] <- NA_real_
+        objective.se[!is.finite(objective.se)] <- 0
+
+        admissible <- rep(TRUE, nrow(Error))
+        if (!is.null(support.table)) {
+            admissible <- support.table$support.admissible
+        }
+        valid <- which(admissible & is.finite(objective) & is.finite(Error[, "bw"]))
+        if (length(valid) == 0 && !is.null(support.table)) {
+            warning("No bandwidth satisfies the local ESS/rank constraint with a finite CV loss; using the largest finite-CV grid bandwidth.")
+            valid <- which(is.finite(objective) & is.finite(Error[, "bw"]))
+            admissible <- rep(TRUE, nrow(Error))
+        }
+        if (length(valid) == 0) {
+            warning("No finite CV loss was available; using the largest grid bandwidth.")
+            chosen.bw <- max(Error[, "bw"], na.rm = TRUE)
+            Error$CV.loss.used <- objective
+            Error$CV.loss.se.used <- objective.se
+            Error$CV.metric.used <- select.metric
+            Error$CV.admissible <- admissible
+            Error$CV.selected <- Error[, "bw"] == chosen.bw
+            return(list(bw = chosen.bw, Error = Error, metric = select.metric))
+        }
+
+        if (maximize) {
+            best.idx <- valid[which.max(objective[valid])]
+        } else {
+            best.idx <- valid[which.min(objective[valid])]
+        }
+
+        if (bw.select == "cv.min") {
+            chosen.bw <- Error[best.idx, "bw"]
+        } else {
+            if (maximize) {
+                threshold <- objective[best.idx] - bw.se.mult * objective.se[best.idx]
+                candidates <- valid[objective[valid] >= threshold]
+            } else {
+                threshold <- objective[best.idx] + bw.se.mult * objective.se[best.idx]
+                candidates <- valid[objective[valid] <= threshold]
+            }
+            if (length(candidates) == 0) candidates <- best.idx
+            chosen.bw <- max(Error[candidates, "bw"], na.rm = TRUE)
+        }
+
+        Error$CV.loss.used <- objective
+        Error$CV.loss.se.used <- objective.se
+        Error$CV.metric.used <- select.metric
+        Error$CV.admissible <- admissible
+        Error$CV.selected <- Error[, "bw"] == chosen.bw
+        list(bw = chosen.bw, Error = Error, metric = select.metric)
+    }
+
+    if (need.select.bw) {
         if (length(grid) == 1) {
             rangeX <- max(data[, X]) - min(data[, X])
             bw.grid <- exp(seq(log(rangeX / 100), log(rangeX), length.out = grid))
         } else {
             bw.grid <- grid
         }
+        if (bw.select == "ess") {
+            CV <- FALSE
+            if (verbose) cat("Selecting bandwidth by local support constraints ... \n")
+        } else {
+            CV <- TRUE
+            cat("Cross-validating bandwidth ... \n")
+        }
     } else {
         CV <- FALSE
     }
+
+    cv.metric.names <- c(
+        "Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE",
+        "MSE.link", "MAE.link",
+        "Cross Entropy.bal", "AUC.bal", "MSE.bal", "MAE.bal",
+        "MSE.link.bal", "MAE.link.bal"
+    )
+    empty.cv.output <- function() {
+        output <- rep(NA_real_, length(cv.metric.names))
+        names(output) <- cv.metric.names
+        output
+    }
+
     if (CV) {
         # weights: name of a variable
         getError.CV <- function(train, test, bw, neval, weights_name, Xdensity) {
@@ -574,12 +894,14 @@ interflex.kernel <- function(data,
                 FE_coef <- matrix(0, nrow = sum(FEnumbers), ncol = 1)
                 rowname <- c()
                 fe_index_name <- c()
+                offset <- 0
                 for (fe in FE) {
                     for (i in 1:FEnumbers[[fe]]) {
-                        FE_coef[i, 1] <- FEvalues[[fe]][i]
+                        FE_coef[offset + i, 1] <- FEvalues[[fe]][i]
                         rowname <- c(rowname, paste0(fe, ".", names(FEvalues[[fe]])[i]))
                         fe_index_name <- c(fe_index_name, fe)
                     }
+                    offset <- offset + FEnumbers[[fe]]
                 }
                 rownames(FE_coef) <- rowname
                 train[, Y] <- fe_res$residuals
@@ -587,23 +909,20 @@ interflex.kernel <- function(data,
 
             X.eval.cv <- seq(min(train[, X]), max(train[, X]), length.out = neval)
 
-            # demean -> use wls without fixed effects#
+            # Demean FE first, then use the no-FE local WLS in the CV training sample.
             if (is.null(IV)) {
                 coef.grid.cv <- c()
-                for (x in X.eval) {
+                for (x in X.eval.cv) {
                     coef.grid.cv <- rbind(coef.grid.cv, wls.nofe(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)$result)
                 }
             } else {
-                coef.grid.cv <- t(sapply(X.eval.cv, function(x) wls.iv(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)))
+                coef.grid.cv <- t(sapply(X.eval.cv, function(x) wls.iv(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)$result))
             }
             coef.grid.cv <- na.omit(coef.grid.cv)
+            if (is.null(dim(coef.grid.cv)) || dim(coef.grid.cv)[1] == 0) return(empty.cv.output())
             eff.eval.point <- dim(coef.grid.cv)[1]
             X.eval.cv <- coef.grid.cv[, "x0"]
-            if (dim(coef.grid.cv)[1] <= neval / 2) {
-                output <- rep(NA, 5)
-                names(output) <- c("Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
-                return(output)
-            }
+            if (dim(coef.grid.cv)[1] <= neval / 2) return(empty.cv.output())
 
             esCoef.cv <- function(x) { ## obtain the coefficients for x[i]
                 Xnew.cv <- abs(X.eval.cv - x)
@@ -624,13 +943,12 @@ interflex.kernel <- function(data,
                 return(func)
             }
 
-            # Test
-            ## limit test set in the support of the train dataset
+            ## Limit test set to the support of the training data.
             test <- test[which(test[, X] >= min(train[, X]) & test[, X] <= max(train[, X])), ]
 
             add_FE <- rep(0, dim(test)[1])
             if (use_fe == 1) {
-                # addictive FE
+                # Additive FE contribution in held-out data.
                 add_FE <- matrix(0, nrow = dim(test)[1], ncol = length(FE))
                 colnames(add_FE) <- FE
                 for (fe in FE) {
@@ -645,33 +963,32 @@ interflex.kernel <- function(data,
                 add_FE <- add_FE + mean(fe_res$sumFE)
             }
 
-            if (dim(test)[1] < 3) {
-                output <- rep(NA, 5)
-                names(output) <- c("Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
-                return(output)
-            }
+            if (dim(test)[1] < 3) return(empty.cv.output())
 
             Knn <- t(sapply(test[, X], esCoef.cv))
+            if (is.null(dim(Knn))) Knn <- matrix(Knn, nrow = 1)
             link <- Knn[, "(Intercept)"]
 
             if (treat.type == "discrete") {
                 for (char in other.treat) {
-                    link <- link + Knn[, paste0("D.", char)] * as.numeric(test[, D] == char) + Knn[, paste0("D.delta.x", ".", char)] * (test[, X] - Knn[, "x0"]) * as.numeric(test[, D] == char)
+                    link <- link + Knn[, paste0("D.", char)] * as.numeric(test[, D] == char) +
+                        Knn[, paste0("D.delta.x", ".", char)] * (test[, X] - Knn[, "x0"]) * as.numeric(test[, D] == char)
                 }
                 link <- link + Knn[, "delta.x"] * (test[, X] - Knn[, "x0"])
             }
 
             if (treat.type == "continuous") {
-                link <- link + Knn[, D] * test[, D] + Knn[, "delta.x"] * (test[, X] - Knn[, "x0"]) + Knn[, "D.delta.x"] * (test[, X] - Knn[, "x0"]) * test[, D]
+                link <- link + Knn[, D] * test[, D] + Knn[, "delta.x"] * (test[, X] - Knn[, "x0"]) +
+                    Knn[, "D.delta.x"] * (test[, X] - Knn[, "x0"]) * test[, D]
             }
 
             if (!is.null(Z)) {
                 for (a in Z) {
                     link <- link + test[, a] * Knn[, a]
-                    if (full.moderate) {
-                        for (a in Z) {
-                            link <- link + Knn[, paste0(a, ".delta.x")] * (test[, X] - Knn[, "x0"]) * test[, a]
-                        }
+                }
+                if (full.moderate) {
+                    for (a in Z) {
+                        link <- link + Knn[, paste0(a, ".delta.x")] * (test[, X] - Knn[, "x0"]) * test[, a]
                     }
                 }
             }
@@ -701,54 +1018,67 @@ interflex.kernel <- function(data,
                 E.pred <- exp(link)
             }
 
-            true <- test[which(!is.na(E.pred)), Y]
-            E.pred <- na.omit(E.pred)
+            valid.pred <- which(is.finite(E.pred))
+            if (length(valid.pred) < 3) return(empty.cv.output())
+            true <- test[valid.pred, Y]
+            x.heldout <- test[valid.pred, X]
+            E.pred <- E.pred[valid.pred]
+            if (length(E.pred) < 3) return(empty.cv.output())
 
+            mse.loss <- (true - E.pred)^2
+            mae.loss <- abs(true - E.pred)
+            mse <- mean(mse.loss, na.rm = TRUE)
+            mae <- mean(mae.loss, na.rm = TRUE)
+            mse.bal <- balanced.mean.loss(mse.loss, x.heldout, n.bins = bw.cv.bins)
+            mae.bal <- balanced.mean.loss(mae.loss, x.heldout, n.bins = bw.cv.bins)
 
-            if (length(unique(true)) <= 1 | length(E.pred) < 3) { # all 0 or all 1 or few observations(auc)
-                output <- rep(NA, 5)
-                names(output) <- c("Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
-                return(output)
-            }
-
-            # cross entropy
+            cross.entropy <- NA_real_
+            auc <- NA_real_
+            cross.entropy.bal <- NA_real_
+            auc.bal <- NA_real_
             if (binary) {
-                cross.entropy <- logLoss(true, E.pred)
-                suppressMessages(
-                    roc.y <- roc(true, E.pred, levels = c(0, 1))
-                )
-                # auc
-                auc <- roc.y$auc
-            } else {
-                cross.entropy <- NA
-                auc <- NA
+                pred.prob <- pmin(pmax(E.pred, 1e-15), 1 - 1e-15)
+                true.num <- as.numeric(true)
+                ce.loss <- -(true.num * log(pred.prob) + (1 - true.num) * log(1 - pred.prob))
+                cross.entropy <- mean(ce.loss, na.rm = TRUE)
+                cross.entropy.bal <- balanced.mean.loss(ce.loss, x.heldout, n.bins = bw.cv.bins)
+                if (length(unique(true.num)) > 1) {
+                    auc <- tryCatch({
+                        suppressMessages(roc.y <- roc(true.num, pred.prob, levels = c(0, 1)))
+                        as.numeric(roc.y$auc)
+                    }, error = function(e) NA_real_)
+                    auc.bal <- balanced.auc(true.num, pred.prob, x.heldout, n.bins = bw.cv.bins)
+                }
             }
 
-            # mse L2
-            mse <- mean((true - E.pred)^2)
-            # mse L1
-            mae <- mean(abs(true - E.pred))
-            output <- c(cross.entropy, auc, mse, mae)
-
+            mse.link <- NA_real_
+            mae.link <- NA_real_
+            mse.link.bal <- NA_real_
+            mae.link.bal <- NA_real_
             if (method == "poisson" | method == "nbinom") {
-                mse.link <- mean((log(true + 1) - log(E.pred + 1))^2)
-                mae.link <- mean(abs(log(true + 1) - log(E.pred + 1)))
-                output <- c(mse.link, mae.link, mse, mae)
+                mse.link.loss <- (log(true + 1) - log(E.pred + 1))^2
+                mae.link.loss <- abs(log(true + 1) - log(E.pred + 1))
+                mse.link <- mean(mse.link.loss, na.rm = TRUE)
+                mae.link <- mean(mae.link.loss, na.rm = TRUE)
+                mse.link.bal <- balanced.mean.loss(mse.link.loss, x.heldout, n.bins = bw.cv.bins)
+                mae.link.bal <- balanced.mean.loss(mae.link.loss, x.heldout, n.bins = bw.cv.bins)
             }
 
-            output <- c(eff.eval.point, output)
-            names(output) <- c("Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
+            output <- c(
+                eff.eval.point, cross.entropy, auc, mse, mae,
+                mse.link, mae.link,
+                cross.entropy.bal, auc.bal, mse.bal, mae.bal,
+                mse.link.bal, mae.link.bal
+            )
+            names(output) <- cv.metric.names
             return(output)
         }
+
         fold <- createFolds(factor(data[, D]), k = kfold, list = FALSE)
-        # kfold <- min(n,kfold)
-        # cat("#folds =",kfold)
-        # cat("\n")
-        # fold <- c(0:(n-1))%%kfold + 1
-        # fold <- sample(fold, n, replace = FALSE)
 
         cv.new <- function(bw, neval) {
-            error <- matrix(NA, kfold, 5)
+            error <- matrix(NA_real_, kfold, length(cv.metric.names))
+            colnames(error) <- cv.metric.names
             for (j in 1:kfold) { # K-fold CV
                 testid <- which(fold == j)
                 train <- data[-testid, ]
@@ -757,26 +1087,30 @@ interflex.kernel <- function(data,
                 error[j, ] <- getError.CV(train = train, test = test, bw = bw, neval = neval, weights_name = "WEIGHTS", Xdensity = Xdensity.train)
             }
 
-            colnames(error) <- c("Num.Eff.Points", "cross entropy", "auc", "L2", "L1")
-            for (pp in colnames(error)) {
-                if (any(is.na(error[, pp])) & !all(is.na(error[, pp]))) {
-                    if (pp != "auc") {
-                        error[is.na(error[, pp]), pp] <- max(error[, pp], na.rm = T)
+            error.imp <- error
+            for (pp in colnames(error.imp)) {
+                if (any(is.na(error.imp[, pp])) & !all(is.na(error.imp[, pp]))) {
+                    if (grepl("AUC", pp)) {
+                        error.imp[is.na(error.imp[, pp]), pp] <- min(error.imp[, pp], na.rm = TRUE)
                     } else {
-                        error[is.na(error[, pp]), pp] <- min(error[, pp], na.rm = T)
+                        error.imp[is.na(error.imp[, pp]), pp] <- max(error.imp[, pp], na.rm = TRUE)
                     }
                 }
             }
 
-            output <- c(bw, apply(error, 2, mean, na.rm = TRUE))
-            names(output) <- c("Num.Eff.Points", "bw", "cross entropy", "auc", "L2", "L1")
+            metric.mean <- apply(error.imp, 2, mean, na.rm = TRUE)
+            metric.se <- apply(error.imp, 2, function(v) {
+                vv <- v[is.finite(v)]
+                if (length(vv) <= 1) return(0)
+                stats::sd(vv, na.rm = TRUE) / sqrt(length(vv))
+            })
+            output <- c(bw, metric.mean, metric.se)
+            names(output) <- c("bw", cv.metric.names, paste0(cv.metric.names, ".se"))
             return(output)
         }
 
-        ## test
-        # try <- cv.new(0.02789474,neval=neval)
-        # return(try)
-        ##
+        cv.output.names <- c("bw", cv.metric.names, paste0(cv.metric.names, ".se"))
+        n.cv.output <- length(cv.output.names)
 
         ## -----------------------------------------------------------------------------------
         if (parallel) {
@@ -801,21 +1135,23 @@ interflex.kernel <- function(data,
                     cv.output.sub <- try(cv.new(bw, neval = neval), silent = TRUE)
                     p()
                     if ("try-error" %in% class(cv.output.sub)) {
-                        return(NA)
+                        out <- rep(NA_real_, n.cv.output)
+                        names(out) <- cv.output.names
+                        return(out)
                     } else {
                         return(cv.output.sub)
                     }
                 }
             }, handlers = .progress_handler("Cross-validation")))
-            # return(Error)
         } else {
-            Error <- matrix(NA, length(bw.grid), 6)
+            Error <- matrix(NA_real_, length(bw.grid), n.cv.output)
+            colnames(Error) <- cv.output.names
             cli::cli_progress_bar("Cross-validation", total = length(bw.grid),
                                   clear = TRUE)
             for (i in 1:length(bw.grid)) {
                 suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval), silent = FALSE))
                 if ("try-error" %in% class(cv.output.sub)) {
-                    Error[i, ] <- NA
+                    Error[i, ] <- NA_real_
                 } else {
                     Error[i, ] <- cv.output.sub
                 }
@@ -824,40 +1160,37 @@ interflex.kernel <- function(data,
             cli::cli_progress_done()
         }
 
-        colnames(Error) <- c("bw", "Num.Eff.Points", "Cross Entropy", "AUC", "MSE", "MAE")
+        Error <- as.data.frame(Error)
+        colnames(Error) <- cv.output.names
         rownames(Error) <- NULL
 
-        if (!binary) {
-            if (method == "poisson" | method == "nbinom") {
-                colnames(Error) <- c("bw", "Num.Eff.Points", "MSE.link", "MAE.link", "MSE", "MAE")
-            } else {
-                Error <- Error[, c("bw", "Num.Eff.Points", "MSE", "MAE")]
-            }
-            if (metric == "MSE") {
-                bw <- bw.grid[which.min(Error[, "MSE"] / Error[, "Num.Eff.Points"])]
-            }
-            if (metric == "MAE") {
-                bw <- bw.grid[which.min(Error[, "MAE"] / Error[, "Num.Eff.Points"])]
-            }
+        if (bw.select == "cv.1se.ess") {
+            bw.support.grid <- do.call(rbind, lapply(bw.grid, summarize.support.for.bw, X.points = X.eval))
+            rownames(bw.support.grid) <- NULL
+            Error <- cbind(Error, bw.support.grid[, setdiff(colnames(bw.support.grid), "bw"), drop = FALSE])
         }
-        if (binary) {
-            if (metric == "MSE") {
-                bw <- bw.grid[which.min(Error[, "MSE"] / Error[, "Num.Eff.Points"])]
-            }
-            if (metric == "MAE") {
-                bw <- bw.grid[which.min(Error[, "MAE"] / Error[, "Num.Eff.Points"])]
-            }
-            if (metric == "Cross Entropy") {
-                bw <- bw.grid[which.min(Error[, "Cross Entropy"] / Error[, "Num.Eff.Points"])]
-            }
-            if (metric == "AUC") {
-                bw <- bw.grid[which.max(Error[, "AUC"] * Error[, "Num.Eff.Points"])]
-            }
-        }
+
+        selection <- choose.cv.bandwidth(Error, support.table = bw.support.grid)
+        bw <- selection$bw
+        Error <- selection$Error
         cat(paste0("Optimal bw=", round(bw, 4), ".\n"))
     } else {
-        Error <- NULL
+        if (need.select.bw && bw.select == "ess") {
+            bw.support.grid <- do.call(rbind, lapply(bw.grid, summarize.support.for.bw, X.points = X.eval))
+            rownames(bw.support.grid) <- NULL
+            bw <- choose.ess.bandwidth(bw.support.grid)
+            Error <- as.data.frame(bw.support.grid)
+            Error$CV.loss.used <- NA_real_
+            Error$CV.loss.se.used <- NA_real_
+            Error$CV.metric.used <- NA_character_
+            Error$CV.admissible <- Error$support.admissible
+            Error$CV.selected <- Error$bw == bw
+            cat(paste0("Optimal bw=", round(bw, 4), ".\n"))
+        } else {
+            Error <- NULL
+        }
     }
+
     # Core Estimation, gen grid points
 
     count <- 1
@@ -884,6 +1217,17 @@ interflex.kernel <- function(data,
     neval <- length(X.eval)
 
     if (verbose) cat(paste0("Number of evaluation points:", neval, "\n"))
+
+    support.diagnostics <- support.diagnostics.for.bw(bw, X.points = X.eval)
+    if (treat.type == "discrete" && nrow(support.diagnostics) > 0) {
+        support.diagnostics$weak.support <- !is.finite(support.diagnostics$min.ESS) | support.diagnostics$min.ESS < bw.ess.min
+    }
+    if (treat.type == "continuous" && nrow(support.diagnostics) > 0) {
+        support.diagnostics$weak.support <- !is.finite(support.diagnostics$n.eff) |
+            support.diagnostics$n.eff < bw.ess.min |
+            !is.finite(support.diagnostics$varD) |
+            support.diagnostics$varD < bw.varD.min
+    }
 
     gen.sd <- function(result, char = NULL, D.ref = NULL, to.diff = FALSE) {
         coef.grid <- result$result
@@ -2694,6 +3038,17 @@ interflex.kernel <- function(data,
             diff.info = diff.info,
             treat.info = treat.info,
             bw = bw,
+            bw.select = bw.select,
+            bw.selection.settings = list(
+                cv.balance = cv.balance,
+                bw.se.mult = bw.se.mult,
+                bw.ess.min = bw.ess.min,
+                bw.varD.min = bw.varD.min,
+                bw.ess.quantile = bw.ess.quantile,
+                bw.cv.bins = bw.cv.bins,
+                local.ncoef = local.ncoef
+            ),
+            support.diagnostics = support.diagnostics,
             CV.output = Error,
             CI = CI,
             est.kernel = TE.output.all.list,
@@ -2739,6 +3094,17 @@ interflex.kernel <- function(data,
             diff.info = diff.info,
             treat.info = treat.info,
             bw = bw,
+            bw.select = bw.select,
+            bw.selection.settings = list(
+                cv.balance = cv.balance,
+                bw.se.mult = bw.se.mult,
+                bw.ess.min = bw.ess.min,
+                bw.varD.min = bw.varD.min,
+                bw.ess.quantile = bw.ess.quantile,
+                bw.cv.bins = bw.cv.bins,
+                local.ncoef = local.ncoef
+            ),
+            support.diagnostics = support.diagnostics,
             CV.output = Error,
             CI = CI,
             est.kernel = ME.output.all.list,
