@@ -274,6 +274,14 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         stop("\"vartype\" must be one of the following: \"simu\",\"delta\".")
     }
 
+    ## The kernel estimator implements only the delta and bootstrap branches
+    ## (see R/kernel.R). Reaching it with vartype = "simu" leaves the output
+    ## objects unbuilt and fails later with "object 'diff.output.all.list' not
+    ## found", which tells the caller nothing. Reject it here instead.
+    if (estimator == "kernel" & vartype == "simu") {
+        stop("\"vartype = 'simu'\" is not supported for estimator = \"kernel\"; use \"delta\" or \"bootstrap\".")
+    }
+
     ## vcov.type
     if (is.null(vcov.type)) {
         vcov.type <- "robust"
