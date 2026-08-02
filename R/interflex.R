@@ -278,7 +278,11 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     ## (see R/kernel.R). Reaching it with vartype = "simu" leaves the output
     ## objects unbuilt and fails later with "object 'diff.output.all.list' not
     ## found", which tells the caller nothing. Reject it here instead.
-    if (estimator == "kernel" & vartype == "simu") {
+    ## Only when CI = TRUE: the whole vartype dispatch in kernel.R sits inside
+    ## `if (CI)`, and the `if (!CI)` path builds its output without consulting
+    ## vartype at all, so kernel + simu + CI = FALSE is a working call and must
+    ## keep working.
+    if (estimator == "kernel" & vartype == "simu" & CI) {
         stop("\"vartype = 'simu'\" is not supported for estimator = \"kernel\"; use \"delta\" or \"bootstrap\".")
     }
 
