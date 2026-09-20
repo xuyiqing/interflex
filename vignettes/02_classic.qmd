@@ -293,7 +293,7 @@ kernel.out.2 <- interflex(estimator = "kernel",
 ggarrange(kernel.out.1$figure, kernel.out.2$figure)
 ```
 
-**Bandwidth selection.** We use adaptive bandwidth selection in **interflex**. This means that the bandwidth will be smaller in regions where there are more data and larger in regions where there are few data points, based on the moderator $X$. When adaptive bandwidth is being used, `bw` refers to the bandwidth applied in the region with the highest density of observations.
+**Bandwidth selection.** We use adaptive bandwidth selection in **interflex**. This means that the bandwidth will be smaller in regions where there are more data and larger in regions where there are few data points, based on the moderator $X$. When adaptive bandwidth is being used, `bw` refers to the bandwidth at a typical observation: the value of the moderator where the pilot density equals its geometric mean over the observations. Windows are wider where the data are sparse and narrower where they are dense.
 
 Even with an optimized algorithm, the bootstrap procedure for large datasets can be slow. We incorporate parallel computing, `parallel=TRUE`, to speed it up. You can choose the number of cores to be used for parallel computing; otherwise the program will detect the number of logical cores in your computer and use as many cores as possible (warning: this will significantly slow down your computer!).
 

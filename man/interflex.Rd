@@ -63,7 +63,7 @@ interflex(estimator, data, Y, D, X, treat.type = NULL,
   \item{nbins}{an integer determining the number of bins when discretizing the moderator for \bold{estimator} = "binning" (and also used in \bold{estimator}="raw" for some plots). When quantile cutpoints are not unique, the effective number of bins may be reduced automatically.}
   \item{cutoffs}{a numeric vector of custom cutpoints for \bold{X}. If supplied, \bold{nbins} is ignored and the number of bins equals \code{length(cutoffs) + 1}.}
   \item{wald}{a logical flag controlling whether to conduct a Wald test (used by some estimators such as \bold{estimator}="binning").}
-  \item{bw}{a positive number setting the bandwidth in Gaussian kernel reweighting for \bold{estimator} = "kernel".}
+  \item{bw}{a positive number setting the bandwidth in Gaussian kernel reweighting for \bold{estimator} = "kernel". With adaptive bandwidth, \bold{bw} is the bandwidth at a typical observation, where the moderator's density equals its geometric mean over the observations: windows are wider where data are sparse and narrower where they are dense.}
   \item{kfold}{an integer specifying the number of folds used in cross-validation for bandwidth selection (kernel estimator).}
   \item{grid}{either an integer indicating the number of candidate bandwidths in a grid search, or a numeric vector of candidate bandwidths (kernel estimator; ignored if \bold{bw} is specified).}
   \item{metric}{a string specifying the criterion used in cross-validation to select bandwidth: one of "MSE", "MAE", "Cross Entropy", or "AUC". Default is "MSE" for non-binary outcomes and "Cross Entropy" for binary outcomes.}
