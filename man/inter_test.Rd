@@ -13,6 +13,14 @@
 \details{
   \bold{inter.test} compare treatment effects at specific values of the moderator using marginal effects and vcov matrix derived from linear/kernel estimation. Based on GAM model(relies on \bold{mgcv} package), users can approximate the treatment effect and its variance using smooth functions without re-estimating the model, hence saving time.
 }
+\value{
+  A named list with one element per non-baseline treatment arm (discrete treatment) or per
+  reference value of the treatment (continuous treatment). Each element is a data frame with
+  one row per comparison of the moderator values in \code{diff.values} (row names such as
+  \code{"0.5 vs 0.25"}) and columns \code{diff.estimate}, \code{sd}, \code{z-value},
+  \code{p-value}, \code{lower CI(95\%)} and \code{upper CI(95\%)}, stored as character strings
+  rounded to three decimals.
+}
 
 \author{
   Jens Hainmueller; Jonathan Mummolo; Yiqing Xu; Ziyi Liu (Maintainer)

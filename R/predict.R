@@ -592,7 +592,7 @@ predict.interflex <- function(
         if (isTRUE(CI)) {
             p <- p + geom_ribbon(
                 data = tograph, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment),
-                alpha = 0.2, show.legend = T, linewidth = 0
+                alpha = 0.2, show.legend = TRUE, linewidth = 0
             )
             if("CI_uniform_lower" %in% colnames(tograph)){
                 p <- p + geom_ribbon(

@@ -104,7 +104,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     n <- dim(data)[1]
 
     # Reset per-call warning flags
-    options(interflex.uniform_ci_warned = FALSE)
+    .interflex_state$uniform_ci_warned <- FALSE
 
     estimator <- tolower(estimator)
 
@@ -917,7 +917,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             stop("\"D\" is not a numeric variable")
         }
         if (is.null(D.ref)) {
-            D.sample <- quantile(data[, D], probs = c(0.5), na.rm = T)
+            D.sample <- quantile(data[, D], probs = c(0.5), na.rm = TRUE)
             all.treat <- names(D.sample)
             ntreat <- length(D.sample)
             labelname <- c()
