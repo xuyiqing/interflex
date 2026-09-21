@@ -1,4 +1,4 @@
-# interflex 1.4.1
+# interflex 1.4.1 (CRAN v1.4.1, released 2026-09-20)
 
 1. Fixed the kernel estimator's adaptive bandwidth: the normalizer is now the geometric mean of the moderator's density at the observations (Abramson's rule) instead of over the whole density grid, fixing "subscript out of bounds" and "$ operator is invalid" errors on moderators with gaps or long tails.
 
