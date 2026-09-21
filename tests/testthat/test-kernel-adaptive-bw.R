@@ -9,8 +9,9 @@
 
 ## Collects every warning whose message matches `pattern` raised while
 ## evaluating `expr`, without letting those warnings propagate (other
-## warnings still propagate normally). Used only by the optional Malesky
-## block (test 9) to check that no "dropped ..." warning is raised.
+## warnings still propagate normally). Used by the cross-validation block
+## (where the main fit may warn once before it stops) and by the optional
+## Malesky block (to check that no "dropped ..." warning is raised).
 .collect_matching_warnings <- function(expr, pattern) {
   hits <- character(0)
   result <- withCallingHandlers(
@@ -190,13 +191,18 @@ test_that("degenerate far-apart clusters: unusable points are dropped with a cle
   AB <- rbind(A, B)
   AB$Y <- 1 + 0.1 * AB$X + AB$D + rnorm(nrow(AB))
   set.seed(14)
-  expect_error(
-    interflex(
-      estimator = "kernel", Y = "Y", D = "D", X = "X", data = AB, bw = 0.05,
-      X.eval = c(0.2, 0.5, 0.8, 100.2, 100.5),
-      CI = FALSE, figure = FALSE, parallel = FALSE, verbose = FALSE
+  ## Every evaluation point is unusable: the main fit first warns that it
+  ## dropped all of them, then stops.
+  expect_warning(
+    expect_error(
+      interflex(
+        estimator = "kernel", Y = "Y", D = "D", X = "X", data = AB, bw = 0.05,
+        X.eval = c(0.2, 0.5, 0.8, 100.2, 100.5),
+        CI = FALSE, figure = FALSE, parallel = FALSE, verbose = FALSE
+      ),
+      "Inappropriate bandwidth"
     ),
-    "Inappropriate bandwidth"
+    "dropped 5 of 5 evaluation points"
   )
 })
 
@@ -228,14 +234,21 @@ test_that("cross-validation with no usable candidate bandwidth errors and return
   ABC$Y <- 1 + 0.1 * ABC$X + ABC$D + rnorm(nrow(ABC))
 
   set.seed(17)
-  expect_error(
-    interflex(
-      estimator = "kernel", Y = "Y", D = "D", X = "X", data = ABC,
-      grid = c(1e-8, 2e-8),
-      CI = FALSE, figure = FALSE, parallel = FALSE, verbose = FALSE
+  ## Either bandwidth selection stops on its own, or it hands a candidate to
+  ## the main fit, which warns once that every evaluation point was dropped
+  ## and then stops. No other warning is expected.
+  res <- .collect_matching_warnings(
+    expect_error(
+      interflex(
+        estimator = "kernel", Y = "Y", D = "D", X = "X", data = ABC,
+        grid = c(1e-8, 2e-8),
+        CI = FALSE, figure = FALSE, parallel = FALSE, verbose = FALSE
+      ),
+      "Inappropriate bandwidth|Bandwidth selection failed"
     ),
-    "Inappropriate bandwidth|Bandwidth selection failed"
+    "dropped [0-9]+ of [0-9]+ evaluation points"
   )
+  expect_lte(length(res$hits), 1)
 })
 
 test_that("interflex() never leaves the global uniform_ci_warned option set", {

@@ -25,7 +25,7 @@ NEWS.md for the full list of changes.
 
 ## Test environments
 
-* local: macOS 26.6.2 (25G83), aarch64-apple-darwin23, R 4.6.1
+* local: macOS 26.6.2 (25G83), aarch64-apple-darwin20, R 4.5.3 (checked 2026-09-20)
 * No GitHub Actions / win-builder / macbuilder run yet -- this submission
   has not been pushed; run those before the actual CRAN upload if broader
   platform coverage is wanted.
@@ -33,6 +33,10 @@ NEWS.md for the full list of changes.
 ## R CMD check results
 
 0 errors | 0 warnings | 0 notes
+
+The package's full test suite (107 tests; all but three smoke tests are
+skipped on CRAN with `skip_on_cran()`) also passes locally against the
+built tarball: 0 failures, 0 errors.
 
 The mlr3extralearners Suggests item appeared only as informational text
 under "checking CRAN incoming feasibility", not as a NOTE, in the local
