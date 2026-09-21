@@ -64,6 +64,9 @@ interflex.kernel <- function(data,
                              height = 7,
                              width = 10,
                              verbose = TRUE) {
+    if (!is.null(bw) && !(is.numeric(bw) && length(bw) == 1 && is.finite(bw) && bw > 0)) {
+        stop("\"bw\" must be a single positive number.", call. = FALSE)
+    }
     WEIGHTS <- NULL
     uniform.coverage <- NULL
     if (length(bw.select) != 1L) bw.select <- bw.select[1L]
@@ -150,6 +153,10 @@ interflex.kernel <- function(data,
 
     # Xdensity
     suppressWarnings(Xdensity <- density(data[, X], weights = w))
+    Xdensity <- .kernel_prepare_density(Xdensity, data[, X], w)
+    if (!is.finite(Xdensity$adapt.g)) {
+        stop("Cannot compute the adaptive kernel bandwidth: the estimated density of the moderator is zero at every observation with a positive weight.", call. = FALSE)
+    }
 
     ## Bandwidth-selection support diagnostics and balanced-loss helpers.
     weighted.var.local <- function(v, wt) {
@@ -160,18 +167,7 @@ interflex.kernel <- function(data,
     }
 
     adaptive.bw.at <- function(x, bw.cand, Xdensity.object) {
-        yd <- Xdensity.object$y
-        xd <- Xdensity.object$x
-        positive.density <- yd[is.finite(yd) & yd > 0]
-        if (length(positive.density) == 0) return(NA_real_)
-        density.mean <- exp(mean(log(positive.density)))
-        temp.density <- yd[which.min(abs(xd - x))]
-        if (!is.finite(temp.density) || temp.density <= 0) {
-            temp.density <- min(positive.density)
-        }
-        bw.out <- bw.cand * sqrt(density.mean / temp.density)
-        if (!is.finite(bw.out) || bw.out <= 0) return(NA_real_)
-        bw.out
+        .kernel_local_bw(x, bw.cand, Xdensity.object)
     }
 
     effective.sample.size <- function(w.local) {
@@ -364,35 +360,33 @@ interflex.kernel <- function(data,
             n.coef <- n.coef + 2
         }
 
-        # construct weight
-        temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
-        # bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        bw.adapt <- bw*sqrt(density.mean/temp_density)
-        w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
-        data.touse[, "WEIGHTS"] <- w
+        result.names <- c("x0", "(Intercept)", endogenous.var, Z)
+        make.status.result <- function(status, aliased = character(0)) {
+            list(
+                result = stats::setNames(rep(NA_real_, length(result.names)), result.names),
+                model.vcov = NULL, model.df = NULL, data.touse = NULL,
+                status = status, aliased = aliased
+            )
+        }
 
-        if (max(data.touse[, "WEIGHTS"]) == 0) {
-            result <- rep(NA, 1 + n.coef)
-            return(list(
-                result = result, model.vcov = NULL,
-                model.df = NULL, data.touse = NULL
-            ))
+        # construct weight
+        if (is.null(Xdensity$adapt.g)) Xdensity <- .kernel_prepare_density(Xdensity, data[, X], weights)  # defensive fallback
+        bw.adapt <- .kernel_local_bw(x, bw, Xdensity)
+        k <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
+        data.touse[, "WEIGHTS"] <- k
+        R <- is.finite(k) & k > 0
+
+        if (is.na(bw.adapt) || !any(R)) {
+            return(make.status.result("no usable kernel weights"))
         }
 
         formula <- paste0(use.variable[1], "~", paste0(Z, collapse = "+"), "|", paste0(FE, collapse = "+"), "|", paste0(endogenous.var, collapse = "+"), "~", paste0(excluded.iv, collapse = "+"))
-        fe_res <- feols(fml = as.formula(formula), data = data.touse, weights = w, vcov = "hetero")
+        fe_res <- feols(fml = as.formula(formula), data = data.touse[R, ], weights = k[R], vcov = "hetero")
 
         if (typeof(fe_res) != "list") {
-            result <- rep(NA, 1 + n.coef)
-            names(result) <- c("x0", "(Intercept)", endogenous.var, Z)
-            return(list(
-                result = result, model.vcov = NULL,
-                model.df = NULL, data.touse = NULL
-            ))
+            return(make.status.result("estimation failed"))
         }
-        result <- c(x, mean(fe_res$sumFE), coef(fe_res))
-        result[which(is.nan(result))] <- 0
+        result <- stats::setNames(c(x, mean(fe_res$sumFE), coef(fe_res)), result.names)
 
         if (vcov) {
             model.vcov.original <- vcov(fe_res, vcov = "hetero")
@@ -402,10 +396,11 @@ interflex.kernel <- function(data,
         } else {
             model.vcov <- NULL
         }
-        
+
         return(list(
             result = result, model.vcov = model.vcov,
-            model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse
+            model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse,
+            status = "ok", aliased = character(0)
         ))
     }
 
@@ -441,33 +436,52 @@ interflex.kernel <- function(data,
             }
         }
 
-        temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
-        # bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        bw.adapt <- bw*sqrt(density.mean/temp_density)
-        w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
-        data.touse[, "WEIGHTS"] <- w
-
-        if (max(data.touse[, "WEIGHTS"]) == 0) {
-            result <- rep(NA, 1 + n.coef)
-            return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
+        expected.reg <- use.variable[2:length(use.variable)]
+        result.names <- c("x0", "(Intercept)", expected.reg)
+        make.status.result <- function(status, aliased = character(0)) {
+            list(
+                result = stats::setNames(rep(NA_real_, length(result.names)), result.names),
+                model.vcov = NULL, model.df = NULL, data.touse = NULL,
+                status = status, aliased = aliased
+            )
         }
 
-        formula <- paste0(use.variable[1], "~", paste0(use.variable[2:length(use.variable)], collapse = "+"), "|", paste0(FE, collapse = "+"))
-        fe_res <- feols(fml = as.formula(formula), data = data.touse, weights = w, vcov = "hetero")
+        if (is.null(Xdensity$adapt.g)) Xdensity <- .kernel_prepare_density(Xdensity, data[, X], weights)  # defensive fallback
+        bw.adapt <- .kernel_local_bw(x, bw, Xdensity)
+        k <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
+        data.touse[, "WEIGHTS"] <- k
+        R <- is.finite(k) & k > 0
+
+        if (is.na(bw.adapt) || !any(R)) {
+            return(make.status.result("no usable kernel weights"))
+        }
+
+        formula <- paste0(use.variable[1], "~", paste0(expected.reg, collapse = "+"), "|", paste0(FE, collapse = "+"))
+        fe_res <- tryCatch(
+            feols(fml = as.formula(formula), data = data.touse[R, ], weights = k[R], vcov = "hetero", notes = FALSE),
+            error = function(e) "error"
+        )
 
         if (typeof(fe_res) != "list") {
-            result <- rep(NA, 1 + n.coef)
-            names(result) <- c("x0", "(Intercept)", use.variable[2:length(use.variable)])
-            return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
+            return(make.status.result("estimation failed"))
         }
 
-        result <- c(x, mean(fe_res$sumFE), coef(fe_res))
-        result[which(is.nan(result))] <- 0
-        names(result) <- c("x0", "(Intercept)", use.variable[2:length(use.variable)])
+        coefs <- coef(fe_res)
+        missing.reg <- setdiff(expected.reg, names(coefs))
+        present.reg <- intersect(expected.reg, names(coefs))
+        nonfinite.reg <- present.reg[!is.finite(coefs[present.reg])]
+        aliased.reg <- union(missing.reg, nonfinite.reg)
+        if (length(aliased.reg) > 0) {
+            return(make.status.result("coefficients not identified", aliased = aliased.reg))
+        }
+
+        result <- stats::setNames(c(x, mean(fe_res$sumFE), coefs[expected.reg]), result.names)
 
         if (vcov) {
-            model.vcov.original <- vcov(fe_res, vcov = "hetero")
+            model.vcov.original <- tryCatch(vcov(fe_res, vcov = "hetero"), error = function(e) NULL)
+            if (!.kernel_vcov_usable(model.vcov.original, expected.reg)) {
+                return(make.status.result("variance not estimable"))
+            }
             model.vcov <- cbind(0, rbind(0, model.vcov.original))
             rownames(model.vcov) <- c("(Intercept)", rownames(model.vcov.original))
             colnames(model.vcov) <- c("(Intercept)", colnames(model.vcov.original))
@@ -477,7 +491,8 @@ interflex.kernel <- function(data,
 
         return(list(
             result = result, model.vcov = model.vcov,
-            model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse
+            model.df = degrees_freedom(fe_res, type = "k"), data.touse = data.touse,
+            status = "ok", aliased = character(0)
         ))
     }
 
@@ -536,50 +551,59 @@ interflex.kernel <- function(data,
         }
         formula <- paste0(formula, "|", formula.iv)
         formula <- as.formula(formula)
-        temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
-        # bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        bw.adapt <- bw*sqrt(density.mean/temp_density)
-        w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
-        data.touse[, "WEIGHTS"] <- w
-        if (max(data.touse[, "WEIGHTS"]) == 0) {
-            result <- rep(NA, 1 + n.coef)
-            names(result) <- c("x0", all.var.name)
-            return(list(
-                result = result, model.vcov = NULL,
-                model.df = NULL, data.touse = NULL
-            ))
+
+        result.names <- c("x0", all.var.name)
+        make.status.result <- function(status, aliased = character(0)) {
+            list(
+                result = stats::setNames(rep(NA_real_, length(result.names)), result.names),
+                model.vcov = NULL, model.df = NULL, data.touse = NULL,
+                status = status, aliased = aliased
+            )
         }
+
+        if (is.null(Xdensity$adapt.g)) Xdensity <- .kernel_prepare_density(Xdensity, data[, X], weights)  # defensive fallback
+        bw.adapt <- .kernel_local_bw(x, bw, Xdensity)
+        k <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
+        data.touse[, "WEIGHTS"] <- k
+        R <- is.finite(k) & k > 0
+
+        if (is.na(bw.adapt) || !any(R)) {
+            return(make.status.result("no usable kernel weights"))
+        }
+
         suppressWarnings( # correct
             iv.reg <- tryCatch(
-                ivreg(formula, data = data.touse, weights = WEIGHTS),
+                ivreg(formula, data = data.touse[R, ], weights = k[R]),
                 error = function(e) {
                     return("error")
                 }
             )
         )
         if (typeof(iv.reg) != "list") {
-            result <- rep(NA, 1 + n.coef)
-            names(result) <- c("x0", all.var.name)
-            return(list(
-                result = result, model.vcov = NULL,
-                model.df = NULL, data.touse = NULL
-            ))
+            return(make.status.result("estimation failed"))
         }
 
-        result <- c(x, iv.reg$coef)
-        names(result) <- c("x0", names(iv.reg$coef))
-        result[which(is.na(result))] <- 0
+        coefs <- iv.reg$coefficients
+        bad <- !is.finite(coefs)
+        if (any(bad)) {
+            return(make.status.result("coefficients not identified", aliased = names(coefs)[bad]))
+        }
 
         if (vcov) {
-            model.vcov <- vcov(iv.reg, type = "H2")
+            model.vcov <- tryCatch(vcov(iv.reg, type = "H2"), error = function(e) NULL)
+            if (!.kernel_vcov_usable(model.vcov, names(coefs))) {
+                return(make.status.result("variance not estimable"))
+            }
         } else {
             model.vcov <- NULL
         }
 
+        result <- stats::setNames(c(x, coefs), result.names)
+
         return(list(
             result = result, model.vcov = model.vcov,
-            model.df = iv.reg$df.residual, data.touse = data.touse
+            model.df = iv.reg$df.residual, data.touse = data.touse,
+            status = "ok", aliased = character(0)
         ))
     }
 
@@ -619,27 +643,32 @@ interflex.kernel <- function(data,
 
         formula <- as.formula(formula)
 
-        temp_density <- Xdensity$y[which.min(abs(Xdensity$x - x))]
-        #bw.adapt <- bw * (1 + log(max(Xdensity$y) / temp_density))
-        density.mean <- exp(mean(log(Xdensity$y[Xdensity$y > 0])))
-        bw.adapt <- bw * sqrt(density.mean/temp_density)
-        w <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
-        if (0 %in% w) {
-            w <- w + min(w[w != 0])
+        result.names <- c("x0", all.var.name)
+        make.status.result <- function(status, aliased = character(0)) {
+            list(
+                result = stats::setNames(rep(NA_real_, length(result.names)), result.names),
+                model.vcov = NULL, model.df = NULL, data.touse = NULL,
+                status = status, aliased = aliased
+            )
         }
 
+        if (is.null(Xdensity$adapt.g)) Xdensity <- .kernel_prepare_density(Xdensity, data[, X], weights)  # defensive fallback
+        bw.adapt <- .kernel_local_bw(x, bw, Xdensity)
+        k <- dnorm(data.touse[, "delta.x"] / bw.adapt) * weights
+        data.touse[, "WEIGHTS"] <- k
+        R <- is.finite(k) & k > 0
 
-        data.touse[, "WEIGHTS"] <- w
-        if (max(data.touse[, "WEIGHTS"]) == 0) {
-            result <- rep(NA, 1 + n.coef)
-            names(result) <- c("x0", all.var.name)
-            return(result)
+        if (is.na(bw.adapt) || !any(R)) {
+            return(make.status.result("no usable kernel weights"))
         }
+
+        fit.data <- data.touse[R, ]
+        fit.w <- k[R]
 
         if (method == "linear") {
             suppressWarnings( # correct
                 glm.reg <- tryCatch(
-                    glm(formula, data = data.touse, weights = WEIGHTS),
+                    glm(formula, data = fit.data, weights = fit.w),
                     error = function(e) {
                         return("error")
                     }
@@ -650,7 +679,7 @@ interflex.kernel <- function(data,
         if (method == "logit") {
             suppressWarnings( # correct
                 glm.reg <- tryCatch(
-                    glm(formula, data = data.touse, weights = WEIGHTS, family = binomial(link = "logit")),
+                    glm(formula, data = fit.data, weights = fit.w, family = binomial(link = "logit")),
                     error = function(e) {
                         return("error")
                     }
@@ -661,7 +690,7 @@ interflex.kernel <- function(data,
         if (method == "probit") {
             suppressWarnings( # correct
                 glm.reg <- tryCatch(
-                    glm(formula, data = data.touse, weights = WEIGHTS, family = binomial(link = "probit")),
+                    glm(formula, data = fit.data, weights = fit.w, family = binomial(link = "probit")),
                     error = function(e) {
                         return("error")
                     }
@@ -672,7 +701,7 @@ interflex.kernel <- function(data,
         if (method == "poisson") {
             suppressWarnings( # correct
                 glm.reg <- tryCatch(
-                    glm(formula, data = data.touse, weights = WEIGHTS, family = poisson),
+                    glm(formula, data = fit.data, weights = fit.w, family = poisson),
                     error = function(e) {
                         return("error")
                     }
@@ -683,7 +712,7 @@ interflex.kernel <- function(data,
         if (method == "nbinom") {
             suppressWarnings( # correct
                 glm.reg <- tryCatch(
-                    glm.nb(formula, data = data.touse, weights = WEIGHTS, control = glm.control(epsilon = 1e-5, maxit = 200)),
+                    glm.nb(formula, data = fit.data, weights = fit.w, control = glm.control(epsilon = 1e-5, maxit = 200)),
                     error = function(e) {
                         return("error")
                     }
@@ -692,41 +721,39 @@ interflex.kernel <- function(data,
         }
 
         if (typeof(glm.reg) != "list") {
-            result <- rep(NA, 1 + n.coef)
-            names(result) <- c(
-                "x0",
-                names(glm.reg$coef)
-            )
-            return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
+            return(make.status.result("estimation failed"))
         }
-        
+
+        if (!isTRUE(glm.reg$converged)) {
+            return(make.status.result("did not converge"))
+        }
+
+        coefs <- glm.reg$coefficients
+        bad <- !is.finite(coefs)
+        if (any(bad)) {
+            return(make.status.result("coefficients not identified", aliased = names(coefs)[bad]))
+        }
+
         glm.reg.df <- glm.reg$df.residual
 
         if (vcov) {
-            glm.reg.vcov <- vcovHC(glm.reg, type = "HC2")
+            hv <- tryCatch(stats::hatvalues(glm.reg), error = function(e) NULL)
+            if (is.null(hv) || !all(is.finite(hv)) || any(hv > LEVERAGE_MAX)) {
+                return(make.status.result("variance not estimable"))
+            }
+            glm.reg.vcov <- tryCatch(sandwich::vcovHC(glm.reg, type = "HC2"), error = function(e) NULL)
+            if (!.kernel_vcov_usable(glm.reg.vcov, names(coefs))) {
+                return(make.status.result("variance not estimable"))
+            }
         } else {
             glm.reg.vcov <- NULL
         }
 
-        if (!glm.reg$converged) {
-            result <- rep(NA, 1 + length(glm.reg$coef))
-            names(result) <- c(
-                "x0",
-                names(glm.reg$coef)
-            )
-            return(list(result = result, model.vcov = NULL, model.df = NULL, data.touse = NULL))
-        } else {
-            result <- c(
-                x,
-                glm.reg$coef
-            )
-            names(result) <- c(
-                "x0",
-                names(glm.reg$coef)
-            )
-            result[which(is.na(result))] <- 0
-            return(list(result = result, model.vcov = glm.reg.vcov, model.df = glm.reg.df, data.touse = data.touse))
-        }
+        result <- stats::setNames(c(x, coefs), result.names)
+        return(list(
+            result = result, model.vcov = glm.reg.vcov, model.df = glm.reg.df, data.touse = data.touse,
+            status = "ok", aliased = character(0)
+        ))
     }
 
     wls <- function(x, data, bw, weights, Xdensity, vcov = TRUE) {
@@ -913,10 +940,10 @@ interflex.kernel <- function(data,
             if (is.null(IV)) {
                 coef.grid.cv <- c()
                 for (x in X.eval.cv) {
-                    coef.grid.cv <- rbind(coef.grid.cv, wls.nofe(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)$result)
+                    coef.grid.cv <- rbind(coef.grid.cv, wls.nofe(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity, vcov = FALSE)$result)
                 }
             } else {
-                coef.grid.cv <- t(sapply(X.eval.cv, function(x) wls.iv(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity)$result))
+                coef.grid.cv <- t(sapply(X.eval.cv, function(x) wls.iv(x = x, data = train, bw = bw, weights = w.touse.cv, Xdensity = Xdensity, vcov = FALSE)$result))
             }
             coef.grid.cv <- na.omit(coef.grid.cv)
             if (is.null(dim(coef.grid.cv)) || dim(coef.grid.cv)[1] == 0) return(empty.cv.output())
@@ -1084,6 +1111,7 @@ interflex.kernel <- function(data,
                 train <- data[-testid, ]
                 test <- data[testid, ]
                 suppressWarnings(Xdensity.train <- density(data[-testid, X], weights = w[-testid]))
+                Xdensity.train <- .kernel_prepare_density(Xdensity.train, data[-testid, X], w[-testid])
                 error[j, ] <- getError.CV(train = train, test = test, bw = bw, neval = neval, weights_name = "WEIGHTS", Xdensity = Xdensity.train)
             }
 
@@ -1137,6 +1165,7 @@ interflex.kernel <- function(data,
                     if ("try-error" %in% class(cv.output.sub)) {
                         out <- rep(NA_real_, n.cv.output)
                         names(out) <- cv.output.names
+                        out["bw"] <- bw
                         return(out)
                     } else {
                         return(cv.output.sub)
@@ -1152,6 +1181,7 @@ interflex.kernel <- function(data,
                 suppressWarnings(cv.output.sub <- try(cv.new(bw = bw.grid[i], neval = neval), silent = FALSE))
                 if ("try-error" %in% class(cv.output.sub)) {
                     Error[i, ] <- NA_real_
+                    Error[i, "bw"] <- bw.grid[i]
                 } else {
                     Error[i, ] <- cv.output.sub
                 }
@@ -1174,6 +1204,9 @@ interflex.kernel <- function(data,
         bw <- selection$bw
         Error <- selection$Error
         cat(paste0("Optimal bw=", round(bw, 4), ".\n"))
+        if (!(is.numeric(bw) && length(bw) == 1 && is.finite(bw) && bw > 0)) {
+            stop("Bandwidth selection failed: no candidate bandwidth gave a usable result. Supply 'bw' directly or check the moderator.", call. = FALSE)
+        }
     } else {
         if (need.select.bw && bw.select == "ess") {
             bw.support.grid <- do.call(rbind, lapply(bw.grid, summarize.support.for.bw, X.points = X.eval))
@@ -1186,6 +1219,9 @@ interflex.kernel <- function(data,
             Error$CV.admissible <- Error$support.admissible
             Error$CV.selected <- Error$bw == bw
             cat(paste0("Optimal bw=", round(bw, 4), ".\n"))
+            if (!(is.numeric(bw) && length(bw) == 1 && is.finite(bw) && bw > 0)) {
+                stop("Bandwidth selection failed: no candidate bandwidth gave a usable result. Supply 'bw' directly or check the moderator.", call. = FALSE)
+            }
         } else {
             Error <- NULL
         }
@@ -1193,30 +1229,80 @@ interflex.kernel <- function(data,
 
     # Core Estimation, gen grid points
 
+    N <- length(X.eval)
     count <- 1
     results <- list()
     coef.grid <- c()
-    model.vcovs <- list()
-    model.dfs <- c()
     for (x in X.eval) {
         results[[count]] <- wls(x = x, data = data, bw = bw, weights = w, Xdensity = Xdensity)
         coef.grid <- rbind(coef.grid, results[[count]]$result)
-        model.vcovs[[count]] <- results[[count]]$model.vcov
-        model.dfs <- c(model.dfs, results[[count]]$model.df)
         count <- count + 1
     }
 
-    coef.grid <- na.omit(coef.grid)
-    if (dim(coef.grid)[1] <= neval / 2) {
-        warning("Inappropriate bandwidth.\n")
+    fit.status <- vapply(results, function(r) r$status, character(1))
+    keep <- fit.status == "ok"
+
+    if (any(!keep)) {
+        dropped.idx <- which(!keep)
+        dropped.x <- X.eval[dropped.idx]
+        shown.x <- dropped.x[seq_len(min(5, length(dropped.x)))]
+        xs <- paste(format(signif(shown.x, 4)), collapse = ", ")
+        if (length(dropped.x) > 5) xs <- paste0(xs, ", ...")
+        reason.levels <- c(
+            "no usable kernel weights", "estimation failed", "did not converge",
+            "coefficients not identified", "variance not estimable"
+        )
+        reason.counts <- table(factor(fit.status[dropped.idx], levels = reason.levels))
+        reason.counts <- reason.counts[reason.counts > 0]
+        reasons <- paste(paste0(names(reason.counts), " (", as.integer(reason.counts), ")"), collapse = "; ")
+        aliased.all <- sort(unique(unlist(lapply(results[dropped.idx], function(r) r$aliased))))
+        aliased.msg <- if (length(aliased.all) > 0) {
+            paste0(" Coefficients not identified: ", paste(aliased.all, collapse = ", "), ".")
+        } else {
+            ""
+        }
+        warning(sprintf(
+            "The kernel estimator dropped %d of %d evaluation points (X = %s) because the local fit there is not usable: %s.%s A larger bandwidth usually helps.",
+            length(dropped.x), N, xs, reasons, aliased.msg
+        ), call. = FALSE)
     }
-    if (dim(coef.grid)[1] <= 3) {
-        stop("Inappropriate bandwidth.")
+
+    if (sum(keep) <= MIN_USABLE_POINTS) {
+        stop(sprintf(
+            "Inappropriate bandwidth: only %d of %d evaluation points have a usable local fit (bw = %s). Try a larger bandwidth.",
+            sum(keep), N, format(signif(bw, 4))
+        ), call. = FALSE)
+    } else if (sum(keep) <= N / 2) {
+        warning(sprintf(
+            "Inappropriate bandwidth: only %d of %d evaluation points have a usable local fit (bw = %s).",
+            sum(keep), N, format(signif(bw, 4))
+        ), call. = FALSE)
     }
+
+    coef.grid <- coef.grid[keep, , drop = FALSE]
+    results <- results[keep]
+    model.vcovs <- lapply(results, function(r) r$model.vcov)
+    model.dfs <- vapply(results, function(r) as.numeric(r$model.df), numeric(1))
     X.eval <- coef.grid[, "x0"]
     neval <- length(X.eval)
 
     if (verbose) cat(paste0("Number of evaluation points:", neval, "\n"))
+
+    # Part D: fit the local models at each diff.values point once, up front, so
+    # gen.kernel.difference() below does not need to refit. diff.fits.main is
+    # reused by every non-bootstrap call; the bootstrap loop builds its own.
+    diff.fits.main <- NULL
+    if (!is.null(diff.values)) {
+        diff.fits.main <- lapply(diff.values, function(v) wls(x = v, data = data, bw = bw, weights = w, Xdensity = Xdensity))
+        diff.status.main <- vapply(diff.fits.main, function(r) r$status, character(1))
+        if (any(diff.status.main != "ok")) {
+            bad.idx <- which(diff.status.main != "ok")[1]
+            warning(sprintf(
+                "The local fit at diff.values = %s is not usable (%s); the differences and their standard errors are reported as NA.",
+                format(signif(diff.values[bad.idx], 4)), diff.status.main[bad.idx]
+            ), call. = FALSE)
+        }
+    }
 
     support.diagnostics <- support.diagnostics.for.bw(bw, X.points = X.eval)
     if (treat.type == "discrete" && nrow(support.diagnostics) > 0) {
@@ -1627,10 +1713,11 @@ interflex.kernel <- function(data,
     ## Function C: estimate difference of TE/ME at different values of the moderator
     # 1,	input: coef.grid; char/D.ref; diff.values
     # 2,	output: difference of TE/ME at different values of the moderator
-    gen.kernel.difference <- function(coef.grid, diff.values, char = NULL, D.ref = NULL) {
+    gen.kernel.difference <- function(coef.grid, diff.values, diff.fits, char = NULL, D.ref = NULL) {
         if (is.null(diff.values)) {
             return(list(difference = NULL, difference.sd = NULL))
         }
+        diff.ok <- !is.null(diff.fits) && all(vapply(diff.fits, function(r) r$status, character(1)) == "ok")
         if (is.null(char)) {
             treat.type <- "continuous"
 
@@ -1796,6 +1883,20 @@ interflex.kernel <- function(data,
             }
         }
 
+        if (!diff.ok) {
+            n.diff <- if (length(diff.values) == 2) 1L else 3L
+            difference <- rep(NA_real_, n.diff)
+            difference.sd <- rep(NA_real_, n.diff)
+            if (treat.type == "discrete") {
+                names(difference) <- paste0(char, ".", difference.name)
+                names(difference.sd) <- paste0("sd.", char, ".", difference.name)
+            }
+            if (treat.type == "continuous") {
+                names(difference) <- paste0(names(D.sample)[D.sample == D.ref], ".", difference.name)
+                names(difference.sd) <- paste0("sd.", names(D.sample)[D.sample == D.ref], ".", difference.name)
+            }
+            return(list(difference = difference, difference.sd = difference.sd))
+        }
 
         if (length(diff.values) == 2) {
             if (treat.type == "discrete") {
@@ -1805,8 +1906,8 @@ interflex.kernel <- function(data,
                 difference <- c(est.ME(diff.values[2]) - est.ME(diff.values[1]))
             }
 
-            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
-            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list2 <- gen.sd(diff.fits[[2]], char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list1 <- gen.sd(diff.fits[[1]], char = char, D.ref = D.ref, to.diff = TRUE)
             vec1 <- vec.list1$vec
             vec2 <- vec.list2$vec
             vec <- vec2 - vec1
@@ -1829,9 +1930,9 @@ interflex.kernel <- function(data,
                 difference <- c(difference1, difference2, difference3)
             }
 
-            vec.list3 <- gen.sd(wls(x = diff.values[3], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
-            vec.list2 <- gen.sd(wls(x = diff.values[2], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
-            vec.list1 <- gen.sd(wls(x = diff.values[1], data = data, bw = bw, weights = w, Xdensity = Xdensity), char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list3 <- gen.sd(diff.fits[[3]], char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list2 <- gen.sd(diff.fits[[2]], char = char, D.ref = D.ref, to.diff = TRUE)
+            vec.list1 <- gen.sd(diff.fits[[1]], char = char, D.ref = D.ref, to.diff = TRUE)
             vec1 <- vec.list1$vec
             vec2 <- vec.list2$vec
             vec3 <- vec.list3$vec
@@ -2340,6 +2441,7 @@ interflex.kernel <- function(data,
             gen.diff.output <- gen.kernel.difference(
                 coef.grid = coef.grid,
                 diff.values = diff.values,
+                diff.fits = diff.fits.main,
                 char = char
             )
             gen.ATE.output <- gen.ATE(data = data, coef.grid = coef.grid, model.vcovs = model.vcovs, char = char)
@@ -2361,6 +2463,7 @@ interflex.kernel <- function(data,
             gen.diff.output <- gen.kernel.difference(
                 coef.grid = coef.grid,
                 diff.values = diff.values,
+                diff.fits = diff.fits.main,
                 D.ref = D.ref
             )
             all.output.noCI[[label.name[k]]] <- list(
@@ -2415,9 +2518,23 @@ interflex.kernel <- function(data,
 
                 # Xdensity
                 suppressWarnings(Xdensity.boot <- density(data.boot[, X], weights = w.touse))
+                Xdensity.boot <- .kernel_prepare_density(Xdensity.boot, data.boot[, X], w.touse)
                 coef.grid.boot <- c()
                 for (x in X.eval) {
                     coef.grid.boot <- rbind(coef.grid.boot, wls(x = x, data = data.boot, bw = bw, weights = w.touse, Xdensity = Xdensity.boot, vcov=FALSE)$result)
+                }
+
+                # Part D (bootstrap): fit the diff.values points once per replicate,
+                # on this replicate's own sample and density (see the main-sample
+                # analogue, diff.fits.main, right after the Part C fit loop). vcov
+                # stays at its TRUE default (unlike the per-X.eval coef.grid.boot
+                # fits above): gen.kernel.difference()'s difference.sd computation
+                # is unchanged (spec.md Part D item 3) and needs a real model.vcov
+                # to do its delta-method matrix algebra, exactly as the pre-fix
+                # code's per-call wls() refit always did.
+                diff.fits.boot <- NULL
+                if (!is.null(diff.values)) {
+                    diff.fits.boot <- lapply(diff.values, function(v) wls(x = v, data = data.boot, bw = bw, weights = w.touse, Xdensity = Xdensity.boot))
                 }
 
                 boot.one.round <- c()
@@ -2427,6 +2544,7 @@ interflex.kernel <- function(data,
                         gen.diff.output <- gen.kernel.difference(
                             coef.grid = coef.grid.boot,
                             diff.values = diff.values,
+                            diff.fits = diff.fits.boot,
                             char = char
                         )
 
@@ -2472,6 +2590,7 @@ interflex.kernel <- function(data,
                         gen.diff.output <- gen.kernel.difference(
                             coef.grid = coef.grid.boot,
                             diff.values = diff.values,
+                            diff.fits = diff.fits.boot,
                             D.ref = D.ref
                         )
 
@@ -2536,6 +2655,15 @@ interflex.kernel <- function(data,
                     cli::cli_progress_update()
                 }
                 cli::cli_progress_done()
+            }
+
+            te.me.rows <- grepl(if (treat.type == "discrete") "^TE\\." else "^ME\\.", rownames(bootout))
+            r <- sum(apply(bootout, 2, function(col) !all(is.na(col)) && any(is.na(col[te.me.rows]))))
+            if (r > 0) {
+                warning(sprintf(
+                    "In %d of %d bootstrap replicates the local fit was not usable at one or more evaluation points; those replicate values are NA and are left out of the bootstrap standard errors and confidence intervals at those points.",
+                    r, ncol(bootout)
+                ), call. = FALSE)
             }
 
             if (treat.type == "discrete") {
@@ -3172,6 +3300,87 @@ interflex.kernel <- function(data,
     class(final.output) <- "interflex"
     return(final.output)
 }
+
+## ---------------------------------------------------------------------------
+## Adaptive kernel bandwidth: shared internal helpers.
+##
+## The local bandwidth at an evaluation point x0 is bw * sqrt(g / f(x0)), where
+## f is the pilot density of the moderator and g normalizes it. g is the
+## weighted geometric mean of the pilot density AT THE OBSERVATIONS (Abramson's
+## rule), not over the whole density() grid: 02b2e7e took g over the grid,
+## which can be driven arbitrarily small by empty gaps/long tails in the grid,
+## collapsing local bandwidths to near zero and aliasing local-fit coefficients.
+## These three helpers are used at every site that builds a density
+## (interflex.kernel's main fit, the CV fold, the bootstrap replicate) and at
+## every site that turns that density into a local bandwidth (adaptive.bw.at
+## and the four wls.* local-fit functions).
+
+## Nearest grid index j(v) = which.min(abs(grid - v)), vectorised. Ties go to
+## the smaller (lower) index. NA input gives NA output.
+.kernel_nearest_index <- function(grid, v) {
+    i <- findInterval(v, grid, all.inside = TRUE)
+    j <- ifelse((v - grid[i]) > (grid[i + 1L] - v), i + 1L, i)
+    as.integer(j)
+}
+
+## Attach adapt.g (g, the weighted geometric mean of the density at the
+## observations x with weights w) and adapt.floor (the smallest positive grid
+## density value) to a stats::density() object built from (x, w). g is
+## NA_real_ when no observation has both a positive weight and a positive
+## density; adapt.floor is NA_real_ when the grid has no positive value.
+.kernel_prepare_density <- function(dens, x, w) {
+    idx <- .kernel_nearest_index(dens$x, x)
+    fx <- dens$y[idx]
+    usable <- is.finite(w) & w > 0 & is.finite(fx) & fx > 0
+    if (any(usable)) {
+        w.I <- w[usable]
+        w.I <- w.I / max(w.I) # rescaling does not change the weighted mean; avoids overflow
+        g <- exp(sum(w.I * log(fx[usable])) / sum(w.I))
+    } else {
+        g <- NA_real_
+    }
+    positive.y <- dens$y[is.finite(dens$y) & dens$y > 0]
+    dens$adapt.g <- g
+    dens$adapt.floor <- if (length(positive.y) > 0) min(positive.y) else NA_real_
+    dens
+}
+
+## Local bandwidth h(x0) = bw * sqrt(adapt.g / f_eff(x0)), where f_eff(x0) is
+## the density at the grid point nearest x0, or dens$adapt.floor when that is
+## not finite or not positive (e.g. x0 falls in an empty gap). Returns
+## NA_real_ whenever adapt.g is missing/non-finite/<=0, whenever no usable
+## floor is available, or whenever the result is not a single finite number
+## > 0 (this is what rejects bw <= 0, NA, Inf, or a length != 1 bw).
+.kernel_local_bw <- function(x0, bw, dens) {
+    g <- dens$adapt.g
+    if (is.null(g) || !is.finite(g) || g <= 0) return(NA_real_)
+    f0 <- dens$y[.kernel_nearest_index(dens$x, x0)]
+    if (!is.finite(f0) || f0 <= 0) {
+        f0 <- dens$adapt.floor
+    }
+    if (is.null(f0) || !is.finite(f0) || f0 <= 0) return(NA_real_)
+    h <- bw * sqrt(g / f0)
+    if (!(is.numeric(h) && length(h) == 1L && is.finite(h) && h > 0)) return(NA_real_)
+    h
+}
+
+## A variance matrix is usable only if it exists, has every needed
+## coefficient name on both dimensions, and is entirely finite. Shared by the
+## B.4 variance checks in wls.nofe, wls.iv and wls.fe (wls.iv.fe keeps its
+## pre-existing, unchecked vcov construction; see spec.md B.3).
+.kernel_vcov_usable <- function(V, needed) {
+    if (is.null(V)) return(FALSE)
+    if (!all(needed %in% rownames(V)) || !all(needed %in% colnames(V))) return(FALSE)
+    isTRUE(all(is.finite(V)))
+}
+
+## The leverage threshold above which sandwich's HC2 correction is unstable
+## or undefined (1 - sqrt(machine epsilon), i.e. a hat value of essentially 1).
+LEVERAGE_MAX <- 1 - sqrt(.Machine$double.eps)
+
+## A kernel fit with at most this many usable evaluation points cannot support
+## downstream inference; interflex.kernel() stops instead of returning.
+MIN_USABLE_POINTS <- 3L
 
 ## This is the codes of "createFolds" in the package caret
 "createFolds" <-

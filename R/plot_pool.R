@@ -764,15 +764,15 @@ interflex.plot.pool <- function(
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
             if (isTRUE(CI)) {
                 # if(estimator!='dml'){
-                p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
+                p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = FALSE)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
                 if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI) {
-                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2, alpha = 0, show.legend = F)
+                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2, alpha = 0, show.legend = FALSE)
                     p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
                 }
                 # }
                 # else{
-                #    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = F)
+                #    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = FALSE)
                 #    p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
                 # }
             }
@@ -858,15 +858,15 @@ interflex.plot.pool <- function(
             p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
             if (isTRUE(CI)) {
                 # if(estimator!='dml'){
-                p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = F)
+                p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_lower, ymax = CI_upper, fill = Treatment), alpha = 0.2, show.legend = FALSE)
                 p1 <- p1 + scale_fill_manual(values = platte, labels = subtitles)
                 if ("CI_uniform_lower" %in% colnames(tempest) & show.uniform.CI) {
-                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2, alpha = 0, show.legend = F)
+                    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2, alpha = 0, show.legend = FALSE)
                     p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
                 }
                 # }
                 # else{
-                #    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = F)
+                #    p1 <- p1 + geom_ribbon(data = tempest, aes(x = X, ymin = CI_uniform_lower, ymax = CI_uniform_upper, color = Treatment), linetype = 2,alpha = 0, show.legend = FALSE)
                 #    p1 <- p1 + scale_color_manual(values = platte, labels = subtitles)
                 # }
             }

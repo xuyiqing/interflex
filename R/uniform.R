@@ -1,3 +1,10 @@
+## Package-private state for per-call warning flags. Using an environment here
+## (instead of options()) means interflex() never touches the user's global
+## options; the flag lives only for the life of the session/namespace and is
+## reset explicitly at the top of each interflex() call.
+.interflex_state <- new.env(parent = emptyenv())
+.interflex_state$uniform_ci_warned <- FALSE
+
 calculate_uniform_quantiles <- function(theta_matrix, alpha) {
   # drop columns with NA
   cols_with_na <- apply(theta_matrix, 2, function(col) any(is.na(col)))
@@ -36,11 +43,11 @@ calculate_uniform_quantiles <- function(theta_matrix, alpha) {
   coverage <- check_condition(zeta_hat)
   
   if (zeta_hat == alpha / (2 * k)) {
-    if (!isTRUE(getOption("interflex.uniform_ci_warned"))) {
+    if (!isTRUE(.interflex_state$uniform_ci_warned)) {
       message("Note: Insufficient bootstrap samples (B=", N, ") for Bootstrapped Uniform CI ",
               "with ", k, " evaluation points. Using Bonferroni CI by default. ",
               "Consider increasing nboots for tighter uniform bands.")
-      options(interflex.uniform_ci_warned = TRUE)
+      .interflex_state$uniform_ci_warned <- TRUE
     }
   }
   

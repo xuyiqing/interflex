@@ -15,6 +15,7 @@ test_that("DML estimator works with binary treatment (linear + linear)", {
 
 test_that("DML estimator works with rf models", {
   skip_on_cran()
+  skip_if_not_installed("ranger")
   data(interflex, envir = environment())
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "DML", data = app_hma2015,

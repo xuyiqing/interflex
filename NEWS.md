@@ -1,3 +1,17 @@
+# interflex 1.4.1
+
+1. Fixed the kernel estimator's adaptive bandwidth: the normalizer is now the geometric mean of the moderator's density at the observations (Abramson's rule) instead of over the whole density grid, fixing "subscript out of bounds" and "$ operator is invalid" errors on moderators with gaps or long tails.
+
+2. With a fixed `bw`, kernel windows are now wider than in 1.4.0 (typically 1.5-3x on well-behaved moderators); results under the default cross-validated `bw` change little.
+
+3. Kernel local fits that are unidentified, fail, or have no usable kernel weights are now dropped with a warning, or the call stops with a clear "Inappropriate bandwidth" error, instead of being filled with zeros or crashing; cross-validation can no longer silently return `bw = -Inf`; an invalid `bw` is now rejected with an error.
+
+4. `interflex()` no longer sets the global option `interflex.uniform_ci_warned`.
+
+5. `inter.test()` now documents its return value.
+
+6. `interflex()` gains `bw.select`, `bw.se.mult` and `bw.ess.min`, which expose the bandwidth selection rules of the kernel estimator (`"cv.min"`, the default; `"cv.1se"`; `"cv.1se.ess"`; `"ess"`) and pass them, together with `bw`, through to the kernel smoothing step of the lasso estimator with a continuous treatment. Use `bw.select = "cv.1se"` when cross-validation cannot separate the candidate bandwidths.
+
 # interflex 1.4.0
 
 1. **GATE support across estimators**: `gate = TRUE` now works with `linear`, `lasso`, `dml`, and `grf` estimators. When the moderator `X` is discrete, setting `gate = TRUE` estimates Group Average Treatment Effects (GATE) within each level of `X`. Use `plot(out, by.group = TRUE)` to visualize GATE with separate point estimates and confidence intervals per group.
