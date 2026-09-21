@@ -1,6 +1,6 @@
 Package: interflex
 Type: Package
-Version: 1.4.1
+Version: 1.4.1.9000
 Title: Estimation, Diagnostics and Visualization of Conditional Marginal Effects
 Date: 2026-09-20
 Authors@R: c(person("Yiqing Xu", role=c("aut","cre"), email = "yiqingxu@stanford.edu"),
