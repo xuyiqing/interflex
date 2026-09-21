@@ -13,3 +13,8 @@
 ^\.repos$
 ^interflex.*\.tar\.gz$
 ^interflex\.Rcheck$
+^cran-comments\.md$
+^tests/testthat/_problems$
+^tests/testthat/testthat-problems\.rds$
+^tests/testthat/Rplots\.pdf$
+^\.git$

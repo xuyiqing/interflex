@@ -222,7 +222,8 @@ binary.cvhgb.cvhgb <- interflex(estimator="dml",  data = d,
 ggarrange(plot(binary.cvnn.cvrf, ylim = c(-1.5, 1)),
           plot(binary.cvnn.cvhgb, ylim = c(-1.5, 1)),
           plot(binary.cvrf.cvrf, ylim = c(-1.5, 1)),
-          plot(binary.cvhgb.cvhgb, ylim = c(-1.5, 1)))
+          plot(binary.cvhgb.cvhgb, ylim = c(-1.5, 1)),
+          labels = c("NN-RF", "NN-HGB", "RF-RF", "HGB-HGB"))
 ```
 
 ### Comparison of estimators
@@ -300,7 +301,7 @@ head(cont.dml$est.dml[[1]])
 
 ### Comparison of estimators
 
-In this section, we compare the performance of DML estimator with previously introduced estimators.
+In this section, we compare the performance of DML estimator with previously introduced estimators. As in Chapter 4, the PO-Lasso and kernel fits use `bw.select = "cv.1se"` because cross-validation cannot separate the candidate bandwidths on this example.
 
 ```{r applicaton2, message=FALSE, warning=FALSE,cache=TRUE}
 out.dml.nn<-interflex(estimator="dml", data = d,
@@ -328,6 +329,7 @@ out.aipw <- interflex(estimator = "lasso", data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
                       Xlabel = Xlabel,
+                      bw.select = "cv.1se",
                       treat.type = "continuous")
 
 out.est1<-interflex(estimator = "binning",data = d,
@@ -340,7 +342,7 @@ out.kernel<-interflex(estimator = "kernel", data = d,
                       Y = Y, D = D, X = X, Z = Z,
                       Ylabel = Ylabel, Dlabel = Dlabel,
                       Xlabel = Xlabel,
-                      vartype = "bootstrap", 
+                      vartype = "bootstrap", bw.select = "cv.1se",
                       treat.type = "continuous")
 
 ```

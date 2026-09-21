@@ -35,6 +35,9 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                       kfold = 10,
                       grid = 30,
                       metric = NULL,
+                      bw.select = "cv.min", ## "cv.1se"; "cv.1se.ess"; "ess"
+                      bw.se.mult = 1,
+                      bw.ess.min = NULL,
                       model.y = "rf",
                       param.y = NULL,
                       param.grid.y = NULL,
@@ -104,7 +107,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
     n <- dim(data)[1]
 
     # Reset per-call warning flags
-    options(interflex.uniform_ci_warned = FALSE)
+    .interflex_state$uniform_ci_warned <- FALSE
 
     estimator <- tolower(estimator)
 
@@ -669,6 +672,19 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
         }
     }
 
+    # bandwidth selection rule (kernel estimator; lasso estimator with continuous D)
+    if (!is.character(bw.select) || length(bw.select) != 1 ||
+        !bw.select %in% c("cv.min", "cv.1se", "cv.1se.ess", "ess")) {
+        stop("\"bw.select\" must be one of the following: \"cv.min\", \"cv.1se\", \"cv.1se.ess\", \"ess\".", call. = FALSE)
+    }
+    if (!is.numeric(bw.se.mult) || length(bw.se.mult) != 1 || !is.finite(bw.se.mult) || bw.se.mult < 0) {
+        stop("\"bw.se.mult\" must be a single non-negative number.", call. = FALSE)
+    }
+    if (!is.null(bw.ess.min) && (!is.numeric(bw.ess.min) || length(bw.ess.min) != 1 ||
+                                 !is.finite(bw.ess.min) || bw.ess.min <= 0)) {
+        stop("\"bw.ess.min\" must be NULL or a single positive number.", call. = FALSE)
+    }
+
     # metric
     if (is.null(metric)) {
         if (length(unique(y)) == 2) {
@@ -917,7 +933,7 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             stop("\"D\" is not a numeric variable")
         }
         if (is.null(D.ref)) {
-            D.sample <- quantile(data[, D], probs = c(0.5), na.rm = T)
+            D.sample <- quantile(data[, D], probs = c(0.5), na.rm = TRUE)
             all.treat <- names(D.sample)
             ntreat <- length(D.sample)
             labelname <- c()
@@ -1183,6 +1199,9 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
             grid = grid,
             kfold = kfold,
             metric = metric,
+            bw.select = bw.select,
+            bw.se.mult = bw.se.mult,
+            bw.ess.min = bw.ess.min,
             Z = Z, # covariates
             FE = FE, # fixed effects
             IV = IV, # instrumental variables
@@ -1498,6 +1517,10 @@ interflex <- function(estimator, # "linear", "kernel", "binning" , "gam", "raw",
                 spline.degree = spline.degree,
                 lambda.seq = lambda.seq,
                 reduce.dimension = reduce.dimension,
+                bw = bw,
+                bw.select = bw.select,
+                bw.se.mult = bw.se.mult,
+                bw.ess.min = bw.ess.min,
                 cores = cores,
                 verbose = TRUE,
                 treat.info = treat.info,

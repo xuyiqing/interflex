@@ -1,5 +1,29 @@
 # Changelog {.unnumbered}
 
+## interflex 1.4.1.9000
+
+[Development version, not yet on CRAN.]{.text-muted}
+
+1. Boosting learners in the DML estimator (`model.y = "hgb"`, `model.t = "hgb"`) no longer flood the console with LightGBM's "No further splits with positive gain" warnings when no learner parameters are supplied.
+
+## interflex 1.4.1
+
+[CRAN v1.4.1, released 2026-09-20.]{.text-muted}
+
+1. **Kernel adaptive bandwidth fixed**: the normalizer is now the geometric mean of the moderator's density at the observations (Abramson's rule) instead of over the whole density grid. This fixes "subscript out of bounds" and "$ operator is invalid" errors on moderators with gaps or long tails.
+
+2. **Wider windows at a fixed `bw`**: with a fixed `bw`, kernel windows are now wider than in 1.4.0 (typically 1.5-3x on well-behaved moderators); results under the default cross-validated `bw` change little.
+
+3. **Degenerate local fits**: kernel local fits that are unidentified, fail, or have no usable kernel weights are now dropped with a warning, or the call stops with a clear "Inappropriate bandwidth" error, instead of being filled with zeros or crashing. Cross-validation can no longer silently return `bw = -Inf`, and an invalid `bw` is rejected with an error.
+
+4. `interflex()` no longer sets the global option `interflex.uniform_ci_warned`.
+
+5. `inter.test()` now documents its return value.
+
+6. `interflex()` gains `bw.select`, `bw.se.mult` and `bw.ess.min`, which expose the bandwidth selection rules of the kernel estimator (`"cv.min"`, the default; `"cv.1se"`; `"cv.1se.ess"`; `"ess"`) and pass them, together with `bw`, through to the kernel smoothing step of the lasso estimator with a continuous treatment. Use `bw.select = "cv.1se"` when cross-validation cannot separate the candidate bandwidths.
+
+7. `citation("interflex")` now lists the methods paper (Hainmueller, Mummolo and Xu 2019), the practical guide to the modern estimators (Liu, Liu and Xu, arXiv:2504.01355, forthcoming as a Cambridge Element), and the package.
+
 ## interflex 1.4.0
 
 1. **GATE support across estimators**: `gate = TRUE` now works with `linear`, `lasso`, `dml`, and `grf` estimators. When the moderator $X$ is discrete, setting `gate = TRUE` estimates Group Average Treatment Effects (GATE) within each level of $X$. Use `plot(out, by.group = TRUE)` to visualize GATE with separate point estimates and confidence intervals per group.

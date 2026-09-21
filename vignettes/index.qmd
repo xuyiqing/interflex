@@ -15,7 +15,7 @@ This Quarto book serves as a user manual for the **interflex** package in R, whi
 
 For methodological details, see:
 
--   Liu, Liu, and Xu (2025). [A Practical Guide to Estimating Conditional Marginal Effects: Modern Approaches](https://arxiv.org/abs/2504.01355). *arXiv preprint arXiv:2504.01355*.
+-   Liu, Liu, and Xu (2025). [A Practical Guide to Estimating Conditional Marginal Effects: Modern Approaches](https://arxiv.org/abs/2504.01355). *arXiv preprint arXiv:2504.01355*; forthcoming as a Cambridge Element.
 
 -   Hainmueller, Mummolo, and Xu (2019). [How Much Should We Trust Estimates from Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice](http://bit.ly/HMX2019). *Political Analysis*, 27(2), 163--192.
 
@@ -23,6 +23,12 @@ For methodological details, see:
 ### Source Code
 
 For those interested in exploring the algorithms used in **interflex**, please visit the source [GitHub Repo](https://github.com/xuyiqing/interflex) for further details.
+:::
+
+::: {.callout-note appearance="simple"}
+### Citing interflex
+
+Run `citation("interflex")` in R for ready-to-use references. It returns three entries: Hainmueller, Mummolo, and Xu (2019) for the linear, binning, and kernel estimators; Liu, Liu, and Xu (2025) for the AIPW-Lasso, DML, and GATE estimators; and the package itself for software credit.
 :::
 
 ## Estimands {.unnumbered}
@@ -126,14 +132,15 @@ The user guide is structured into the following chapters:
 
 ## Contributors
 
-The following individuals have contributed to **interflex**:
+The following individuals and AI have contributed to **interflex**:
 
 -   [Yiqing Xu](https://yiqingxu.org/) (maintainer)
 -   [Jens Hainmueller](https://web.stanford.edu/~jhain/)
 -   [Jonathan Mummolo](https://www.jonathanmummolo.com/)
 -   [Tianzhu Qin](https://tianzhuqin.github.io/)
--   Jiehan Liu (Stanford)
+-   [Jiehan Liu](https://jiehanl.github.io/) (Stanford)
 -   Ziyi Liu (UC Berkeley)
+-   [StatsClaw](https://statsclaw.ai/) (Collaborative AI for Stats Packages)
 
 
 ## Report Bugs

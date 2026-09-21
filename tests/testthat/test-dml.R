@@ -15,6 +15,7 @@ test_that("DML estimator works with binary treatment (linear + linear)", {
 
 test_that("DML estimator works with rf models", {
   skip_on_cran()
+  skip_if_not_installed("ranger")
   data(interflex, envir = environment())
   out <- suppressWarnings(suppressMessages(
     interflex(estimator = "DML", data = app_hma2015,
@@ -63,4 +64,37 @@ test_that("DML estimator result structure is correct", {
   expect_true(length(out$est.dml) >= 1)
   est_df <- out$est.dml[[1]]
   expect_true(is.data.frame(est_df) || is.matrix(est_df))
+})
+
+test_that("boosting learners default to a silent LightGBM (verbose = -1)", {
+  skip_on_cran()
+  skip_if_not_installed("lightgbm")
+  skip_if_not_installed("mlr3extralearners")
+  expect_equal(interflex:::.map_boosting_params(NULL)$verbose, -1L)
+  expect_equal(interflex:::.map_boosting_params(list())$verbose, -1L)
+  expect_equal(interflex:::.map_boosting_params(list(max_iter = 10))$verbose, -1L)
+  expect_equal(interflex:::.map_boosting_params(list(verbose = 1L))$verbose, 1L)
+})
+
+test_that("DML with hgb learners prints no LightGBM warnings", {
+  skip_on_cran()
+  skip_if_not_installed("lightgbm")
+  skip_if_not_installed("mlr3extralearners")
+  set.seed(20260921)
+  n <- 300
+  x <- rnorm(n); z <- rnorm(n)
+  d <- rbinom(n, 1, plogis(0.5 * x))
+  y <- 1 + x + 2 * d + d * x + z + rnorm(n)
+  dat <- data.frame(Y = y, D = d, X = x, Z1 = z)
+  msgs <- character(0)
+  out <- capture.output(
+    withCallingHandlers(
+      fit <- suppressWarnings(interflex(estimator = "dml", data = dat, Y = "Y", D = "D", X = "X", Z = "Z1",
+                                        model.y = "hgb", model.t = "hgb", CI = FALSE, figure = FALSE)),
+      message = function(m) { msgs <<- c(msgs, conditionMessage(m)); invokeRestart("muffleMessage") }
+    ),
+    type = "output"
+  )
+  expect_s3_class(fit, "interflex")
+  expect_false(any(grepl("[LightGBM]", c(out, msgs), fixed = TRUE)))
 })

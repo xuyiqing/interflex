@@ -198,13 +198,14 @@ Xlabel<-"Property values (2009)"
 
 **Estimation.** The syntax to deploy the PO‐Lasso estimator is the same as in the binary‐treatment setting: specify `estimator = "lasso"`. Both pointwise and uniform CIs are provided in the plot.
 
-**Results.** Similarly, estimation results and the plot can be extracted from the output object.
+**Results.** Similarly, estimation results and the plot can be extracted from the output object. On this example cross-validation cannot separate the candidate bandwidths of the kernel smoothing step (every candidate is within one standard error of the best), so we use the one-standard-error rule, `bw.select = "cv.1se"`, which takes the smoothest such candidate. See Chapter 2 for the available rules.
 
 ```{r ch4-con-aipw-fit, message=FALSE, warning=FALSE, cathe = TRUE, cache=TRUE}
 aipw.out.1 <- interflex(estimator = "lasso", data = d,
                  Y = Y,D = D, X = X, Z = Z,
                  Ylabel = Ylabel, Dlabel = Dlabel,
                  Xlabel = Xlabel,
+                 bw.select = "cv.1se",
                  main = "AIPW estimation")
 ```
 

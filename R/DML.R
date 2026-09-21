@@ -169,11 +169,15 @@
 # Helper: Map sklearn HistGradientBoosting params -> lightgbm/xgboost params
 # --------------------------------------------------------------------------
 .map_boosting_params <- function(param) {
-    if (is.null(param) || length(param) == 0L) return(list(verbose = 0L))
-
     # Detect which backend will be used (same logic as .set_dml_learner)
     has_lgb <- requireNamespace("mlr3extralearners", quietly = TRUE) &&
                requireNamespace("lightgbm", quietly = TRUE)
+
+    # lightgbm prints every "No further splits with positive gain" warning at
+    # verbose = 0; -1 keeps only fatal errors. xgboost's quiet setting is 0.
+    # This default must be set here for the no-parameter case too: the caller
+    # only fills verbose when it is NULL, so returning 0L here used to win.
+    if (is.null(param) || length(param) == 0L) return(list(verbose = if (has_lgb) -1L else 0L))
 
     if (has_lgb) {
         mapping <- c(

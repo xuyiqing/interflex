@@ -1,3 +1,51 @@
+# interflex 1.4.1.9000
+
+Development version, not yet on CRAN.
+
+1. Boosting learners in the DML estimator (`model.y = "hgb"`, `model.t = "hgb"`) no longer flood the console with LightGBM's "No further splits with positive gain" warnings when no learner parameters are supplied.
+
+# interflex 1.4.1
+
+CRAN v1.4.1, released 2026-09-20.
+
+1. Fixed the kernel estimator's adaptive bandwidth: the normalizer is now the geometric mean of the moderator's density at the observations (Abramson's rule) instead of over the whole density grid, fixing "subscript out of bounds" and "$ operator is invalid" errors on moderators with gaps or long tails.
+
+2. With a fixed `bw`, kernel windows are now wider than in 1.4.0 (typically 1.5-3x on well-behaved moderators); results under the default cross-validated `bw` change little.
+
+3. Kernel local fits that are unidentified, fail, or have no usable kernel weights are now dropped with a warning, or the call stops with a clear "Inappropriate bandwidth" error, instead of being filled with zeros or crashing; cross-validation can no longer silently return `bw = -Inf`; an invalid `bw` is now rejected with an error.
+
+4. `interflex()` no longer sets the global option `interflex.uniform_ci_warned`.
+
+5. `inter.test()` now documents its return value.
+
+6. `interflex()` gains `bw.select`, `bw.se.mult` and `bw.ess.min`, which expose the bandwidth selection rules of the kernel estimator (`"cv.min"`, the default; `"cv.1se"`; `"cv.1se.ess"`; `"ess"`) and pass them, together with `bw`, through to the kernel smoothing step of the lasso estimator with a continuous treatment. Use `bw.select = "cv.1se"` when cross-validation cannot separate the candidate bandwidths.
+
+7. `citation("interflex")` now lists the methods paper (Hainmueller, Mummolo and Xu 2019), the practical guide to the modern estimators (Liu, Liu and Xu, arXiv:2504.01355, forthcoming as a Cambridge Element), and the package.
+
+# interflex 1.4.0
+
+1. **GATE support across estimators**: `gate = TRUE` now works with `linear`, `lasso`, `dml`, and `grf` estimators. When the moderator `X` is discrete, setting `gate = TRUE` estimates Group Average Treatment Effects (GATE) within each level of `X`. Use `plot(out, by.group = TRUE)` to visualize GATE with separate point estimates and confidence intervals per group.
+
+2. **Unified `g.est` output**: All estimators with `gate = TRUE` produce a unified `$g.est` field. The DML-specific `$g.est.dml` is retained as a deprecated alias for backward compatibility.
+
+3. **Auto-trim `xlim`**: When `xlim` is not specified and `X` is continuous, the plot automatically clips tails where the data is too sparse to support reliable CME estimation. Tails are only clipped if they have fewer than 10 observations or lack treatment variation. Users can always override with an explicit `xlim`.
+
+4. **Default y-axis labels**: Changed from "Marginal Effect of D on Y" to "CME of D on Y" (smooth curves) or "GATE of D on Y" (group-level plots with `by.group = TRUE`).
+
+5. **New datasets**: Added `app_adiguzel2023`, `app_bb2024`, and `app_et2023` to the package data.
+
+6. **Parallel computing**: Switched from `%dopar%` to `%dorng%` (via the `doRNG` package) for reproducible parallel random number generation. The "Parallel computing" message now only prints when parallel is actually used.
+
+7. **Quarto book**: Restructured user manual with numbered chapters, separated computation from figure chunks, and added sections on GATE estimation.
+
+8. **ggplot2 compatibility**: Fixed deprecated `size` → `linewidth`, `guides(colour = FALSE)` → `guides(colour = "none")`, and removed `aes_string()` usage.
+
+# interflex 1.3.5
+
+1. Introduce the Lasso estimators.
+
+2. Bug fixes and improvements.
+
 # interflex 1.3.1-1.3.2
 
 1. Introduce the DML estimators
