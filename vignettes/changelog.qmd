@@ -1,6 +1,14 @@
 # Changelog {.unnumbered}
 
-## interflex 1.4.1 (CRAN v1.4.1, released 2026-09-20)
+## interflex 1.4.1.9000
+
+[Development version, not yet on CRAN.]{.text-muted}
+
+1. Boosting learners in the DML estimator (`model.y = "hgb"`, `model.t = "hgb"`) no longer flood the console with LightGBM's "No further splits with positive gain" warnings when no learner parameters are supplied.
+
+## interflex 1.4.1
+
+[CRAN v1.4.1, released 2026-09-20.]{.text-muted}
 
 1. **Kernel adaptive bandwidth fixed**: the normalizer is now the geometric mean of the moderator's density at the observations (Abramson's rule) instead of over the whole density grid. This fixes "subscript out of bounds" and "$ operator is invalid" errors on moderators with gaps or long tails.
 
