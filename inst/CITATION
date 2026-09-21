@@ -1,6 +1,9 @@
 ## R-style CITATION file. Used by citation("interflex").
-## Cite both the methodological paper (preferred for substantive work)
-## and the package itself (for software credit).
+## Cite the methodological paper (for the linear, binning and kernel
+## estimators), the Practical Guide (for the modern estimators: AIPW-Lasso,
+## DML, GATE) and the package itself (for software credit).
+## When the Cambridge Element appears, replace the arXiv entry with the
+## published one (bibtype "Book", publisher, DOI).
 
 bibentry(
   bibtype  = "Article",
@@ -15,6 +18,19 @@ bibentry(
   pages    = "163-192",
   doi      = "10.1017/pan.2018.46",
   header   = "To cite the underlying methodology, use:"
+)
+
+bibentry(
+  bibtype  = "Misc",
+  title    = "A Practical Guide to Estimating Conditional Marginal Effects: Modern Approaches",
+  author   = c(person("Jiehan", "Liu"),
+               person("Ziyi", "Liu"),
+               person("Yiqing", "Xu")),
+  year     = "2025",
+  note     = "arXiv:2504.01355. Forthcoming as a Cambridge Element (Cambridge University Press)",
+  doi      = "10.48550/arXiv.2504.01355",
+  url      = "https://arxiv.org/abs/2504.01355",
+  header   = "To cite the modern estimators (AIPW-Lasso, DML, GATE) and the practical guide, use:"
 )
 
 bibentry(
