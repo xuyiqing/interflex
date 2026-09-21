@@ -295,6 +295,8 @@ ggarrange(kernel.out.1$figure, kernel.out.2$figure)
 
 **Bandwidth selection.** We use adaptive bandwidth selection in **interflex**. This means that the bandwidth will be smaller in regions where there are more data and larger in regions where there are few data points, based on the moderator $X$. When adaptive bandwidth is being used, `bw` refers to the bandwidth at a typical observation: the value of the moderator where the pilot density equals its geometric mean over the observations. Windows are wider where the data are sparse and narrower where they are dense.
 
+By default the bandwidth is the grid candidate with the smallest cross-validated loss (`bw.select = "cv.min"`). When the loss curve is flat, so that many bandwidths fit almost equally well, this choice is decided by noise in the fold assignment and can land on a very small bandwidth. Setting `bw.select = "cv.1se"` instead takes the largest bandwidth whose loss is within one standard error of the minimum, which prefers the smoother fit. `bw.select = "cv.1se.ess"` adds a guard that discards bandwidths whose local fits rest on too few effective observations, and `bw.select = "ess"` uses only that guard, without cross-validation.
+
 Even with an optimized algorithm, the bootstrap procedure for large datasets can be slow. We incorporate parallel computing, `parallel=TRUE`, to speed it up. You can choose the number of cores to be used for parallel computing; otherwise the program will detect the number of logical cores in your computer and use as many cores as possible (warning: this will significantly slow down your computer!).
 
 If you specify a bandwidth manually, for example, by setting `bw = 1`, the cross-validation step will be skipped.

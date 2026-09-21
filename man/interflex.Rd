@@ -10,7 +10,8 @@ interflex(estimator, data, Y, D, X, treat.type = NULL,
   vcov.type = "robust", time = NULL, pairwise = TRUE, nboots = 200,
   nsimu = 1000, parallel = TRUE, cores = NULL, cl = NULL, Z.ref = NULL,
   D.ref = NULL, nbins = 3, cutoffs = NULL, wald = TRUE, bw = NULL,
-  kfold = 10, grid = 30, metric = NULL, model.y = "rf",
+  kfold = 10, grid = 30, metric = NULL, bw.select = "cv.min",
+  bw.se.mult = 1, bw.ess.min = NULL, model.y = "rf",
   param.y = NULL, param.grid.y = NULL,
   scoring.y = "neg_mean_squared_error", model.t = "rf", param.t = NULL,
   param.grid.t = NULL, scoring.t = "neg_mean_squared_error", CV = FALSE,
@@ -63,10 +64,13 @@ interflex(estimator, data, Y, D, X, treat.type = NULL,
   \item{nbins}{an integer determining the number of bins when discretizing the moderator for \bold{estimator} = "binning" (and also used in \bold{estimator}="raw" for some plots). When quantile cutpoints are not unique, the effective number of bins may be reduced automatically.}
   \item{cutoffs}{a numeric vector of custom cutpoints for \bold{X}. If supplied, \bold{nbins} is ignored and the number of bins equals \code{length(cutoffs) + 1}.}
   \item{wald}{a logical flag controlling whether to conduct a Wald test (used by some estimators such as \bold{estimator}="binning").}
-  \item{bw}{a positive number setting the bandwidth in Gaussian kernel reweighting for \bold{estimator} = "kernel". With adaptive bandwidth, \bold{bw} is the bandwidth at a typical observation, where the moderator's density equals its geometric mean over the observations: windows are wider where data are sparse and narrower where they are dense.}
+  \item{bw}{a positive number setting the bandwidth in Gaussian kernel reweighting for \bold{estimator} = "kernel". With adaptive bandwidth, \bold{bw} is the bandwidth at a typical observation, where the moderator's density equals its geometric mean over the observations: windows are wider where data are sparse and narrower where they are dense. Also used as the fixed bandwidth of the kernel smoothing step of \bold{estimator} = "lasso" with a continuous treatment.}
   \item{kfold}{an integer specifying the number of folds used in cross-validation for bandwidth selection (kernel estimator).}
   \item{grid}{either an integer indicating the number of candidate bandwidths in a grid search, or a numeric vector of candidate bandwidths (kernel estimator; ignored if \bold{bw} is specified).}
   \item{metric}{a string specifying the criterion used in cross-validation to select bandwidth: one of "MSE", "MAE", "Cross Entropy", or "AUC". Default is "MSE" for non-binary outcomes and "Cross Entropy" for binary outcomes.}
+  \item{bw.select}{a string specifying how the bandwidth is chosen from the candidate grid when \bold{bw} is not supplied (\bold{estimator} = "kernel", and the kernel smoothing step of \bold{estimator} = "lasso" with a continuous treatment). "cv.min" (default) takes the candidate with the smallest cross-validated loss. "cv.1se" takes the largest candidate whose loss is within \bold{bw.se.mult} standard errors of the smallest, which prefers the smoother fit when cross-validation cannot separate the candidates. "cv.1se.ess" applies the same rule after discarding candidates whose local fits rest on fewer than \bold{bw.ess.min} effective observations at some evaluation point. "ess" skips cross-validation and takes the smallest candidate that satisfies that effective-sample-size constraint.}
+  \item{bw.se.mult}{a non-negative number: the standard-error multiplier used by \bold{bw.select} = "cv.1se" and "cv.1se.ess". Default is 1.}
+  \item{bw.ess.min}{a positive number: the minimum local effective sample size required by \bold{bw.select} = "cv.1se.ess" and "ess". If not specified, it is set to a multiple of the number of local coefficients (at least 20 observations for a discrete treatment and 30 for a continuous one).}
   \item{model.y}{outcome model used by \bold{estimator}="dml" (and also used by \bold{estimator}="lasso"). In the DML estimator, this string is passed to the underlying Python implementation (default "rf").}
   \item{param.y}{named list of hyper-parameters for the DML outcome model (passed to Python).}
   \item{param.grid.y}{named list specifying a hyper-parameter search grid for the DML outcome model (passed to Python; used when \bold{CV} = TRUE).}
@@ -165,6 +169,7 @@ interflex(estimator, data, Y, D, X, treat.type = NULL,
   \item{Avg.estimate}{stores the average treatment effects/marginal effects.}
   \item{CV.output}{results from cross-validation if \bold{bw} is not specified.}
   \item{bw}{specified or cross-validated bandwidth.}
+  \item{bw.select}{the bandwidth selection rule that was applied (kernel estimator; also stored for the lasso estimator with a continuous treatment).}
   \item{figure}{stores the graphic output.}
 }
 

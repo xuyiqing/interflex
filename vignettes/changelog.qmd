@@ -12,6 +12,8 @@
 
 5. `inter.test()` now documents its return value.
 
+6. `interflex()` gains `bw.select`, `bw.se.mult` and `bw.ess.min`, which expose the bandwidth selection rules of the kernel estimator (`"cv.min"`, the default; `"cv.1se"`; `"cv.1se.ess"`; `"ess"`) and pass them, together with `bw`, through to the kernel smoothing step of the lasso estimator with a continuous treatment. Use `bw.select = "cv.1se"` when cross-validation cannot separate the candidate bandwidths.
+
 ## interflex 1.4.0
 
 1. **GATE support across estimators**: `gate = TRUE` now works with `linear`, `lasso`, `dml`, and `grf` estimators. When the moderator $X$ is discrete, setting `gate = TRUE` estimates Group Average Treatment Effects (GATE) within each level of $X$. Use `plot(out, by.group = TRUE)` to visualize GATE with separate point estimates and confidence intervals per group.

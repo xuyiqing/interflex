@@ -52,6 +52,9 @@ estimateCME_PLR <- function(
     lambda_seq           = NULL,    # optional custom lambda sequence for glmnet
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
+    bw.select            = "cv.min", # bandwidth rule for the kernel smoother
+    bw.se.mult           = 1,
+    bw.ess.min           = NULL,
     x.eval               = NULL,    # grid of X values for final CME curve
     xlim                 = NULL,    # PAD-001: optional user-supplied display window
     user_xlim_explicit   = FALSE,   # PAD-001: TRUE iff user explicitly passed xlim
@@ -444,6 +447,9 @@ estimateCME_PLR <- function(
         data = data_k,
         X.eval = x.eval,
         CV     = TRUE,
+        bw.select  = bw.select,
+        bw.se.mult = bw.se.mult,
+        bw.ess.min = bw.ess.min,
         parallel = TRUE,
         cores    = max(1L, min(parallelly::availableCores(omit = 2L), 8L)),
         verbose  = verbose
@@ -510,6 +516,7 @@ estimateCME_PLR <- function(
   if (reduce.dimension == "kernel") {
     out_list$kernel_fit <- sol_k
     out_list$bw         <- if (!is.null(sol_k$bw)) sol_k$bw else NULL
+    out_list$bw.select  <- if (!is.null(sol_k$bw.select)) sol_k$bw.select else NULL
   }
 
   return(out_list)
@@ -553,6 +560,9 @@ bootstrapCME_PLR <- function(
     lambda_seq           = NULL,     # optional custom lambda sequence for glmnet
     reduce.dimension     = c("bspline","kernel"),
     bw                   = NULL,
+    bw.select            = "cv.min", # bandwidth rule for the kernel smoother
+    bw.se.mult           = 1,
+    bw.ess.min           = NULL,
     x.eval               = NULL,     # grid of X values for final CME curve
     xlim                 = NULL,     # PAD-001: optional user display window
     user_xlim_explicit   = FALSE,    # PAD-001: TRUE iff user explicitly passed xlim
@@ -587,6 +597,9 @@ bootstrapCME_PLR <- function(
     lambda_seq           = lambda_seq,
     reduce.dimension     = reduce.dimension,
     bw                   = bw,
+    bw.select            = bw.select,
+    bw.se.mult           = bw.se.mult,
+    bw.ess.min           = bw.ess.min,
     x.eval               = x.eval,
     xlim                 = xlim,
     user_xlim_explicit   = user_xlim_explicit,
