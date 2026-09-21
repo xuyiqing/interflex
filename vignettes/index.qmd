@@ -138,7 +138,7 @@ The following individuals and AI have contributed to **interflex**:
 -   [Jens Hainmueller](https://web.stanford.edu/~jhain/)
 -   [Jonathan Mummolo](https://www.jonathanmummolo.com/)
 -   [Tianzhu Qin](https://tianzhuqin.github.io/)
--   Jiehan Liu (Stanford)
+-   [Jiehan Liu](https://jiehanl.github.io/) (Stanford)
 -   Ziyi Liu (UC Berkeley)
 -   [StatsClaw](https://statsclaw.ai/) (Collaborative AI for Stats Packages)
 
