@@ -18,3 +18,4 @@
 ^tests/testthat/testthat-problems\.rds$
 ^tests/testthat/Rplots\.pdf$
 ^\.git$
+^\.github$
