@@ -13,7 +13,7 @@
   hist.color = c("gray50", "red"), hist.color.alpha = 0.3,
   density.color = c("gray50", "red"), density.color.alpha = 0.3,
   show.all = FALSE, show.uniform.CI = TRUE,
-  scale = 1.1, height = 7, width = 10,
+  scale = 1.1, height = 7, width = 10, preset = NULL,
   \dots)
 }
 \arguments{
@@ -56,6 +56,15 @@
   \item{density.color.alpha}{a numeric value in [0, 1] controlling the transparency of the density ribbons.}
   \item{show.all}{a logical flag specifying whether to return the plots for each kinds of treatment level. If setting to TRUE, the program will return a list of ggplot2 objects.}
   \item{show.uniform.CI}{a logical flag controlling whether the uniform (simultaneous) confidence band, if available on the fitted object, is overlaid on the pointwise band.}
+  \item{preset}{Optional presentation preset. Use \code{"publication"} for a
+  white background, prominent black zero reference, uncapped confidence bars,
+  compact legends, and larger axis labels (18 pt; tick labels 12 pt). Titles,
+  plot subtitles and captions are omitted; pooled treatment legends are retained.
+  The default y-axis label becomes \code{"Estimate"}. Default support colors are
+  gray, and pooled series use a grayscale palette. Explicit axis labels, size
+  controls, colors and coordinate limits remain available. \code{NULL} retains
+  the existing style. This option changes presentation only, not estimates or
+  confidence limits.}
   \item{scale}{Multiplicative scaling factor of printed graph.}
   \item{height}{Plot size (Height).}
   \item{width}{Plot size (Width).}
@@ -63,6 +72,14 @@
 }
 \details{
   \bold{plot.interflex} draws a margining effect plot based on a \bold{interflex} object after either binning model or kernel model is applied. It allows users to flexibly change the look of a plot without re-estimating the model, hence saving time. 
+}
+\examples{
+\dontrun{
+# Replot a fitted object without re-estimating it:
+plot(fit, preset = "publication", xlab = "Parental education")
+# Override default publication colors when needed:
+plot(fit, preset = "publication", line.color = "navy", CI.color = "gray50")
+}
 }
 \value{  
   \item{graph}{stores the graphic output, a \bold{ggplot2} object.}

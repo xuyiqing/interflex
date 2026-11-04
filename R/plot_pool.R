@@ -37,7 +37,16 @@ interflex.plot.pool <- function(
     file = NULL,
     scale = 1.1,
     height = 7,
-    width = 10) {
+    width = 10,
+    preset = NULL) {
+    publication <- .interflex_plot_preset(preset)
+    if (publication) {
+        main <- NULL
+        if (is.null(ylab)) ylab <- "Estimate"
+        if (is.null(cex.lab)) cex.lab <- 1.2
+        if (is.null(cex.axis)) cex.axis <- 0.8
+    }
+
     X <- NULL
     TE <- NULL
     Treatment <- NULL
@@ -675,6 +684,10 @@ interflex.plot.pool <- function(
     # get base.color & platte(for discrete data)
     requireNamespace("RColorBrewer")
     platte <- brewer.pal(n = 8, "Set2")
+    if (publication && is.null(color)) {
+        num.series <- if (treat.type == "discrete") length(other.treat) else length(label.name)
+        platte <- grDevices::gray.colors(max(2L, num.series), start = 0, end = 0.55)
+    }
 
     if (is.null(color)) {
         base.color <- "gray50"
@@ -1227,8 +1240,27 @@ interflex.plot.pool <- function(
         p1 <- p1 + coord_cartesian(xlim = .pad_xlim(xlim))
     }
 
+    if (publication) {
+        p1 <- .interflex_publication_plot(p1, axis.size = cex.lab, tick.size = cex.axis)
+        # Use the real estimate layers for an inset legend. The legacy legend
+        # carrier places a second panel on top of an inset legend and hides it.
+        if (show.subtitles) {
+            for (i in seq_along(p1$layers)) {
+                layer <- p1$layers[[i]]
+                if (inherits(layer$geom, "GeomLine") &&
+                    any(c("colour", "color") %in% names(layer$mapping))) {
+                    layer <- ggplot2::ggproto(NULL, layer)
+                    layer$show.legend <- TRUE
+                    p1$layers[[i]] <- layer
+                }
+            }
+            p1 <- p1 + ggplot2::guides(fill = "none", colour = ggplot2::guide_legend(
+                nrow = 1, override.aes = list(alpha = 1, linetype = 1, linewidth = 0.8)))
+        }
+    }
+
     # legend
-    if (show.subtitles) {
+    if (show.subtitles && !publication) {
         if (treat.type == "discrete") {
             p1_table <- ggplot_gtable(ggplot_build(p1))
             data.touse3 <- data.frame(X = rep(1, length(all.treat)), ymin = -1, ymax = 1, D = all.treat)

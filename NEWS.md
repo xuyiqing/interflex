@@ -2,6 +2,8 @@
 
 Development version, not yet on CRAN.
 
+- `plot(fit, preset = "publication")` provides an opt-in manuscript style with larger axis labels, a prominent zero line, uncapped confidence bars, subdued support graphics and no embedded titles or captions. Pooled plots use a grayscale default palette and compact legends. Explicit labels, colors and limits are retained; no estimates or intervals change.
+
 1. Boosting learners in the DML estimator (`model.y = "hgb"`, `model.t = "hgb"`) no longer flood the console with LightGBM's "No further splits with positive gain" warnings when no learner parameters are supplied.
 
 # interflex 1.4.1

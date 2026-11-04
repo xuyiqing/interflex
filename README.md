@@ -113,6 +113,18 @@ fit <- interflex(
 plot(fit, xlim = c(0.25, 1), ylim = c(-0.2, 0.6))
 ```
 
+For manuscript figures, replot an existing fit with a consistent publication style:
+
+```r
+plot(fit, preset = "publication", xlab = "Partisanship", ylab = "Estimate")
+```
+
+This optional preset removes embedded titles and captions, emphasizes zero,
+uses uncapped confidence bars and larger axis labels, and keeps support graphics
+in gray. The fitted estimates and confidence limits are unchanged. Pooled plots
+retain a compact treatment legend. Existing colors, labels and limits can still
+be overridden explicitly.
+
 The companion [user manual](https://yiqingxu.org/packages/interflex/) walks
 through every estimator, the diagnostic plots, multi-arm treatments,
 fixed-effect models, lasso and DML, discrete moderators, and the full set

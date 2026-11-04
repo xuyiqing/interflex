@@ -100,7 +100,19 @@ plot.interflex <- function(x,
                            scale = 1.1,
                            height = 7,
                            width = 10,
+                           preset = NULL,
                            ...) {
+    publication <- .interflex_plot_preset(preset)
+    if (publication) {
+        main <- NULL
+        if (!isTRUE(pool)) show.subtitles <- FALSE
+        if (is.null(ylab)) ylab <- "Estimate"
+        if (is.null(cex.lab)) cex.lab <- 1.2
+        if (is.null(cex.axis)) cex.axis <- 0.8
+        if (missing(hist.color)) hist.color <- c("gray75", "gray45")
+        if (missing(density.color)) density.color <- c("gray75", "gray45")
+    }
+
     y <- NULL
     xmin <- NULL
     xmax <- NULL
@@ -151,7 +163,11 @@ plot.interflex <- function(x,
             hist.color.alpha = hist.color.alpha,
             density.color = density.color,
             density.color.alpha = density.color.alpha,
-            file = file
+            file = file,
+            scale = scale,
+            height = height,
+            width = width,
+            preset = preset
         )
         return(p)
     }
@@ -167,6 +183,10 @@ plot.interflex <- function(x,
     ## downstream pipeline assumes those fields exist, so short-circuit by
     ## returning the stored figure directly.
     if (isTRUE(out$type == "raw") && !is.null(out$figure)) {
+        if (publication) {
+            return(.interflex_publication_plot(out$figure, axis.size = 15 * cex.lab,
+                                               tick.size = 15 * cex.axis, add.zero = FALSE))
+        }
         return(out$figure)
     }
 
@@ -1629,6 +1649,11 @@ plot.interflex <- function(x,
         cex.sub <- 12
     } else {
         cex.sub <- 12 * cex.sub
+    }
+
+    if (publication) {
+        p.group <- lapply(p.group, .interflex_publication_plot,
+                          axis.size = cex.lab, tick.size = cex.axis)
     }
 
     ## xlim and ylim
